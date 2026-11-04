@@ -168,7 +168,42 @@ other Dart backends and Flutter with hosted or local models. TanStack client
 interoperability must remain available; it must not dictate the native Dart API.
 A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 
-## Acceptance requirements still open
+## Current milestone: base framework
+
+Scope changed by the user on 2026-11-04: prioritize the base framework with
+OpenAI and Anthropic. Completing the other providers and every provider endpoint
+is deferred. Existing integrations remain available with their stated limits.
+
+Acceptance for this milestone:
+
+- Idiomatic native Dart generation, typed streaming and results, structured
+  output, tools, approvals, cancellation and safe errors. Preserve existing
+  TanStack client compatibility without requiring native callers to parse wire
+  event maps.
+- OpenAI and Anthropic support for the main application workflows: streamed
+  conversations, tool continuation, typed output, private replay, usage and
+  request cancellation. Validate supported options against pinned contracts and
+  fail explicitly for unsupported modes. Exhaustive API and specialized hosted
+  tool coverage are later work.
+- Serverpod authentication, owner isolation, PostgreSQL persistence, restored
+  approvals, reconnect and restart recipes with actual integration evidence.
+  Keep plain Dart and custom-provider extension contracts usable.
+- Independent developer consumers must run realistic scenarios, expose setup
+  and debugging friction, and verify fixes. Scores are evidence of the tested
+  journeys, not a substitute for resolving concrete findings.
+- Searchable GitHub Pages guides, runnable examples, coding-agent references,
+  migration instructions and honest capability limits. Verify published docs
+  against source and run checks on minimum and stable Dart SDKs.
+- Check release readiness separately from publication. No publication is implied
+  by completing implementation or passing CI.
+
+## Coverage inventory and later work
+
+The following inventory retains earlier requirements and known gaps. Provider
+breadth, specialized computer/hosted/MCP workflows, exhaustive field coverage and
+Flutter/local-model device certification do not block this base-framework
+milestone. Reliability of the workflows claimed by the base still does.
+
 
 - Independent developer agents must write and run consumer applications across
   multiple scenarios and score discoverability, clarity, type safety, debugging,
@@ -176,7 +211,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   or medium reasoning. The latest general offline review is 8.5/10. The native Anthropic transport path scored
   8.4/10 and its computer-tool path scored 7.8/10. The targeted Dart Frog and Ollama
   paths scored 8.0/10 and 7.8/10. Neither is an acceptance pass.
-- Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
+- Later: complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
   Vercel AI Gateway, and Cloudflare, with a documented custom-provider contract.
   Track each endpoint, nested parameter, tool/event union, query, header, cache
   option, and continuation behavior against a dated authoritative specification.
@@ -1665,6 +1700,22 @@ validation, the saved execution profile, declared fallback policies or uncertain
 native failure handling. The scoped score remains 8/10. The coordinating full
 suite separately passes 694 unit/regression tests and 38 actual PostgreSQL tests;
 these results do not increase the independent score to package-wide acceptance.
+
+## Round 31: Serverpod onboarding
+
+The independent developer wrote and ran
+`examples/review_cases/serverpod_onboarding.dart`. A recreated client attaches to
+a pending server-owned approval through `serverpodConnection` with a matching
+tool schema. It completes the answer with one effect after approval and zero
+before it. The probe uses in-process callbacks and `MemoryRunStore`; it does not
+test PostgreSQL, WebSockets or process restart.
+
+The developer found that the plain-Dart starting guide still directed streaming
+users only to `AiAgent.run` protocol events. The guide now introduces
+`AiAgent.stream`, `streamText` and the final typed result from the same execution,
+and links the runnable streaming recipe. Scoped onboarding DX remains **8/10**:
+matching schemas, persistence mode and `attach` are documented, but setup still
+spans several packages. This review does not establish full framework maturity.
 
 
 # Source: docs/architecture.md
@@ -9469,6 +9520,15 @@ clean it in `finally`; this run used an external-volume `TMPDIR` after the main
 disk ran out of space. No new paid provider request was made. Upstream PR #451's
 GitHub run currently requires maintainer action and has no executed jobs; the
 local SDK tests are separate evidence.
+
+## Serverpod onboarding consumer
+
+`dart run examples/review_cases/serverpod_onboarding.dart` passes offline. It
+checks client recreation, stored approval attachment, matching tool schemas and
+one effect after approval through the public connection helper. The store and
+callbacks are in-process, so PostgreSQL and network verification remain separate
+suite results. The independent developer rated this journey 8/10. The consumer
+is included in `tool/check.dart`.
 
 
 # Source: CONTRIBUTING.md

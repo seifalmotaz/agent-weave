@@ -113,6 +113,7 @@ Future<void> main() async {
     'openai_mcp',
     'anthropic_mcp',
     'support_app',
+    'serverpod_onboarding',
     'schema_diagnostics',
     'ollama',
     'dart_frog',
