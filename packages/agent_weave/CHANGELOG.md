@@ -1,5 +1,8 @@
 # Unreleased
 
+- Bind the entire ordered registered-tool profile with the model across unfinished turns. Older unfinished profiles without the registry require a new conversation; completed history is retained.
+- Add pure `ModelToolValidator` configuration checks and declared `NativeToolFallback` outcomes for provider-valid denial/skip without weakening computer-tool closure or uncertain-effect handling.
+
 - Add `AiAgent.stream`, `streamText` and sealed native `AgentUpdate` events with the typed result from the same execution, explicit run errors and cancellation cleanup. Preserve existing wire event clients.
 - Freeze nested JSON maps regardless of their Dart generic type, preserving exact Dart integers in tool result and other ownership snapshots.
 

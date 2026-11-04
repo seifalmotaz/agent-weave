@@ -24,15 +24,15 @@ and interoperability with the pinned official JavaScript client.
 The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
 SDK and the stable channel; inspect the run for the commit you use.
 
-- 611 Dart unit and regression tests: tool validation, approvals, client tools,
+- 694 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 31 Serverpod integration tests with a real isolated PostgreSQL database:
+- 38 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 26 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 28 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
   generation, provider-owned MCP approval/denial, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
   replay, and eight media/history cases, including ordered output images. The media cases include document
@@ -885,8 +885,9 @@ and freshly fetched upstream main `eed64e89576f9d977fb0cf7728d766cf898f079a`,
 including the merged cancellation fix. This is an upstream metadata gap, not a
 claim about actual remote effects. Local correlation IDs are not substituted.
 
-The streaming-error correction is submitted as
-[upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445).
+The streaming-error correction was approved and merged on 2026-11-04 as
+[upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445),
+commit `1396797bbd70ddfd0b40c975e9929128c279144e`.
 The additive `ApiException.requestId` reads server response metadata for typed
 Messages, raw POST/GET and default JSONL errors; it never substitutes a local
 correlation ID. Streaming metadata excludes body excerpts and unrelated headers,
@@ -1001,3 +1002,50 @@ interop suites, all contract checks and offline recipes. All three documentation
 checks and strict MkDocs build pass. Core Dartdoc reports zero warnings/errors.
 The earlier OpenRouter increment's GitHub minimum/stable CI and Pages deployment
 also finished successfully. No paid test was added for native streaming.
+
+## OpenAI custom text tools
+
+The selected direct custom-tool integration has offline fixtures for text and
+regex/Lark declarations, raw input, native output content and cache fields,
+namespace dispatch, strict stream correlation, exact private replay, selector
+validation and completed-history registration changes. DTO tests reject
+asynchronous and programmatic modes. Native fallbacks have tests for approval
+denial/cancellation, schema validation, mixed computer batches, unexpected errors
+and complete registry changes before any resumed effect. Legacy unfinished
+model-only profiles fail closed while retaining their original snapshots.
+
+Five new actual PostgreSQL integration cases use recreated agents and SDK
+loopback HTTP. They cover approved text/content results, denial, approval
+cancellation, and changed unrelated custom grammar/binding before an approved
+ordinary function. Three Dart-client restoration cases use a synthetic transport.
+Two official JavaScript-client cases use SDK loopback HTTP and verify native
+approval/denial, exact provider output, history privacy and effect counts.
+
+The custom contract projection records 21 roots and 31 declarations, with explicit
+unsupported or inventory-only dispositions. The 15 parser tests, frozen source
+check, executable Dart fixture and selected upstream projection check pass. These
+counts do not establish complete Responses support. The independent consumer
+scored the tested offline workflow 8/10. No paid call or real external effect was
+made, and the live CLI example was compiled only.
+
+The missing SDK custom-tool selector was reproduced on published 11.0.1 and
+upstream main `6e1e5313ae5bb24b5f61443acc8f69ce19f051e7`. The narrow correction
+is [upstream PR #451](https://github.com/davidmigloz/ai_clients_dart/pull/451).
+Independent review found no blocking issue. The patched SDK's full offline unit
+suite passes 25,898 tests with three skipped, with provider credentials unset.
+Tests used an isolated sparse checkout and a previously resolved package
+configuration; normal-workspace CI remains a separate check. Adding a sealed
+choice variant requires downstream exhaustive switches to handle it. AgentWeave
+still uses the published SDK and rejects this selector in typed mode with a
+message recommending its native transport.
+
+Final round 30 coordinating verification: `dart run tool/check.dart` passes all
+694 unit/regression tests, 38 PostgreSQL/Serverpod tests, 28 standalone official
+JavaScript-client scenarios, four Dart Frog scenarios, all contract checks and
+offline recipes. The live CLI examples compile without execution. The three
+documentation checks and strict MkDocs build pass; core and OpenAI Dartdoc dry
+runs report zero warnings/errors. Compile checks reuse one temporary output and
+clean it in `finally`; this run used an external-volume `TMPDIR` after the main
+disk ran out of space. No new paid provider request was made. Upstream PR #451's
+GitHub run currently requires maintainer action and has no executed jobs; the
+local SDK tests are separate evidence.

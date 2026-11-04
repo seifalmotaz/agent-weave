@@ -60,6 +60,7 @@ final class AiAgent<C> {
     }
     for (final tool in this.tools) {
       validateToolDefinition(tool.definition, tool.outputSchema);
+      if (tool is NativeToolFallback<C>) _nativeFallbackContract(tool);
       if (tool.clientExecuted && tool.definition is NativeModelTool) {
         throw UnsupportedError(
           'Client-executed native tools are not supported.',
@@ -72,6 +73,11 @@ final class AiAgent<C> {
     }
     if (outputSchema != null && !model.capabilities.structuredOutput) {
       throw ArgumentError('The model does not support structured output.');
+    }
+    if (model is ModelToolValidator) {
+      (model as ModelToolValidator).validateTools(
+        this.tools.map((tool) => tool.definition),
+      );
     }
   }
 
@@ -273,13 +279,18 @@ final class AiAgent<C> {
           (snapshot['kind'] as String).isEmpty) {
         throw const FormatException('Invalid model continuation contract.');
       }
-      return immutableJson(snapshot);
+      return immutableJson({
+        'v': 1,
+        'kind': 'agent_execution',
+        'model': snapshot,
+        'tools': [for (final tool in tools) _toolContract(tool)],
+      });
     }
 
     void checkModelContract() {
       if (!jsonEquals(modelContinuationContract, currentModelContract())) {
         throw const _ToolContractException(
-          'Model configuration changed. Start a new conversation.',
+          'Execution configuration changed. Start a new conversation.',
         );
       }
     }
@@ -660,7 +671,10 @@ final class AiAgent<C> {
         final call = ToolCall.fromJson(
           Map<String, Object?>.from(item['call'] as Map),
         );
-        if (call is! NativeToolCall) return false;
+        if (call is! NativeToolCall ||
+            _tool(call.name) is NativeToolFallback<C>) {
+          return false;
+        }
         final answer = request.resume.singleWhere(
           (r) => r.interruptId == item['id'],
         );
@@ -730,7 +744,13 @@ final class AiAgent<C> {
         );
         final answer = resolution.cancelled ? false : resolution.value;
         Object? result;
-        if (tool.clientExecuted) {
+        if (resolution.cancelled &&
+            call is NativeToolCall &&
+            tool is NativeToolFallback<C>) {
+          result =
+              ((item['toolContract'] as Map)['nativeFallbacks']
+                  as Map)['cancelled'];
+        } else if (tool.clientExecuted) {
           result = resolution.cancelled
               ? {'error': 'Client tool was cancelled.'}
               : answer;
@@ -759,7 +779,10 @@ final class AiAgent<C> {
               approved: true,
             );
           } else {
-            result = {'error': 'Tool execution was declined.'};
+            result = call is NativeToolCall && tool is NativeToolFallback<C>
+                ? ((item['toolContract'] as Map)['nativeFallbacks']
+                      as Map)['declined']
+                : {'error': 'Tool execution was declined.'};
           }
         }
         final outcome = AgentToolResult(call: call, result: result);
@@ -1444,6 +1467,9 @@ final class AiAgent<C> {
       if (call is NativeToolCall && tool is SequentialNativeTool<C>) {
         return tool.skippedResult();
       }
+      if (call is NativeToolCall && tool is NativeToolFallback<C>) {
+        return _nativeFallbackContract(tool)['skipped'];
+      }
       if (call is FunctionToolCall) {
         return {
           'error':
@@ -1547,12 +1573,29 @@ JsonObject _toolContract<C>(AgentTool<C> tool) {
     'clientExecuted': tool.clientExecuted,
     'needsApproval': tool.needsApproval,
     'sequential': tool is SequentialNativeTool<C>,
+    if (tool is NativeToolFallback<C>)
+      'nativeFallbacks': _nativeFallbackContract(tool),
     if (definition is NativeModelTool) ...{
       'provider': definition.provider,
       'bindingId': definition.bindingId,
       'definition': definition.definition,
     },
   });
+}
+
+JsonObject _nativeFallbackContract<C>(NativeToolFallback<C> tool) {
+  final values = {
+    'declined': tool.declinedResult(cancelled: false),
+    'cancelled': tool.declinedResult(cancelled: true),
+    'skipped': tool.skippedResult(),
+  };
+  jsonEncode(values);
+  if (tool.outputSchema case final schema?) {
+    for (final value in values.values) {
+      validateSchema(schema, value);
+    }
+  }
+  return immutableJson(values);
 }
 
 final class _ToolContractException extends FormatException {

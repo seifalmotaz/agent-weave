@@ -34,6 +34,51 @@ Future<void> main() async {
         jsonDecode(await utf8.decoder.bind(request).join())
             as Map<String, dynamic>;
     providerRequests.add(body);
+    if (body['model'] == 'custom-fixture') {
+      final hasResult = (body['input'] as List).any(
+        (item) => item is Map && item['type'] == 'custom_tool_call_output',
+      );
+      final output = hasResult
+          ? <JsonObject>[
+              {
+                'id': 'custom-answer',
+                'type': 'message',
+                'role': 'assistant',
+                'status': 'completed',
+                'content': [
+                  {
+                    'type': 'output_text',
+                    'text': 'Custom complete',
+                    'annotations': <Object?>[],
+                  },
+                ],
+              },
+            ]
+          : <JsonObject>[
+              {
+                'id': 'custom-item',
+                'type': 'custom_tool_call',
+                'status': 'completed',
+                'call_id': 'custom-call',
+                'name': 'lookup',
+                'namespace': 'support',
+                'input': 'TICKET-42',
+                'private_future': 'PRIVATE-CUSTOM-REPLAY',
+              },
+            ];
+      request.response.headers.contentType = ContentType(
+        'text',
+        'event-stream',
+      );
+      request.response.write(
+        'data: ${jsonEncode({
+          'type': 'response.completed',
+          'response': {'id': 'custom-response', 'object': 'response', 'created_at': 0, 'status': 'completed', 'model': 'custom-fixture', 'output': output},
+        })}\n\ndata: [DONE]\n\n',
+      );
+      await request.response.close();
+      return;
+    }
     final decisions = (body['input'] as List)
         .whereType<Map<dynamic, dynamic>>()
         .where((item) => item['type'] == 'mcp_approval_response')
@@ -123,6 +168,32 @@ Future<void> main() async {
         }),
       ],
     ),
+  );
+  var customEffects = 0;
+  final customAgent = AiAgent<void>(
+    model: openai.OpenAIResponsesModel.native(
+      client: mcpClient,
+      model: 'custom-fixture',
+    ),
+    tools: [
+      openai.OpenAICustomTool<void>(
+        name: 'lookup',
+        localName: 'ticket_lookup',
+        bindingId: 'interop-tickets',
+        namespace: openai.OpenAIToolNamespace(
+          name: 'support',
+          description: 'Ticket lookup',
+        ),
+        needsApproval: true,
+        execute: (input, context) {
+          if (input != 'TICKET-42') {
+            return openai.OpenAICustomToolResult.error('Unknown ticket');
+          }
+          customEffects++;
+          return openai.OpenAICustomToolResult.text('Ticket 42 is open');
+        },
+      ),
+    ],
   );
   final refEffects = <int>[];
   final agent = AiAgent<void>(
@@ -309,6 +380,18 @@ Future<void> main() async {
         request.response.write(jsonEncode(providerRequests));
         continue;
       }
+      if (request.method == 'GET' && request.uri.path == '/custom-state') {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'effects': customEffects,
+            'requests': providerRequests
+                .where((body) => body['model'] == 'custom-fixture')
+                .toList(),
+          }),
+        );
+        continue;
+      }
       if (request.method == 'GET' && request.uri.path == '/ref-state') {
         request.response.headers.contentType = ContentType.json;
         request.response.write(jsonEncode(refEffects));
@@ -331,6 +414,7 @@ Future<void> main() async {
             '/citations-history',
             '/structured-history',
             '/native-history',
+            '/custom-history',
             '/mixed-history',
             '/mcp-history',
             '/mcp',
@@ -346,6 +430,8 @@ Future<void> main() async {
                       ? mcpAgent
                       : request.uri.path == '/citations-history'
                       ? citationsAgent
+                      : request.uri.path == '/custom-history'
+                      ? customAgent
                       : request.uri.path == '/native-history'
                       ? nativeAgent
                       : request.uri.path == '/mixed-history'
@@ -387,7 +473,9 @@ Future<void> main() async {
             );
       } else {
         source =
-            (request.uri.path == '/mcp'
+            (request.uri.path == '/custom'
+                    ? customAgent
+                    : request.uri.path == '/mcp'
                     ? mcpAgent
                     : request.uri.path == '/media'
                     ? mediaAgent

@@ -84,6 +84,7 @@ nav:
       - OpenAI computer use: computer-use.md
       - OpenAI capabilities: openai.md
       - OpenAI hosted tools: openai-hosted.md
+      - OpenAI custom text tools: openai-custom-tools.md
       - OpenAI MCP approvals: openai-mcp.md
       - OpenRouter: openrouter.md
       - OpenRouter Chat images: openrouter-images.md
@@ -113,6 +114,7 @@ nav:
       - OpenRouter API inventory: openrouter-api-reference.md
       - Computer protocol fields: computer-parameters.md
       - OpenAI hosted fields: openai-hosted-parameters.md
+      - OpenAI custom tool fields: openai-custom-parameters.md
       - Anthropic request fields: anthropic-parameters.md
       - Anthropic computer fields: anthropic-computer-parameters.md
       - Anthropic MCP fields: anthropic-mcp-parameters.md

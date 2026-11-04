@@ -100,3 +100,17 @@ execution kind. Recreated agents must preserve it. Older checkpoints without
 this snapshot require a new conversation; their history remains readable.
 See [approval contracts](approval-contracts.md) for recovery and custom-store
 migration. Public client schema hashes remain a separate wire contract.
+
+## Native text tools and declared fallbacks
+
+Use [OpenAI custom text tools](openai-custom-tools.md) for raw string input and
+native text/image/file output. These use `NativeToolCall` and approval-only
+responses; their grammar does not replace application validation or authorization.
+
+Provider authors can implement `NativeToolFallback<C>` to declare pure denial,
+cancelled-approval and skipped results. Core validates these values against the
+output schema and binds them into the private tool profile. Only an explicit
+fallback can continue a rejected native call. Unknown execution exceptions and
+caller cancellation still close the native continuation; no fallback implies
+rollback or permission to repeat an external effect. Existing computer tools
+retain their screenshot and closed-continuation requirements.

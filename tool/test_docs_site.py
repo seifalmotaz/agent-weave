@@ -44,6 +44,9 @@ class DocumentationTest(unittest.TestCase):
         guide = (ROOT / 'docs/native-streaming.md').read_text()
         sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
         self.assertEqual(sample, (ROOT / 'examples/native_streaming.dart').read_text())
+        guide = (ROOT / 'docs/openai-custom-tools.md').read_text()
+        sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
+        self.assertEqual(sample, (ROOT / 'examples/openai_custom_demo.dart').read_text())
 
     def test_canonical_links_keep_fragments_and_external_urls(self):
         text = ('[Update](docs/updating.md#releases) '
@@ -61,7 +64,7 @@ class DocumentationTest(unittest.TestCase):
                          'getting-started/dart/index.html', 'tools/index.html', 'offline-support/index.html', 'openai-mcp/index.html',
                          'anthropic-mcp/index.html', 'anthropic-mcp-parameters/index.html',
                          'anthropic-mcp-inventory.json', 'providers/index.html', 'compatibility/index.html', 'approval-contracts/index.html',
-                         'native-streaming/index.html', 'documents/index.html', 'citations/index.html', 'output-references/index.html', 'openrouter/index.html', 'openrouter-images/index.html', 'openrouter-image-api/index.html',
+                         'native-streaming/index.html', 'openai-custom-tools/index.html', 'openai-custom-parameters/index.html', 'openai-custom-inventory.json', 'documents/index.html', 'citations/index.html', 'output-references/index.html', 'openrouter/index.html', 'openrouter-images/index.html', 'openrouter-image-api/index.html',
                          'openai-hosted/index.html', 'openai-hosted-parameters/index.html', 'openai-hosted-inventory.json',
                          'together/index.html', 'together-options/index.html', 'together-chat-inventory.json',
                          'vercel-gateway/index.html', 'gateway-options/index.html', 'gateway-options-inventory.json',
@@ -84,6 +87,11 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('Tool.ImageGeneration', hosted['declarations'])
             self.assertIn('tools/', locations)
             self.assertIn('native-streaming/', locations)
+            self.assertIn('openai-custom-tools/', locations)
+            self.assertIn('openai-custom-parameters/', locations)
+            custom = json.loads((target / 'openai-custom-inventory.json').read_text())
+            self.assertIn('ResponseCustomToolCall', custom['declarations']['responses'])
+            self.assertIn('CustomToolInputFormat.Grammar', custom['declarations']['shared'])
             self.assertIn('offline-support/', locations)
             self.assertIn('openai-mcp/', locations)
             self.assertIn('approval-contracts/', locations)

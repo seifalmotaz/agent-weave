@@ -75,6 +75,11 @@ Future<void> main() async {
     'tool/interop/openai-hosted-inventory.test.mjs',
   ]);
   await run('node', ['tool/interop/openai-hosted-inventory.mjs', '--check']);
+  await run('node', [
+    '--test',
+    'tool/interop/openai-custom-inventory.test.mjs',
+  ]);
+  await run('node', ['tool/interop/openai-custom-inventory.mjs', '--check']);
   await run('dart', ['run', 'tool/computer_contract.dart']);
   await run('node', ['--test', 'tool/interop/computer-inventory.test.mjs']);
   await run('node', ['tool/interop/computer-inventory.mjs', '--check']);
@@ -118,6 +123,7 @@ Future<void> main() async {
     'openrouter_images',
     'openrouter_image_api',
     'native_streaming',
+    'openai_custom',
     'cloudflare_streaming',
     'openai_hosted',
     'openai_references',
@@ -189,20 +195,26 @@ Future<void> main() async {
     'run',
     'examples/review_cases/cloudflare.dart',
   ]);
-  await run('dart', [
-    'compile',
-    'kernel',
-    'examples/openrouter_image_api_demo.dart',
-    '-o',
-    '.dart_tool/openrouter_image_api_demo.dill',
-  ]);
-  await run('dart', [
-    'compile',
-    'kernel',
-    'examples/anthropic_mcp_demo.dart',
-    '-o',
-    '.dart_tool/anthropic_mcp_demo.dill',
-  ]);
+  final compiled = await Directory.systemTemp.createTemp(
+    'agent-weave-examples-',
+  );
+  try {
+    for (final example in [
+      'examples/openai_custom_demo.dart',
+      'examples/openrouter_image_api_demo.dart',
+      'examples/anthropic_mcp_demo.dart',
+    ]) {
+      await run('dart', [
+        'compile',
+        'kernel',
+        example,
+        '-o',
+        '${compiled.path}/example.dill',
+      ]);
+    }
+  } finally {
+    await compiled.delete(recursive: true);
+  }
   await run('python3', ['tool/test_media_fixtures.py']);
   await run('python3', ['tool/test_audit_openai.py']);
   await run('python3', ['tool/test_cloudflare_contract.py']);

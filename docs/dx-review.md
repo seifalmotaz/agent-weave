@@ -798,3 +798,32 @@ append. The stored tool message and wire event retained the original value,
 but the new native event initially copied the later mutation. The runtime now
 snapshots the outcome before the first storage await and reuses that value for
 history, the journal and the native update. The original regression passes.
+
+## Round 30: OpenAI custom text tools
+
+The independent developer's baseline scored this workflow **2/10** because an
+SDK custom-call type did not provide an agent lifecycle. The current scoped
+offline score is **8/10**. The tracked
+`examples/review_cases/openai_custom.dart` uses the public SDK with MockClient,
+recreates agents with one store, and runs approval, denial and locally rejected
+input. It verifies raw string input, native custom outputs, exact private replay
+and zero effects before approval. The matching live CLI example was analyzed and
+compiled only.
+
+A completed-history probe found that removing or renaming a custom tool broke a
+new user turn. The corrected adapter replays resolved historical calls by their
+private native identity. Removed tools, changed aliases, changed bindings and a
+replacement function all pass the original probe without reexecuting old calls.
+Unfinished approvals remain bound to the full ordered registry and model profile.
+
+The developer also ran three Dart-client restoration cases: approve, reject and
+cancel after disposing and recreating the client. These use a synthetic native
+transport. Separate coordinating tests exercise actual SDK HTTP, PostgreSQL and
+the official JavaScript client. None of these fixtures establishes live grammar
+acceptance, model availability, external effect safety or provider billing.
+
+The final independent safety review found no blocking issue in complete-batch
+validation, the saved execution profile, declared fallback policies or uncertain
+native failure handling. The scoped score remains 8/10. The coordinating full
+suite separately passes 694 unit/regression tests and 38 actual PostgreSQL tests;
+these results do not increase the independent score to package-wide acceptance.

@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:openai_dart/openai_dart.dart' as api;
 import 'computer_tool.dart';
+import 'custom_tool.dart';
+import 'custom_output.dart';
 import 'hosted_tool.dart';
 import 'mcp_tool.dart';
 import 'mcp_output.dart';
@@ -11,7 +13,10 @@ import 'platform_api.dart';
 
 /// Caller owns [client] and closes it when the application shuts down.
 final class OpenAIResponsesModel
-    implements ProviderApprovalModel, ModelContinuationContract {
+    implements
+        ProviderApprovalModel,
+        ModelContinuationContract,
+        ModelToolValidator {
   final api.OpenAIClient client;
   final String model;
   final api.CreateResponseRequest Function(api.CreateResponseRequest)?
@@ -107,6 +112,9 @@ final class OpenAIResponsesModel
   @override
   JsonObject get continuationContract => _delegate.continuationContract;
   @override
+  void validateTools(Iterable<ModelTool> tools) =>
+      _delegate.validateTools(tools);
+  @override
   JsonObject approvalContract(ProviderApprovalCall call) =>
       _delegate.approvalContract(call);
   @override
@@ -125,7 +133,17 @@ _typedResponsesTransport(
   bool preservesManagedTools,
 ) => (body, token) {
   final request = _responseRequest(body);
-  if (preservesManagedTools && !jsonEquals(request.toJson(), body)) {
+  final nativeCustom =
+      (body['tools'] as List? ?? []).any(
+        (v) => v is Map && {'custom', 'namespace'}.contains(v['type']),
+      ) ||
+      (body['input'] as List? ?? []).any(
+        (v) =>
+            v is Map &&
+            {'custom_tool_call', 'custom_tool_call_output'}.contains(v['type']),
+      );
+  if ((preservesManagedTools || nativeCustom) &&
+      !jsonEquals(request.toJson(), body)) {
     throw UnsupportedError(
       'Typed transport cannot preserve these options. Use ResponsesProtocolModel.native.',
     );
@@ -237,10 +255,14 @@ void _validateAuthority(
 
 /// Responses serialization and normalization, shared by explicit protocol adapters.
 final class ResponsesProtocolModel
-    implements ProviderApprovalModel, ModelContinuationContract {
+    implements
+        ProviderApprovalModel,
+        ModelContinuationContract,
+        ModelToolValidator {
   final String model;
   final Stream<JsonObject> Function(JsonObject, CancellationToken) _transport;
   final JsonObject Function(JsonObject)? _configure;
+  final bool _typedTransport;
   final String providerDataKey;
   final String? fileIdProvider;
   final bool includeEncryptedReasoning;
@@ -278,7 +300,7 @@ final class ResponsesProtocolModel
     String? authorityBindingId,
     JsonObject options = const {},
     Map<String, JsonObject> functionToolOptions = const {},
-  }) : this.native(
+  }) : this._(
          model: model,
          transport: _typedResponsesTransport(
            transport,
@@ -296,9 +318,39 @@ final class ResponsesProtocolModel
          authorityBindingId: authorityBindingId,
          options: options,
          functionToolOptions: functionToolOptions,
+         typedTransport: true,
        );
 
   ResponsesProtocolModel.native({
+    required String model,
+    required Stream<JsonObject> Function(JsonObject, CancellationToken)
+    transport,
+    JsonObject Function(JsonObject)? configure,
+    String providerDataKey = 'openai.responses',
+    String? fileIdProvider = 'openai',
+    bool includeEncryptedReasoning = true,
+    List<OpenAIHostedTool> hostedTools = const [],
+    List<OpenAIMcpTool> mcpTools = const [],
+    Object? toolChoice,
+    String? authorityBindingId,
+    JsonObject options = const {},
+    Map<String, JsonObject> functionToolOptions = const {},
+  }) : this._(
+         model: model,
+         transport: transport,
+         configure: configure,
+         providerDataKey: providerDataKey,
+         fileIdProvider: fileIdProvider,
+         includeEncryptedReasoning: includeEncryptedReasoning,
+         hostedTools: hostedTools,
+         mcpTools: mcpTools,
+         toolChoice: toolChoice,
+         authorityBindingId: authorityBindingId,
+         options: options,
+         functionToolOptions: functionToolOptions,
+       );
+
+  ResponsesProtocolModel._({
     required this.model,
     required Stream<JsonObject> Function(JsonObject, CancellationToken)
     transport,
@@ -312,6 +364,7 @@ final class ResponsesProtocolModel
     this.authorityBindingId,
     JsonObject options = const {},
     Map<String, JsonObject> functionToolOptions = const {},
+    this._typedTransport = false,
   }) : functionToolOptions = _functionOptions(functionToolOptions),
        options = _responsesOptions(options),
        // Public parameter names are stable; transport ownership stays internal.
@@ -373,6 +426,82 @@ final class ResponsesProtocolModel
   );
 
   @override
+  void validateTools(Iterable<ModelTool> tools) {
+    final list = tools.toList();
+    final registry = CustomRegistry(list, providerDataKey);
+    if (registry.byAlias.isNotEmpty && _configure != null) {
+      throw ArgumentError(
+        'Custom tools require immutable options instead of configure.',
+      );
+    }
+    final names = list.map((tool) => tool.name).toList();
+    if (names.toSet().length != names.length) {
+      throw ArgumentError('Duplicate tool alias.');
+    }
+    final functionNames = list
+        .whereType<FunctionModelTool>()
+        .map((tool) => tool.name)
+        .toSet();
+    if (functionToolOptions.keys.any((name) => !functionNames.contains(name))) {
+      throw ArgumentError('Function options must name a registered function.');
+    }
+    final definitions = registry.wireTools(list.whereType<NativeModelTool>());
+    final registeredDefinitions = <JsonObject>[
+      for (final t in hostedTools) t.definition,
+      for (final t in mcpTools) t.definition,
+      ...definitions,
+      for (final t in list.whereType<FunctionModelTool>())
+        {
+          'type': 'function',
+          'name': t.name,
+          'description': t.description,
+          'parameters': t.inputSchema,
+          'strict': false,
+          ...?functionToolOptions[t.name],
+        },
+    ];
+    _responseHostedTools(
+      {'tools': registeredDefinitions, 'tool_choice': ?toolChoice},
+      list,
+      mcpTools: mcpTools,
+    );
+    if (_typedTransport && registry.byAlias.isNotEmpty) {
+      final preflight = <String, Object?>{
+        ...options,
+        'model': model,
+        'input': <Object?>[],
+        'store': false,
+        'tools': registeredDefinitions,
+        'tool_choice': ?toolChoice,
+        'max_output_tokens': 1024,
+        if (options['include'] != null || includeEncryptedReasoning)
+          'include': {
+            ...?options['include'] as List?,
+            if (includeEncryptedReasoning) 'reasoning.encrypted_content',
+          }.toList(),
+      };
+      final api.CreateResponseRequest typed;
+      try {
+        typed = _responseRequest(preflight);
+      } on FormatException catch (error) {
+        if (toolChoice is Map &&
+            (toolChoice as Map)['type'] == 'custom' &&
+            error.message == 'Unknown ResponseToolChoice type: custom') {
+          throw UnsupportedError(
+            'The typed SDK cannot represent a named custom tool choice. Use ResponsesProtocolModel.native.',
+          );
+        }
+        rethrow;
+      }
+      if (!jsonEquals(typed.toJson(), preflight)) {
+        throw UnsupportedError(
+          'Typed transport cannot preserve custom tool options. Use ResponsesProtocolModel.native.',
+        );
+      }
+    }
+  }
+
+  @override
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
@@ -392,26 +521,19 @@ final class ResponsesProtocolModel
         'OpenAI hosted tools require the OpenAI protocol namespace.',
       );
     }
+    validateTools(request.tools);
     final nativeTools = request.tools.whereType<NativeModelTool>().toList();
-    if (nativeTools.any(
-          (tool) =>
-              providerDataKey != 'openai.responses' ||
-              tool.provider != 'openai.responses' ||
-              tool.bindingId == null ||
-              !{
-                'computer',
-                'computer_use_preview',
-              }.contains(tool.definition['type']),
-        ) ||
-        nativeTools.length > 1) {
-      throw UnsupportedError(
-        'Unsupported native Responses tool configuration.',
-      );
-    }
+    final registry = CustomRegistry(request.tools, providerDataKey);
     final nativeCalls = <String, NativeToolCall>{};
+    final customCalls = <String>{};
     final input = <JsonObject>[];
     final mcpHistory = McpHistory(mcpTools, request.providerApprovalDecisions);
-    for (final message in request.messages) {
+    for (
+      var messageIndex = 0;
+      messageIndex < request.messages.length;
+      messageIndex++
+    ) {
+      final message = request.messages[messageIndex];
       if (message.role == MessageRole.tool) {
         final call = nativeCalls[message.toolCallId];
         if (call == null) {
@@ -419,6 +541,21 @@ final class ResponsesProtocolModel
             'type': 'function_call_output',
             'call_id': message.toolCallId,
             'output': message.text,
+          });
+        } else if (customCalls.contains(call.id)) {
+          final decoded = jsonDecode(message.text);
+          if (decoded is! Map<String, Object?>) {
+            throw const FormatException('Invalid custom tool result.');
+          }
+          final result = OpenAICustomToolResult.fromJson(decoded);
+          final nativeResult = result.toJson();
+          input.add({
+            'type': 'custom_tool_call_output',
+            'call_id': call.id,
+            'output': result.output,
+            if (nativeResult.containsKey('id')) 'id': nativeResult['id'],
+            if (nativeResult.containsKey('caller'))
+              'caller': nativeResult['caller'],
           });
         } else {
           final original = OpenAIComputerCall.fromJson(call.arguments);
@@ -465,31 +602,77 @@ final class ResponsesProtocolModel
         }
         continue;
       }
-      for (final call in message.toolCalls.whereType<NativeToolCall>()) {
-        if (call.provider != 'openai.responses' ||
-            providerDataKey != 'openai.responses' ||
-            nativeTools.length != 1 ||
-            nativeTools.single.name != call.name ||
-            nativeCalls.containsKey(call.id)) {
-          throw const FormatException('Invalid native computer call history.');
-        }
-        nativeCalls[call.id] = call;
-      }
       final replay = message.providerData[providerDataKey];
       if (replay != null && replay.isNotEmpty) {
         for (final call in message.toolCalls.whereType<NativeToolCall>()) {
-          if (replay
-                  .where(
-                    (item) =>
-                        item['type'] == 'computer_call' &&
-                        jsonEquals(
-                          OpenAIComputerCall.fromJson(item).raw,
-                          call.arguments,
-                        ),
-                  )
-                  .length !=
-              1) {
-            throw const FormatException('Computer replay does not match call.');
+          if (call.provider != 'openai.responses' ||
+              providerDataKey != 'openai.responses' ||
+              nativeCalls.containsKey(call.id)) {
+            throw const FormatException('Invalid native call history.');
+          }
+          final customItems = replay
+              .where(
+                (item) =>
+                    item['type'] == 'custom_tool_call' &&
+                    item['call_id'] == call.id,
+              )
+              .toList();
+          if (customItems.isNotEmpty) {
+            if (customItems.length != 1) {
+              throw const FormatException('Duplicate custom replay.');
+            }
+            final custom = OpenAICustomCall.fromJson(customItems.single);
+            if (!jsonEquals(call.arguments, {'input': custom.input})) {
+              throw const FormatException('Custom replay does not match call.');
+            }
+            final allResults = request.messages
+                .where(
+                  (m) => m.role == MessageRole.tool && m.toolCallId == call.id,
+                )
+                .length;
+            final results = request.messages
+                .skip(messageIndex + 1)
+                .where(
+                  (m) => m.role == MessageRole.tool && m.toolCallId == call.id,
+                )
+                .length;
+            if (results > 1 || results != allResults) {
+              throw const FormatException('Invalid custom tool result order.');
+            }
+            if (results == 0 &&
+                registry.resolve(custom.namespace, custom.name).name !=
+                    call.name) {
+              throw const FormatException(
+                'Unresolved custom tool identity changed.',
+              );
+            }
+            customCalls.add(call.id);
+          } else {
+            final matching = replay
+                .where(
+                  (item) =>
+                      item['type'] == 'computer_call' &&
+                      jsonEquals(
+                        OpenAIComputerCall.fromJson(item).raw,
+                        call.arguments,
+                      ),
+                )
+                .length;
+            if (registry.computer?.name != call.name || matching != 1) {
+              throw const FormatException(
+                'Computer replay does not match call.',
+              );
+            }
+          }
+          nativeCalls[call.id] = call;
+        }
+        for (final item in replay.where(
+          (item) => item['type'] == 'custom_tool_call',
+        )) {
+          if (!message.toolCalls.whereType<NativeToolCall>().any(
+            (call) => call.id == item['call_id'],
+          )) {
+            throw const FormatException('Native replay does not match call.');
           }
         }
         input.addAll(mcpHistory.replay(message, replay));
@@ -553,6 +736,37 @@ final class ResponsesProtocolModel
     if (functionToolOptions.keys.any((name) => !functionNames.contains(name))) {
       throw ArgumentError('Function options must name a registered function.');
     }
+    final groupedNative = registry.wireTools(nativeTools);
+    final emittedNamespaces = <String>{};
+    final localDefinitions = <JsonObject>[];
+    for (final tool in request.tools) {
+      if (tool is FunctionModelTool) {
+        localDefinitions.add({
+          'type': 'function',
+          'name': tool.name,
+          'description': tool.description,
+          'parameters': tool.inputSchema,
+          'strict': false,
+          ...?functionToolOptions[tool.name],
+        });
+      } else if (tool is NativeModelTool) {
+        final namespace = tool.definition['type'] == 'namespace'
+            ? tool.definition['name'] as String
+            : null;
+        if (namespace != null) {
+          if (emittedNamespaces.add(namespace)) {
+            localDefinitions.add(
+              groupedNative.singleWhere(
+                (item) =>
+                    item['type'] == 'namespace' && item['name'] == namespace,
+              ),
+            );
+          }
+        } else {
+          localDefinitions.add(tool.definition);
+        }
+      }
+    }
     final canonical = immutableJson({
       ...this.options,
       'model': model,
@@ -572,18 +786,7 @@ final class ResponsesProtocolModel
         'tools': [
           for (final tool in hostedTools) tool.definition,
           for (final tool in mcpTools) tool.definition,
-          for (final tool in request.tools)
-            switch (tool) {
-              NativeModelTool() => tool.definition,
-              FunctionModelTool() => {
-                'type': 'function',
-                'name': tool.name,
-                'description': tool.description,
-                'parameters': tool.inputSchema,
-                'strict': false,
-                ...?functionToolOptions[tool.name],
-              },
-            },
+          ...localDefinitions,
         ],
       if (request.outputSchema != null)
         'text': {
@@ -630,8 +833,8 @@ final class ResponsesProtocolModel
         )
         .length;
     if (configuredComputers > 1 ||
-        (configuredComputers != 0 && nativeTools.isEmpty) ||
-        (nativeTools.isNotEmpty && configuredComputers != 1)) {
+        (configuredComputers != 0 && registry.computer == null) ||
+        (registry.computer != null && configuredComputers != 1)) {
       throw ArgumentError(
         'Exactly one registered computer profile is allowed.',
       );
@@ -668,6 +871,7 @@ final class ResponsesProtocolModel
     final completedItems = <JsonObject>[];
     final doneCalls = <String, FunctionToolCall>{};
     final doneComputers = <String>{};
+    final customProgress = CustomStreamTracker();
     String? actualModel;
     final streamedText = StringBuffer();
     final references = ResponsesReferences();
@@ -686,6 +890,7 @@ final class ResponsesProtocolModel
       }
       if (providerDataKey == 'openai.responses') references.observe(json);
       mcpOutput.observe(json);
+      customProgress.observe(json);
       switch (json['type']) {
         case 'response.output_text.delta' || 'response.refusal.delta':
           final text = json['delta'] as String;
@@ -706,7 +911,7 @@ final class ResponsesProtocolModel
             doneCalls[call.id] = call;
           }
           if (item['type'] == 'computer_call') {
-            if (nativeTools.length != 1) {
+            if (registry.computer == null) {
               throw UnsupportedError(
                 'Computer call requires a registered native continuation handler.',
               );
@@ -746,6 +951,7 @@ final class ResponsesProtocolModel
               (item) => {
                 'function_call',
                 'computer_call',
+                'custom_tool_call',
                 'mcp_approval_request',
               }.contains(item['type']),
             ) ||
@@ -756,6 +962,7 @@ final class ResponsesProtocolModel
       );
     }
     mcpOutput.finish(output, completed: !incomplete);
+    customProgress.finish(output);
     final calls = <ToolCall>[];
     final seen = <String>{};
     final functionIds = <String>{}, computerIds = <String>{};
@@ -781,7 +988,7 @@ final class ResponsesProtocolModel
         }
         calls.add(call);
       } else if (type == 'computer_call') {
-        if (nativeTools.length != 1) {
+        if (registry.computer == null) {
           throw UnsupportedError(
             'Computer call requires a registered native continuation handler.',
           );
@@ -798,10 +1005,26 @@ final class ResponsesProtocolModel
         calls.add(
           NativeToolCall(
             id: call.callId,
-            name: nativeTools.single.name,
+            name: registry.computer!.name,
             arguments: call.raw,
             provider: 'openai.responses',
             requiresApproval: call.safetyChecks.isNotEmpty,
+          ),
+        );
+      } else if (type == 'custom_tool_call') {
+        if (response['status'] != 'completed') {
+          throw const FormatException(
+            'Custom call requires completed response.',
+          );
+        }
+        final custom = OpenAICustomCall.fromJson(item);
+        final tool = registry.resolve(custom.namespace, custom.name);
+        calls.add(
+          NativeToolCall(
+            id: custom.callId,
+            name: tool.name,
+            arguments: {'input': custom.input},
+            provider: 'openai.responses',
           ),
         );
       } else if (type == 'mcp_approval_request') {
@@ -813,7 +1036,6 @@ final class ResponsesProtocolModel
       } else if ({
         'local_shell_call',
         'shell_call',
-        'custom_tool_call',
         'apply_patch_call',
       }.contains(type)) {
         throw UnsupportedError(
@@ -843,6 +1065,11 @@ final class ResponsesProtocolModel
         !computerIds.containsAll(doneComputers)) {
       throw const FormatException(
         'A done call is missing from the terminal response.',
+      );
+    }
+    if (calls.map((call) => call.id).toSet().length != calls.length) {
+      throw const FormatException(
+        'Duplicate tool call ID across output kinds.',
       );
     }
     for (final done in completedItems) {
@@ -1492,6 +1719,12 @@ List<OpenAIHostedTool> _responseHostedTools(
       .whereType<FunctionModelTool>()
       .map((tool) => tool.name)
       .toSet();
+  final registry = CustomRegistry(registered, 'openai.responses');
+  final expectedCustom = registry
+      .wireTools(registered.whereType<NativeModelTool>())
+      .where((v) => {'custom', 'namespace'}.contains(v['type']))
+      .toList();
+  final seenCustom = <int>{};
   final hosted = <OpenAIHostedTool>[];
   final names = <String>{};
   final families = <String>{};
@@ -1528,6 +1761,13 @@ List<OpenAIHostedTool> _responseHostedTools(
           raw['defer_loading'] != null && raw['defer_loading'] is! bool) {
         throw ArgumentError('Invalid function tool options.');
       }
+    } else if ({'custom', 'namespace'}.contains(raw['type'])) {
+      final index = expectedCustom.indexWhere((item) => jsonEquals(item, raw));
+      if (index < 0 || !seenCustom.add(index)) {
+        throw ArgumentError(
+          'Custom tools must match registered definitions exactly.',
+        );
+      }
     } else if (raw['type'] == 'mcp') {
       final label = raw['server_label'];
       if (label is! String ||
@@ -1547,6 +1787,9 @@ List<OpenAIHostedTool> _responseHostedTools(
       hosted.add(tool);
     }
   }
+  if (seenCustom.length != expectedCustom.length) {
+    throw ArgumentError('Registered custom tool missing.');
+  }
   void choice(Object? value) {
     if (value is String && {'auto', 'none', 'required'}.contains(value)) return;
     if (value is! Map) throw ArgumentError('Invalid Responses tool choice.');
@@ -1562,6 +1805,19 @@ List<OpenAIHostedTool> _responseHostedTools(
       return;
     }
     if (type == 'function' && functions.contains(value['name'])) return;
+    if (type == 'custom') {
+      if (value.keys.every((key) => key == 'type' || key == 'name') &&
+          value['name'] is String &&
+          registry.byIdentity.containsKey((null, value['name'] as String))) {
+        return;
+      }
+      throw ArgumentError(
+        'Custom tool choice must reference a registered tool.',
+      );
+    }
+    if (type == 'namespace') {
+      throw ArgumentError('Tool choice must identify a registered tool.');
+    }
     if (type == 'mcp') {
       final label = value['server_label'];
       if (label is! String ||

@@ -48,6 +48,12 @@ authorization guards. Validate the entire resume batch before effects. Persist o
 continuation contracts across unfinished turns; never reconstruct a missing
 profile from current configuration. Provider-managed execution must declare
 secret-free authority and freeze its options before local tools resume.
+The private execution profile binds the complete ordered tool registry, including
+native executor bindings and fallback policy, before any resumed effect. Legacy
+unfinished profiles fail closed. Completed history must remain replayable after
+registration changes without reexecuting old calls.
+Custom text-tool public arguments contain only `input`; native call identity and
+opaque fields stay in private replay. Keep native result variants distinct.
 Native MCP work remains provider-owned: preserve private correlation and listing
 replay, and checkpoint possible remote execution before dispatch.
 Completed media and typed citations are public content; native output/replay

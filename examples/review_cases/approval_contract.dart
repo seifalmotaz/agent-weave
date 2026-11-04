@@ -364,7 +364,7 @@ Future<void> main() async {
     check(
       changed != null &&
           changed.message ==
-              'Tool configuration changed. Start a new conversation.' &&
+              'Execution configuration changed. Start a new conversation.' &&
           changed.toString().contains(changed.message) &&
           effects == 0,
       'Future-only recovery message',

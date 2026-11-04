@@ -122,7 +122,7 @@ void main() {
                   .having(
                     (error) => error.message,
                     'message',
-                    'Tool configuration changed. Start a new conversation.',
+                    'Execution configuration changed. Start a new conversation.',
                   ),
             ),
           );

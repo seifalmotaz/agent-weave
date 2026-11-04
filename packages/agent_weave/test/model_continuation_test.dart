@@ -209,7 +209,11 @@ void main() {
         ),
       );
       final state = (await store.load(ownerId: 'owner', threadId: 'thread'))!;
-      expect((state['modelContinuationContract'] as Map)['identity'], 'a');
+      expect(
+        ((state['modelContinuationContract'] as Map)['model']
+            as Map)['identity'],
+        'a',
+      );
       expect(state['providerContinuationPending'], true);
       final changed = ContractModel('b', []);
       final rejected = await f.run(

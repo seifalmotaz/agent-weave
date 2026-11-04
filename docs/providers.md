@@ -135,3 +135,18 @@ profile from current settings.
 This capability does not validate arbitrary application code or infer identity
 from tokens. An undeclared adapter gets an unbound marker, not a verified
 no-effects contract. See [approval contracts](approval-contracts.md).
+
+## Validate complete tool registries
+
+Implement `ModelToolValidator.validateTools` when an adapter has cross-tool
+constraints such as duplicate native identities, namespace groups, incompatible
+choices or lossy typed request definitions. The agent invokes this pure validation
+at construction before it can run local effects. The adapter must also validate
+standalone model requests.
+
+Core now binds every ordered registered tool contract with the declared model
+profile across unfinished turns. A model's unbound marker still does not prove
+provider account identity. Provider-owned native replay stays private, while
+`NativeToolFallback` can declare provider-valid non-execution outcomes for
+ordinary denial or skipped calls. Do not use this capability to recover unknown
+execution effects automatically.

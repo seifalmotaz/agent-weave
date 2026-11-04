@@ -1,0 +1,817 @@
+{
+  "repository": "openai/openai-node",
+  "revision": "9854bd60f7e2a5840baa61d86d9a288d2127ae8f",
+  "responses": "src/resources/responses/responses.ts",
+  "shared": "src/resources/shared.ts",
+  "responsesSha256": "096f8b75836632e8ee67636367c98621a7eaa9ca6eb106c400eea0d6a5ce5dc7",
+  "sharedSha256": "db6bd6d5d25ac35c6b1b8743fee424a5ae86db1bf7272df7fabfd6cee7481de5",
+  "license": "Apache-2.0",
+  "documentation": "https://developers.openai.com/api/docs/guides/function-calling",
+  "scope": "Selected custom-tool declarations, four shallow union signatures and output-item event envelopes only; this is not full Responses union coverage or live workflow certification. Direct synchronous custom calls, text and grammar formats, custom-only namespaces and typed string/content results are implemented; namespaced function tools, asynchronous and programmatic calls are not integrated. Grammar syntax is provider-enforced; application callbacks validate their own input.",
+  "dispositions": {
+    "responses.CustomTool": {
+      "name": "typed configuration or result content",
+      "type": "typed configuration or result content",
+      "allowed_callers": "direct-only; asynchronous and programmatic unsupported",
+      "async": "direct-only; asynchronous and programmatic unsupported",
+      "defer_loading": "typed configuration or result content",
+      "description": "typed configuration or result content",
+      "format": "typed configuration or result content"
+    },
+    "responses.ImageDetail": {},
+    "responses.NamespaceTool": {
+      "description": "typed configuration or result content",
+      "name": "typed configuration or result content",
+      "tools": "typed configuration or result content",
+      "type": "typed configuration or result content"
+    },
+    "responses.NamespaceTool.Function": {
+      "name": "not integrated: namespaced function tool",
+      "type": "not integrated: namespaced function tool",
+      "allowed_callers": "not integrated: namespaced function tool",
+      "async": "not integrated: namespaced function tool",
+      "defer_loading": "not integrated: namespaced function tool",
+      "description": "not integrated: namespaced function tool",
+      "output_schema": "not integrated: namespaced function tool",
+      "parameters": "not integrated: namespaced function tool",
+      "strict": "not integrated: namespaced function tool"
+    },
+    "responses.ResponseCustomToolCall": {
+      "call_id": "private call or replay",
+      "input": "private call or replay",
+      "name": "private call or replay",
+      "type": "private call or replay",
+      "id": "private call or replay",
+      "async": "direct-only; asynchronous and programmatic unsupported",
+      "caller": "direct-only; asynchronous and programmatic unsupported",
+      "namespace": "private call or replay"
+    },
+    "responses.ResponseCustomToolCall.Direct": {
+      "type": "private call or replay"
+    },
+    "responses.ResponseCustomToolCall.Program": {
+      "caller_id": "not integrated: programmatic caller",
+      "type": "not integrated: programmatic caller"
+    },
+    "responses.ResponseCustomToolCallInputDeltaEvent": {
+      "delta": "private call or replay",
+      "item_id": "private call or replay",
+      "output_index": "private call or replay",
+      "sequence_number": "private call or replay",
+      "type": "private call or replay"
+    },
+    "responses.ResponseCustomToolCallInputDoneEvent": {
+      "input": "private call or replay",
+      "item_id": "private call or replay",
+      "output_index": "private call or replay",
+      "sequence_number": "private call or replay",
+      "type": "private call or replay"
+    },
+    "responses.ResponseCustomToolCallItem": {
+      "id": "private call or replay",
+      "status": "private call or replay",
+      "created_by": "private call or replay"
+    },
+    "responses.ResponseCustomToolCallOutput": {
+      "call_id": "private call or replay",
+      "output": "private call or replay",
+      "type": "private call or replay",
+      "id": "private call or replay",
+      "caller": "direct-only; asynchronous and programmatic unsupported"
+    },
+    "responses.ResponseCustomToolCallOutput.Direct": {
+      "type": "private call or replay"
+    },
+    "responses.ResponseCustomToolCallOutput.Program": {
+      "caller_id": "not integrated: programmatic caller",
+      "type": "not integrated: programmatic caller"
+    },
+    "responses.ResponseCustomToolCallOutputItem": {
+      "id": "private call or replay",
+      "status": "private call or replay",
+      "created_by": "private call or replay"
+    },
+    "responses.ResponseInputFile": {
+      "type": "typed configuration or result content",
+      "detail": "typed configuration or result content",
+      "file_data": "typed configuration or result content",
+      "file_id": "typed configuration or result content",
+      "file_url": "typed configuration or result content",
+      "filename": "typed configuration or result content",
+      "prompt_cache_breakpoint": "typed configuration or result content"
+    },
+    "responses.ResponseInputFile.PromptCacheBreakpoint": {
+      "mode": "typed configuration or result content",
+      "ttl": "typed configuration or result content"
+    },
+    "responses.ResponseInputImage": {
+      "detail": "typed configuration or result content",
+      "type": "typed configuration or result content",
+      "file_id": "typed configuration or result content",
+      "image_url": "typed configuration or result content",
+      "prompt_cache_breakpoint": "typed configuration or result content"
+    },
+    "responses.ResponseInputImage.PromptCacheBreakpoint": {
+      "mode": "typed configuration or result content",
+      "ttl": "typed configuration or result content"
+    },
+    "responses.ResponseInputText": {
+      "text": "typed configuration or result content",
+      "type": "typed configuration or result content",
+      "prompt_cache_breakpoint": "typed configuration or result content"
+    },
+    "responses.ResponseInputText.PromptCacheBreakpoint": {
+      "mode": "typed configuration or result content",
+      "ttl": "typed configuration or result content"
+    },
+    "responses.ResponseOutputItemAddedEvent": {
+      "item": "reviewed event envelope",
+      "output_index": "reviewed event envelope",
+      "sequence_number": "reviewed event envelope",
+      "type": "reviewed event envelope"
+    },
+    "responses.ResponseOutputItemDoneEvent": {
+      "item": "reviewed event envelope",
+      "output_index": "reviewed event envelope",
+      "sequence_number": "reviewed event envelope",
+      "type": "reviewed event envelope"
+    },
+    "responses.ToolChoiceAllowed": {
+      "mode": "native toolChoice option; selected fields reviewed",
+      "tools": "native toolChoice option; selected fields reviewed",
+      "type": "native toolChoice option; selected fields reviewed"
+    },
+    "responses.ToolChoiceCustom": {
+      "name": "native toolChoice option; selected fields reviewed",
+      "type": "native toolChoice option; selected fields reviewed"
+    },
+    "responses.Tool": {},
+    "responses.ResponseInputItem": {},
+    "responses.ResponseOutputItem": {},
+    "responses.ResponseStreamEvent": {},
+    "shared.CustomToolInputFormat": {},
+    "shared.CustomToolInputFormat.Text": {
+      "type": "typed configuration or result content"
+    },
+    "shared.CustomToolInputFormat.Grammar": {
+      "definition": "typed configuration or result content",
+      "syntax": "typed configuration or result content",
+      "type": "typed configuration or result content"
+    }
+  },
+  "unionDispositions": {
+    "responses.Tool": "union members reviewed; non-custom variants not integrated by this inventory",
+    "responses.ResponseInputItem": "union members reviewed; non-custom variants not integrated by this inventory",
+    "responses.ResponseOutputItem": "union members reviewed; non-custom variants not integrated by this inventory",
+    "responses.ResponseStreamEvent": "union members reviewed; non-custom variants not integrated by this inventory"
+  },
+  "declarations": {
+    "responses": {
+      "CustomTool": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "name",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'custom'"
+          },
+          {
+            "name": "allowed_callers",
+            "optional": true,
+            "type": "Array<'direct' | 'programmatic'> | null"
+          },
+          {
+            "name": "async",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "name": "defer_loading",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "name": "description",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "name": "format",
+            "optional": true,
+            "type": "Shared.CustomToolInputFormat"
+          }
+        ]
+      },
+      "ImageDetail": {
+        "kind": "alias",
+        "type": "'low' | 'high' | 'auto' | 'original'"
+      },
+      "NamespaceTool": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "description",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "tools",
+            "optional": false,
+            "type": "Array<NamespaceTool.Function | CustomTool>"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'namespace'"
+          }
+        ]
+      },
+      "NamespaceTool.Function": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "name",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'function'"
+          },
+          {
+            "name": "allowed_callers",
+            "optional": true,
+            "type": "Array<'direct' | 'programmatic'> | null"
+          },
+          {
+            "name": "async",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "name": "defer_loading",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "name": "description",
+            "optional": true,
+            "type": "string | null"
+          },
+          {
+            "name": "output_schema",
+            "optional": true,
+            "type": "{\n    [key: string]: unknown;\n} | null"
+          },
+          {
+            "name": "parameters",
+            "optional": true,
+            "type": "unknown | null"
+          },
+          {
+            "name": "strict",
+            "optional": true,
+            "type": "boolean | null"
+          }
+        ]
+      },
+      "ResponseCustomToolCall": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "call_id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "input",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "name",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'custom_tool_call'"
+          },
+          {
+            "name": "id",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "name": "async",
+            "optional": true,
+            "type": "boolean"
+          },
+          {
+            "name": "caller",
+            "optional": true,
+            "type": "ResponseCustomToolCall.Direct | ResponseCustomToolCall.Program | null"
+          },
+          {
+            "name": "namespace",
+            "optional": true,
+            "type": "string"
+          }
+        ]
+      },
+      "ResponseCustomToolCall.Direct": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'direct'"
+          }
+        ]
+      },
+      "ResponseCustomToolCall.Program": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "caller_id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'program'"
+          }
+        ]
+      },
+      "ResponseCustomToolCallInputDeltaEvent": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "delta",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "item_id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "output_index",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "sequence_number",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'response.custom_tool_call_input.delta'"
+          }
+        ]
+      },
+      "ResponseCustomToolCallInputDoneEvent": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "input",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "item_id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "output_index",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "sequence_number",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'response.custom_tool_call_input.done'"
+          }
+        ]
+      },
+      "ResponseCustomToolCallItem": {
+        "kind": "interface",
+        "extends": [
+          "ResponseCustomToolCall"
+        ],
+        "fields": [
+          {
+            "name": "id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "optional": false,
+            "type": "'in_progress' | 'completed' | 'incomplete'"
+          },
+          {
+            "name": "created_by",
+            "optional": true,
+            "type": "string"
+          }
+        ]
+      },
+      "ResponseCustomToolCallOutput": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "call_id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "output",
+            "optional": false,
+            "type": "string | Array<ResponseInputText | ResponseInputImage | ResponseInputFile>"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'custom_tool_call_output'"
+          },
+          {
+            "name": "id",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "name": "caller",
+            "optional": true,
+            "type": "ResponseCustomToolCallOutput.Direct | ResponseCustomToolCallOutput.Program | null"
+          }
+        ]
+      },
+      "ResponseCustomToolCallOutput.Direct": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'direct'"
+          }
+        ]
+      },
+      "ResponseCustomToolCallOutput.Program": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "caller_id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'program'"
+          }
+        ]
+      },
+      "ResponseCustomToolCallOutputItem": {
+        "kind": "interface",
+        "extends": [
+          "ResponseCustomToolCallOutput"
+        ],
+        "fields": [
+          {
+            "name": "id",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "status",
+            "optional": false,
+            "type": "'in_progress' | 'completed' | 'incomplete'"
+          },
+          {
+            "name": "created_by",
+            "optional": true,
+            "type": "string"
+          }
+        ]
+      },
+      "ResponseInputFile": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'input_file'"
+          },
+          {
+            "name": "detail",
+            "optional": true,
+            "type": "'auto' | 'low' | 'high'"
+          },
+          {
+            "name": "file_data",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "name": "file_id",
+            "optional": true,
+            "type": "string | null"
+          },
+          {
+            "name": "file_url",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "name": "filename",
+            "optional": true,
+            "type": "string"
+          },
+          {
+            "name": "prompt_cache_breakpoint",
+            "optional": true,
+            "type": "ResponseInputFile.PromptCacheBreakpoint"
+          }
+        ]
+      },
+      "ResponseInputFile.PromptCacheBreakpoint": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "mode",
+            "optional": false,
+            "type": "'explicit'"
+          },
+          {
+            "name": "ttl",
+            "optional": true,
+            "type": "'30m' | '12h'"
+          }
+        ]
+      },
+      "ResponseInputImage": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "detail",
+            "optional": false,
+            "type": "ImageDetail"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'input_image'"
+          },
+          {
+            "name": "file_id",
+            "optional": true,
+            "type": "string | null"
+          },
+          {
+            "name": "image_url",
+            "optional": true,
+            "type": "string | null"
+          },
+          {
+            "name": "prompt_cache_breakpoint",
+            "optional": true,
+            "type": "ResponseInputImage.PromptCacheBreakpoint"
+          }
+        ]
+      },
+      "ResponseInputImage.PromptCacheBreakpoint": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "mode",
+            "optional": false,
+            "type": "'explicit'"
+          },
+          {
+            "name": "ttl",
+            "optional": true,
+            "type": "'30m' | '12h'"
+          }
+        ]
+      },
+      "ResponseInputText": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "text",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'input_text'"
+          },
+          {
+            "name": "prompt_cache_breakpoint",
+            "optional": true,
+            "type": "ResponseInputText.PromptCacheBreakpoint"
+          }
+        ]
+      },
+      "ResponseInputText.PromptCacheBreakpoint": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "mode",
+            "optional": false,
+            "type": "'explicit'"
+          },
+          {
+            "name": "ttl",
+            "optional": true,
+            "type": "'30m' | '12h'"
+          }
+        ]
+      },
+      "ResponseOutputItemAddedEvent": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "item",
+            "optional": false,
+            "type": "ResponseOutputItem"
+          },
+          {
+            "name": "output_index",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "sequence_number",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'response.output_item.added'"
+          }
+        ]
+      },
+      "ResponseOutputItemDoneEvent": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "item",
+            "optional": false,
+            "type": "ResponseOutputItem"
+          },
+          {
+            "name": "output_index",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "sequence_number",
+            "optional": false,
+            "type": "number"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'response.output_item.done'"
+          }
+        ]
+      },
+      "ToolChoiceAllowed": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "mode",
+            "optional": false,
+            "type": "'auto' | 'required'"
+          },
+          {
+            "name": "tools",
+            "optional": false,
+            "type": "Array<{\n    [key: string]: unknown;\n}>"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'allowed_tools'"
+          }
+        ]
+      },
+      "ToolChoiceCustom": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "name",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'custom'"
+          }
+        ]
+      },
+      "Tool": {
+        "kind": "alias",
+        "type": "FunctionTool | FileSearchTool | ComputerTool | ComputerUsePreviewTool | WebSearchTool | Tool.Mcp | Tool.CodeInterpreter | Tool.ProgrammaticToolCalling | Tool.ImageGeneration | Tool.LocalShell | FunctionShellTool | CustomTool | NamespaceTool | ToolSearchTool | WebSearchPreviewTool | ApplyPatchTool"
+      },
+      "ResponseInputItem": {
+        "kind": "alias",
+        "type": "EasyInputMessage | ResponseInputItem.Message | ResponseOutputMessage | ResponseFileSearchToolCall | ResponseComputerToolCall | ResponseInputItem.ComputerCallOutput | ResponseFunctionWebSearch | ResponseFunctionToolCall | ResponseInputItem.FunctionCallOutput | ResponseInputItem.ToolSearchCall | ResponseToolSearchOutputItemParam | ResponseInputItem.AdditionalTools | ResponseConfigurationUpdateItemParam | ResponseReasoningItem | ResponseCompactionItemParam | ResponseInputItem.ImageGenerationCall | ResponseCodeInterpreterToolCall | ResponseInputItem.LocalShellCall | ResponseInputItem.LocalShellCallOutput | ResponseInputItem.ShellCall | ResponseInputItem.ShellCallOutput | ResponseInputItem.ApplyPatchCall | ResponseInputItem.ApplyPatchCallOutput | ResponseInputItem.McpListTools | ResponseInputItem.McpApprovalRequest | ResponseInputItem.McpApprovalResponse | ResponseInputItem.McpCall | ResponseCustomToolCallOutput | ResponseCustomToolCall | ResponseInputItem.CompactionTrigger | ResponseInputItem.ItemReference | ResponseInputItem.Program | ResponseInputItem.ProgramOutput"
+      },
+      "ResponseOutputItem": {
+        "kind": "alias",
+        "type": "ResponseOutputMessage | ResponseFileSearchToolCall | ResponseFunctionToolCall | ResponseFunctionToolCallOutputItem | ResponseFunctionWebSearch | ResponseComputerToolCall | ResponseComputerToolCallOutputItem | ResponseReasoningItem | ResponseOutputItem.Program | ResponseOutputItem.ProgramOutput | ResponseToolSearchCall | ResponseToolSearchOutputItem | ResponseOutputItem.AdditionalTools | ResponseCompactionItem | ResponseOutputItem.ImageGenerationCall | ResponseCodeInterpreterToolCall | ResponseOutputItem.LocalShellCall | ResponseOutputItem.LocalShellCallOutput | ResponseFunctionShellToolCall | ResponseFunctionShellToolCallOutput | ResponseApplyPatchToolCall | ResponseApplyPatchToolCallOutput | ResponseOutputItem.McpCall | ResponseOutputItem.McpListTools | ResponseOutputItem.McpApprovalRequest | ResponseOutputItem.McpApprovalResponse | ResponseCustomToolCall | ResponseCustomToolCallOutputItem"
+      },
+      "ResponseStreamEvent": {
+        "kind": "alias",
+        "type": "ResponseAudioDeltaEvent | ResponseAudioDoneEvent | ResponseAudioTranscriptDeltaEvent | ResponseAudioTranscriptDoneEvent | ResponseCodeInterpreterCallCodeDeltaEvent | ResponseCodeInterpreterCallCodeDoneEvent | ResponseCodeInterpreterCallCompletedEvent | ResponseCodeInterpreterCallInProgressEvent | ResponseCodeInterpreterCallInterpretingEvent | ResponseCompactionCompactingEvent | ResponseCompletedEvent | ResponseContentPartAddedEvent | ResponseContentPartDoneEvent | ResponseCreatedEvent | ResponseErrorEvent | ResponseFileSearchCallCompletedEvent | ResponseFileSearchCallInProgressEvent | ResponseFileSearchCallSearchingEvent | ResponseFunctionCallArgumentsDeltaEvent | ResponseFunctionCallArgumentsDoneEvent | ResponseShellCallCommandAddedEvent | ResponseShellCallCommandDeltaEvent | ResponseShellCallCommandDoneEvent | ResponseShellCallOutputContentDeltaEvent | ResponseShellCallOutputContentDoneEvent | ResponseInProgressEvent | ResponseFailedEvent | ResponseIncompleteEvent | ResponseOutputItemAddedEvent | ResponseOutputItemDoneEvent | ResponseReasoningSummaryPartAddedEvent | ResponseReasoningSummaryPartDoneEvent | ResponseReasoningSummaryTextDeltaEvent | ResponseReasoningSummaryTextDoneEvent | ResponseReasoningTextDeltaEvent | ResponseReasoningTextDoneEvent | ResponseRefusalDeltaEvent | ResponseRefusalDoneEvent | ResponseTextDeltaEvent | ResponseTextDoneEvent | ResponseWebSearchCallCompletedEvent | ResponseWebSearchCallInProgressEvent | ResponseWebSearchCallSearchingEvent | ResponseImageGenCallCompletedEvent | ResponseImageGenCallGeneratingEvent | ResponseImageGenCallInProgressEvent | ResponseImageGenCallPartialImageEvent | ResponseMcpCallArgumentsDeltaEvent | ResponseMcpCallArgumentsDoneEvent | ResponseMcpCallCompletedEvent | ResponseMcpCallFailedEvent | ResponseMcpCallInProgressEvent | ResponseMcpListToolsCompletedEvent | ResponseMcpListToolsFailedEvent | ResponseMcpListToolsInProgressEvent | ResponseOutputTextAnnotationAddedEvent | ResponseQueuedEvent | ResponseCustomToolCallInputDeltaEvent | ResponseCustomToolCallInputDoneEvent"
+      }
+    },
+    "shared": {
+      "CustomToolInputFormat": {
+        "kind": "alias",
+        "type": "CustomToolInputFormat.Text | CustomToolInputFormat.Grammar"
+      },
+      "CustomToolInputFormat.Text": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'text'"
+          }
+        ]
+      },
+      "CustomToolInputFormat.Grammar": {
+        "kind": "interface",
+        "extends": [],
+        "fields": [
+          {
+            "name": "definition",
+            "optional": false,
+            "type": "string"
+          },
+          {
+            "name": "syntax",
+            "optional": false,
+            "type": "'lark' | 'regex'"
+          },
+          {
+            "name": "type",
+            "optional": false,
+            "type": "'grammar'"
+          }
+        ]
+      }
+    }
+  }
+}

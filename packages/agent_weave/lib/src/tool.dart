@@ -50,6 +50,16 @@ abstract interface class SequentialNativeTool<C> implements AgentTool<C> {
   Object? skippedResult();
 }
 
+/// A native tool with declared, provider-valid denial and skipped outcomes.
+/// These factories must be pure. Their values are bound into approval contracts.
+/// Exceptions and uncertain execution still close native continuations.
+abstract interface class NativeToolFallback<C> implements AgentTool<C> {
+  @override
+  NativeModelTool get definition;
+  Object? declinedResult({required bool cancelled});
+  Object? skippedResult();
+}
+
 final class Tool<I, O, C> implements AgentTool<C> {
   @override
   final ModelTool definition;

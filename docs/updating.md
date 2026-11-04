@@ -51,8 +51,11 @@ See [approval contracts](approval-contracts.md).
 ## Model continuation migration
 
 Unfinished checkpoints now retain a versioned `modelContinuationContract`.
-Older pending approvals and provider pauses without that snapshot cannot prove
-the original provider profile, even if their local `toolContract` is present.
+The current private format is `{v: 1, kind: agent_execution, model: ..., tools: [...]}`.
+It binds the complete ordered registered-tool contracts, including tools that did
+not produce the pending call. Older pending approvals and provider pauses without
+that envelope cannot prove the original registry, even if individual
+`toolContract` records and a former provider-only model snapshot are present.
 Retain their history and start a new conversation; do not synthesize a binding.
 No database table migration is needed.
 
@@ -309,3 +312,22 @@ immutable request, function, container and message/system-cache parameters.
 See [hosted options](anthropic-hosted.md#immutable-request-options). Both model
 constructors are non-const. Keep the original profile through unfinished turns;
 legacy pending state without it fails closed, without a table migration.
+
+## OpenAI custom-tool contracts
+
+The custom projection shares the pinned Responses source with the computer
+inventory and adds the unmodified shared format declarations from the same
+upstream commit. Update both hashes and reviewed declarations together. Review
+custom output content, caller/async modes, namespaces, selectors and stream
+identity semantics separately from the shallow union membership inventory.
+
+```sh
+node --test tool/interop/openai-custom-inventory.test.mjs
+node tool/interop/openai-custom-inventory.mjs --check
+node tool/interop/openai-custom-inventory.mjs --upstream
+```
+
+The executable Dart fixture accompanies the check. New fields need an explicit
+handling disposition; declarations for programmatic callers and namespaced
+functions are inventoried but not integrated. Never infer model support or
+workflow certification from a constructor or unchanged request URL.

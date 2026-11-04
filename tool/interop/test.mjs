@@ -259,6 +259,42 @@ try {
     } finally { chat.dispose(); }
   }
   for (const approved of [true, false]) {
+    const threadId = `custom-${approved}`;
+    const before = await (await fetch(`${base}/custom-state`)).json();
+    const chat = new ChatClient({threadId, connection: fetchServerSentEvents(`${base}/custom`)});
+    try {
+      await chat.sendMessage('Look up ticket 42');
+      assert.equal(chat.getError(), undefined);
+      const [interrupt] = chat.getInterrupts();
+      assert.equal(interrupt.kind, 'generic');
+      assert.equal(interrupt.canResolve, true);
+      const paused = await (await fetch(`${base}/custom-history?threadId=${threadId}`)).json();
+      assert.equal(JSON.stringify(paused).includes('PRIVATE-CUSTOM-REPLAY'), false);
+      const call = paused.messages.flatMap(m => m.parts).find(p => p.type === 'tool-call');
+      assert.equal(call.name, 'ticket_lookup');
+      assert.deepEqual(call.input, {input: 'TICKET-42'});
+      interrupt.resolveInterrupt({approved});
+      for (let i = 0; i < 100; i++) {
+        if (chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'Custom complete'))) break;
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      assert.equal(chat.getError(), undefined);
+      assert.ok(chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'Custom complete')));
+      const after = await (await fetch(`${base}/custom-state`)).json();
+      assert.equal(after.effects - before.effects, approved ? 1 : 0);
+      const sent = after.requests.slice(before.requests.length);
+      assert.equal(sent.length, 2);
+      const output = sent[1].input.find(item => item.type === 'custom_tool_call_output');
+      assert.equal(output.call_id, 'custom-call');
+      assert.equal(output.output, approved ? 'Ticket 42 is open' : 'Tool call declined.');
+      assert.equal(sent[1].input.find(item => item.type === 'custom_tool_call').private_future, 'PRIVATE-CUSTOM-REPLAY');
+      const history = await (await fetch(`${base}/custom-history?threadId=${threadId}`)).json();
+      assert.equal(history.interrupts, null);
+      assert.equal(JSON.stringify(history).includes('PRIVATE-CUSTOM-REPLAY'), false);
+      console.log(`PASS official JS client: native custom ${approved ? 'approval' : 'denial'} and private replay`);
+    } finally { chat.dispose(); }
+  }
+  for (const approved of [true, false]) {
     const threadId = `mcp-${approved}`;
     const chat = new ChatClient({ threadId, connection: fetchServerSentEvents(`${base}/mcp`) });
     try {

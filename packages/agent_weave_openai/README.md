@@ -41,3 +41,14 @@ ordered `ImagePart` data URLs; native replay and metadata remain private.
 See [the hosted-tools guide](https://seifalmotaz.github.io/agent-weave/openai-hosted/)
 for an executable example, SDK type limits and unsupported workflows. This does
 not establish hosted-tool support for other compatible provider endpoints.
+
+## Custom text tools
+
+Register `OpenAICustomTool<C>` in the normal tools list for direct OpenAI Responses
+calls with raw string input and text or native text/image/file output. Provide a
+stable executor `bindingId`, application validation and an optional grammar.
+Namespaces can use distinct local aliases. Approval denial can continue through
+a declared native result; unknown execution failures remain closed.
+See the [custom-tool guide](https://seifalmotaz.github.io/agent-weave/openai-custom-tools/)
+and compiled live example. Asynchronous/programmatic calls and namespaced
+function tools are not integrated. Keep private replay out of UI history.

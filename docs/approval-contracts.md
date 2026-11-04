@@ -33,8 +33,11 @@ there is no provider approval. Its continuation must retain the provider
 configuration as well as the local tool definition.
 
 `ModelContinuationContract` is an optional adapter capability. Core stores its
-versioned, secret-free `continuationContract` alongside private pending state
-and checks it before resumed local effects and provider invocations. The
+versioned, secret-free `continuationContract` inside an `agent_execution`
+checkpoint envelope alongside the complete ordered registered-tool contracts.
+Core checks both before resumed local effects and provider invocations. Changing
+a custom tool that was not called can therefore invalidate an ordinary pending
+function approval; the future model step must retain its original registry. The
 original snapshot survives staged batches, provider pauses and step-limit
 restarts until the turn finishes. Mismatches preserve the old checkpoint and
 release the attempted run's reservation. Retry with the original configuration
@@ -59,7 +62,8 @@ Custom adapters with provider-controlled execution must implement the capability
 and guard all effective execution configuration. See
 [writing a provider](providers.md#bind-provider-controlled-continuations).
 
-Older unfinished checkpoints without the original model snapshot fail closed,
+Older unfinished checkpoints without the original model snapshot and complete
+registry envelope fail closed,
 including checkpoints that already contain a local `toolContract`. No database
 schema change is required. Completed conversation history remains readable.
 Contracts describe declared configuration; application permissions and external

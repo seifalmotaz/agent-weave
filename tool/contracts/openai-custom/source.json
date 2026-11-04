@@ -1,0 +1,10 @@
+{
+  "repository": "openai/openai-node",
+  "revision": "9854bd60f7e2a5840baa61d86d9a288d2127ae8f",
+  "responses": "src/resources/responses/responses.ts",
+  "shared": "src/resources/shared.ts",
+  "responsesSha256": "096f8b75836632e8ee67636367c98621a7eaa9ca6eb106c400eea0d6a5ce5dc7",
+  "sharedSha256": "db6bd6d5d25ac35c6b1b8743fee424a5ae86db1bf7272df7fabfd6cee7481de5",
+  "license": "Apache-2.0",
+  "documentation": "https://developers.openai.com/api/docs/guides/function-calling"
+}

@@ -35,8 +35,9 @@ not gain an identity guarantee. See [approval contracts](approval-contracts.md).
 and calls from function tools, using a provider namespace to match the adapter.
 The selected OpenAI Responses computer implementation and Anthropic computer
 toolset each register one native server tool. The application owns action execution and the resulting screenshot;
-the runtime owns approval, sequencing, and continuation. Other native tool
-kinds and client-executed native tools are unsupported.
+the runtime owns approval, sequencing, and continuation. OpenAI custom text
+tools use a separate native result handler. Other native tool kinds and
+client-executed native tools remain unsupported.
 
 Native approvals use an approval-only response schema; arguments cannot be
 edited. A paused call is bound to its tool definition and stable environment
@@ -287,3 +288,22 @@ failure and verify the transform-based correction. `generate` shares final
 result/error classification. Pre-terminal updates are provisional, and final
 results retain backend-only state. This is a public API separation; extracting
 protocol journals into an optional package remains separate roadmap work.
+
+## Registered native custom tools
+
+OpenAI custom definitions map an exact provider namespace/name pair to a local
+executor alias. Private replay retains the complete native item; public arguments
+contain only the raw text input. The adapter reconciles stream item identities,
+sequence numbers, input fragments and terminal output before releasing calls.
+Typed SDK transport preflights configuration and uses raw input replay to retain
+unknown native fields. Completed custom calls can replay after registry changes
+without dispatching their old executor; unfinished calls retain the original
+full registry binding.
+
+`ModelToolValidator` checks complete configurations before a run. Core stores an
+`agent_execution` model profile containing the adapter profile and every ordered
+registered tool contract. This includes bindings and `NativeToolFallback` values.
+The fallback factories declare pure, provider-valid denial/cancellation/skipped
+outcomes. Denial can continue a custom conversation, while computer tools without
+a declared fallback still close. Thrown or cancelled native execution remains
+uncertain and never receives a synthetic success result.

@@ -138,6 +138,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [OpenAI hosted tools and images](docs/openai-hosted.md)
+- [OpenAI custom text tools](docs/openai-custom-tools.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
 - [Anthropic MCP connector](docs/anthropic-mcp.md)
@@ -189,8 +190,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Selected OpenAI hosted Responses tools now have lossless native options,
   terminal validation, private replay and ordered completed image parts. Hosted
   progress, precise native-coordinate citation highlights, partial images,
-  shell/custom/patch and live provider
-  behavior remain open. Compatible endpoints do not inherit these claims.
+  shell/patch and live provider
+  behavior remain open. Direct OpenAI custom text tools now have typed execution,
+  namespaces, approvals/denial, private replay and durable fixtures. Programmatic
+  and asynchronous custom execution remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
   browser tools, live MCP/citation behavior and full nested semantics remain
@@ -1634,6 +1637,35 @@ but the new native event initially copied the later mutation. The runtime now
 snapshots the outcome before the first storage await and reuses that value for
 history, the journal and the native update. The original regression passes.
 
+## Round 30: OpenAI custom text tools
+
+The independent developer's baseline scored this workflow **2/10** because an
+SDK custom-call type did not provide an agent lifecycle. The current scoped
+offline score is **8/10**. The tracked
+`examples/review_cases/openai_custom.dart` uses the public SDK with MockClient,
+recreates agents with one store, and runs approval, denial and locally rejected
+input. It verifies raw string input, native custom outputs, exact private replay
+and zero effects before approval. The matching live CLI example was analyzed and
+compiled only.
+
+A completed-history probe found that removing or renaming a custom tool broke a
+new user turn. The corrected adapter replays resolved historical calls by their
+private native identity. Removed tools, changed aliases, changed bindings and a
+replacement function all pass the original probe without reexecuting old calls.
+Unfinished approvals remain bound to the full ordered registry and model profile.
+
+The developer also ran three Dart-client restoration cases: approve, reject and
+cancel after disposing and recreating the client. These use a synthetic native
+transport. Separate coordinating tests exercise actual SDK HTTP, PostgreSQL and
+the official JavaScript client. None of these fixtures establishes live grammar
+acceptance, model availability, external effect safety or provider billing.
+
+The final independent safety review found no blocking issue in complete-batch
+validation, the saved execution profile, declared fallback policies or uncertain
+native failure handling. The scoped score remains 8/10. The coordinating full
+suite separately passes 694 unit/regression tests and 38 actual PostgreSQL tests;
+these results do not increase the independent score to package-wide acceptance.
+
 
 # Source: docs/architecture.md
 
@@ -1674,8 +1706,9 @@ not gain an identity guarantee. See [approval contracts](approval-contracts.md).
 and calls from function tools, using a provider namespace to match the adapter.
 The selected OpenAI Responses computer implementation and Anthropic computer
 toolset each register one native server tool. The application owns action execution and the resulting screenshot;
-the runtime owns approval, sequencing, and continuation. Other native tool
-kinds and client-executed native tools are unsupported.
+the runtime owns approval, sequencing, and continuation. OpenAI custom text
+tools use a separate native result handler. Other native tool kinds and
+client-executed native tools remain unsupported.
 
 Native approvals use an approval-only response schema; arguments cannot be
 edited. A paused call is bound to its tool definition and stable environment
@@ -1927,6 +1960,25 @@ result/error classification. Pre-terminal updates are provisional, and final
 results retain backend-only state. This is a public API separation; extracting
 protocol journals into an optional package remains separate roadmap work.
 
+## Registered native custom tools
+
+OpenAI custom definitions map an exact provider namespace/name pair to a local
+executor alias. Private replay retains the complete native item; public arguments
+contain only the raw text input. The adapter reconciles stream item identities,
+sequence numbers, input fragments and terminal output before releasing calls.
+Typed SDK transport preflights configuration and uses raw input replay to retain
+unknown native fields. Completed custom calls can replay after registry changes
+without dispatching their old executor; unfinished calls retain the original
+full registry binding.
+
+`ModelToolValidator` checks complete configurations before a run. Core stores an
+`agent_execution` model profile containing the adapter profile and every ordered
+registered tool contract. This includes bindings and `NativeToolFallback` values.
+The fallback factories declare pure, provider-valid denial/cancellation/skipped
+outcomes. Denial can continue a custom conversation, while computer tools without
+a declared fallback still close. Thrown or cancelled native execution remains
+uncertain and never receives a synthetic success result.
+
 
 # Source: docs/tools.md
 
@@ -2033,6 +2085,20 @@ this snapshot require a new conversation; their history remains readable.
 See [approval contracts](approval-contracts.md) for recovery and custom-store
 migration. Public client schema hashes remain a separate wire contract.
 
+## Native text tools and declared fallbacks
+
+Use [OpenAI custom text tools](openai-custom-tools.md) for raw string input and
+native text/image/file output. These use `NativeToolCall` and approval-only
+responses; their grammar does not replace application validation or authorization.
+
+Provider authors can implement `NativeToolFallback<C>` to declare pure denial,
+cancelled-approval and skipped results. Core validates these values against the
+output schema and binds them into the private tool profile. Only an explicit
+fallback can continue a rejected native call. Unknown execution exceptions and
+caller cancellation still close the native continuation; no fallback implies
+rollback or permission to repeat an external effect. Existing computer tools
+retain their screenshot and closed-continuation requirements.
+
 
 # Source: docs/approval-contracts.md
 
@@ -2071,8 +2137,11 @@ there is no provider approval. Its continuation must retain the provider
 configuration as well as the local tool definition.
 
 `ModelContinuationContract` is an optional adapter capability. Core stores its
-versioned, secret-free `continuationContract` alongside private pending state
-and checks it before resumed local effects and provider invocations. The
+versioned, secret-free `continuationContract` inside an `agent_execution`
+checkpoint envelope alongside the complete ordered registered-tool contracts.
+Core checks both before resumed local effects and provider invocations. Changing
+a custom tool that was not called can therefore invalidate an ordinary pending
+function approval; the future model step must retain its original registry. The
 original snapshot survives staged batches, provider pauses and step-limit
 restarts until the turn finishes. Mismatches preserve the old checkpoint and
 release the attempted run's reservation. Retry with the original configuration
@@ -2097,7 +2166,8 @@ Custom adapters with provider-controlled execution must implement the capability
 and guard all effective execution configuration. See
 [writing a provider](providers.md#bind-provider-controlled-continuations).
 
-Older unfinished checkpoints without the original model snapshot fail closed,
+Older unfinished checkpoints without the original model snapshot and complete
+registry envelope fail closed,
 including checkpoints that already contain a local `toolContract`. No database
 schema change is required. Completed conversation history remains readable.
 Contracts describe declared configuration; application permissions and external
@@ -2297,6 +2367,21 @@ profile from current settings.
 This capability does not validate arbitrary application code or infer identity
 from tokens. An undeclared adapter gets an unbound marker, not a verified
 no-effects contract. See [approval contracts](approval-contracts.md).
+
+## Validate complete tool registries
+
+Implement `ModelToolValidator.validateTools` when an adapter has cross-tool
+constraints such as duplicate native identities, namespace groups, incompatible
+choices or lossy typed request definitions. The agent invokes this pure validation
+at construction before it can run local effects. The adapter must also validate
+standalone model requests.
+
+Core now binds every ordered registered tool contract with the declared model
+profile across unfinished turns. A model's unbound marker still does not prove
+provider account identity. Provider-owned native replay stays private, while
+`NativeToolFallback` can declare provider-valid non-execution outcomes for
+ordinary denial or skipped calls. Do not use this capability to recover unknown
+execution effects automatically.
 
 
 # Source: docs/documents.md
@@ -3257,6 +3342,14 @@ The [operation inventory](openai-api-inventory.json) records the official
 reference index for update reviews. Each entry is a discovery/review item, not
 a passing endpoint test. See [validation](validation.md) for what was exercised.
 
+## Custom text tools
+
+Register `OpenAICustomTool<C>` for direct Responses calls with raw text input,
+optional regex/Lark grammar, namespaced provider identities and application-owned
+execution. Approval and denial use native output correlation and private replay.
+See [custom tools](openai-custom-tools.md). Asynchronous/programmatic execution
+and namespaced functions are not integrated.
+
 ## Media and realtime
 
 `imageTask`, `speechTask`, and `transcriptionTask` emit normalized TanStack
@@ -3392,7 +3485,7 @@ The adapter currently recognizes these hosted tool families:
 | `tool_search` with `execution: server` | Retain server search calls and loaded definitions; ordinary executors must still be registered by the application |
 
 One definition per family is allowed. Hosted tools do not add local executors.
-Client tool search, shell, custom-tool and patch lifecycles are not
+Client tool search, shell and patch lifecycles are not
 integrated and fail explicitly. Computer use has its own
 [application-controlled contract](computer-use.md).
 
@@ -3491,6 +3584,554 @@ Partial images, hosted progress and artifact hosting remain open.
 ## MCP approvals
 
 Remote MCP uses a separate provider-owned approval lifecycle. See [MCP approvals](openai-mcp.md) for configuration, owner-bound credentials, generic client interrupts, denial and indeterminate continuations.
+
+Application-owned [custom text tools](openai-custom-tools.md) use a separate
+registered native lifecycle. They are not hosted definitions. Deferred custom
+tools can be used with configured server tool search; only registered identities
+can execute locally. Asynchronous/programmatic custom execution remains open.
+
+
+# Source: docs/openai-custom-tools.md
+
+# OpenAI Responses custom text tools
+
+Use `OpenAICustomTool<C>` when a Responses model should send a text string to an application-owned tool. Your backend supplies the executor, validates its input and controls approval. Custom tools are separate from OpenAI hosted tools and JSON-schema function tools.
+
+## Interactive example
+
+Set `OPENAI_API_KEY` and `OPENAI_CUSTOM_TOOL_MODEL` to a model that supports custom tools, then run `dart run examples/openai_custom_demo.dart`. This makes billable requests. The example reads from a small in-memory ticket table, uses no shell or code evaluator, and asks for a decision before each proposed lookup. It limits the number of approval rounds; a run that reaches the limit stays interrupted.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+Future<void> main() async {
+  final key = Platform.environment['OPENAI_API_KEY'];
+  final model = Platform.environment['OPENAI_CUSTOM_TOOL_MODEL'];
+  if (key == null || key.isEmpty || model == null || model.isEmpty) {
+    throw StateError('Set OPENAI_API_KEY and OPENAI_CUSTOM_TOOL_MODEL.');
+  }
+  final client = openai.OpenAIClient.fromEnvironment();
+  try {
+    final agent = AiAgent<void>(
+      model: openai.OpenAIResponsesModel.native(client: client, model: model),
+      tools: [
+        openai.OpenAICustomTool<void>(
+          name: 'lookup_ticket',
+          bindingId: 'local-ticket-lookup-v1',
+          description: 'Look up the status of a ticket',
+          needsApproval: true,
+          format: openai.OpenAICustomToolFormat.grammar(
+            r'TICKET-[0-9]+',
+            syntax: openai.OpenAICustomGrammarSyntax.regex,
+          ),
+          execute: (input, context) {
+            // Validate model text locally; provider grammar is not authorization.
+            if (!RegExp(r'^TICKET-[0-9]+$').hasMatch(input)) {
+              return openai.OpenAICustomToolResult.error('Invalid ticket ID.');
+            }
+            const tickets = {'TICKET-42': 'open'};
+            return openai.OpenAICustomToolResult.text(
+              tickets[input] ?? 'Ticket not found.',
+            );
+          },
+        ),
+      ],
+    );
+    var request = ChatRequest(
+      threadId: 'ticket-demo',
+      runId: 'question',
+      messages: [ChatMessage.user('Look up TICKET-42.', id: 'user')],
+    );
+    for (var round = 0; round < 4; round++) {
+      AgentResult? finished;
+      await for (final update in agent.stream(
+        request,
+        ownerId: 'local-demo',
+        context: null,
+      )) {
+        if (update case AgentTextDelta(:final text)) stdout.write(text);
+        if (update case AgentRunFinished(:final result)) finished = result;
+      }
+      final result = finished!;
+      if (result.status != RunStatus.interrupted) {
+        stdout.writeln();
+        break;
+      }
+      if (round == 3) {
+        stderr.writeln(
+          'Approval round limit reached; the run remains interrupted.',
+        );
+        break;
+      }
+      final answers = <ResumeAnswer>[];
+      for (final interrupt in result.interrupts) {
+        stdout.writeln(
+          '\n${interrupt.call.name}: ${interrupt.call.arguments['input']}',
+        );
+        stdout.write('Approve this lookup? Type yes, otherwise deny: ');
+        answers.add(
+          stdin.readLineSync() == 'yes'
+              ? interrupt.approve()
+              : interrupt.reject(),
+        );
+      }
+      request = ChatRequest(
+        threadId: result.threadId,
+        runId: 'decision-$round',
+        parentRunId: result.runId,
+        resume: answers,
+      );
+    }
+  } on AgentRunException catch (error) {
+    stderr.writeln('${error.code}: ${error.message}');
+    exitCode = 1;
+  } on RunCancelled {
+    stderr.writeln('Run cancelled.');
+    exitCode = 1;
+  } finally {
+    client.close();
+  }
+}
+```
+
+The [offline consumer](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/openai_custom.dart) runs without a key or network: `dart --enable-asserts run examples/review_cases/openai_custom.dart`. It exercises approval, denial, application validation, private replay and native output with a MockClient. It does not prove live provider acceptance.
+
+## Input and authorization
+
+`OpenAICustomToolFormat.text()` requests unconstrained text. `OpenAICustomToolFormat.grammar` accepts a `regex` or `lark` syntax and native grammar definition. The grammar is sent to the provider as a generation constraint; AgentWeave does not execute the grammar locally. Validate the returned string in your executor before doing work, even if the provider applied a grammar. Use the authenticated `ToolContext` to check the owner's access and pass its idempotency key to an external service that supports one.
+
+The native proposal is represented to the application as a `NativeToolCall` whose arguments contain only `{'input': text}`. Raw provider items and caller fields stay in backend provider replay, not in public call arguments or `chatHydration`. Treat all tool inputs and results as application data, and do not return private `AgentResult` provider state directly to a UI. `needsApproval: true` pauses before invoking the executor; validate the entire decision batch and obtain the person's decision before resuming. Editing custom-tool arguments in an approval is unsupported.
+
+## Results and failure
+
+`OpenAICustomToolResult.text(value)` returns a string. `error(message)` represents an expected failure with an explicit message that the model may see; avoid including secrets. `content([...])` supports native `input_text`, `input_image`, and `input_file` blocks through `OpenAICustomToolContent`:
+
+- `text(text, cache: ...)` includes text.
+- `image(detail: ..., imageUrl: ..., fileId: ..., cache: ...)` carries image detail and a URL or file handle. Detail accepts `auto`, `low`, `high` or `original`.
+- `file(detail: ..., fileData: ..., fileId: ..., fileUrl: ..., filename: ..., cache: ...)` carries file data, a handle or URL, optional filename and detail (`auto`, `low` or `high`).
+- `OpenAICustomPromptCacheBreakpoint(ttl: ...)` sets an explicit cache breakpoint; the optional TTL is `30m` or `12h`.
+
+Each result factory also accepts an optional application-owned `id` and direct `caller` JSON metadata. These values are validated and snapshotted; no provider ID is invented. `fromJson` preserves an explicitly null caller. The adapter sends the returned output as `custom_tool_call_output` with the matching native call ID. The runtime owns `type` and `call_id`; result metadata cannot replace them. `isError` marks the application/runtime result; the native output item contains the output text or content, so phrase an expected error meaningfully for the model. Authorize file handles and URLs in your application; typed content does not grant retrieval permission or validate a remote resource's trustworthiness.
+
+Rejecting or cancelling a **custom-tool approval** produces a safe declined/cancelled output and can continue the native conversation without executing that tool. A returned `OpenAICustomToolResult.error` likewise provides a known error result. An unexpected thrown executor error closes the unfinished native continuation; verify any external effects and start a new conversation rather than automatically rerunning it. A declined or cancelled computer-tool approval still closes the native continuation, including a mixed batch; custom-tool fallback does not change computer-tool semantics. Cancellation of a whole run also does not undo an effect.
+
+## Namespaces, binding and scope
+
+For a native namespace, pass `namespace: OpenAIToolNamespace(name: ..., description: ...)`. When two namespaces use the same native tool name, assign distinct `localName` values so the application's registered tools have unique names. The model uses the native namespace/name while the runtime dispatches the local alias. A stable `bindingId` identifies the executor and its authority; change it when its behavior or authorization scope changes.
+
+Automatic selection supports registered custom tools in namespaces. A forced custom selector accepts exactly `{'type': 'custom', 'name': ...}` and selects a registered top-level custom tool. Forced namespace selection is unsupported. With the pinned `openai_dart` 11.0.1, use `OpenAIResponsesModel.native` or `ResponsesProtocolModel.native` for this selector: the SDK's typed `ResponseToolChoice` union cannot represent `custom`, so the typed transport rejects it during registration. The native transport preserves the selector without changing SDK decoding.
+
+[Upstream PR #451](https://github.com/davidmigloz/ai_clients_dart/pull/451) adds the missing typed selector. It is separate from the workspace's published SDK dependency. Recheck the upstream release and rerun the contract checks before updating that pin.
+
+The runtime binds the complete registered tool profile and model continuation configuration across unfinished turns, before approving or invoking any tool. Recreate an agent with the same profile when resuming. Changed profiles fail before effects. Older unfinished checkpoints without the required contract cannot be reconstructed safely; start a new conversation while retaining completed history. See [approval contracts](approval-contracts.md).
+
+This integration supports direct custom calls. Asynchronous and programmatic custom execution are rejected; unsupported provider features do not become available merely because the underlying SDK has a type. Custom tools and [computer tools](computer-use.md) have distinct continuation contracts. See the [official OpenAI guide](https://developers.openai.com/api/docs/guides/function-calling) for the provider format. Offline fixtures do not prove live model support, grammar acceptance, real external effects, or PostgreSQL restart behavior.
+
+
+# Source: docs/openai-custom-parameters.md
+
+# OpenAI custom tool contract
+
+Generated from the [pinned inventory](openai-custom-inventory.json). See the [official guide](https://developers.openai.com/api/docs/guides/function-calling).
+
+Selected custom-tool declarations, four shallow union signatures and output-item event envelopes only; this is not full Responses union coverage or live workflow certification. Direct synchronous custom calls, text and grammar formats, custom-only namespaces and typed string/content results are implemented; namespaced function tools, asynchronous and programmatic calls are not integrated. Grammar syntax is provider-enforced; application callbacks validate their own input.
+
+## responses.CustomTool
+
+| Field | Type |
+| --- | --- |
+| name | `string` |
+| type | `'custom'` |
+| allowed_callers? | `Array<'direct' \| 'programmatic'> \| null` |
+| async? | `boolean` |
+| defer_loading? | `boolean` |
+| description? | `string` |
+| format? | `Shared.CustomToolInputFormat` |
+
+## responses.ImageDetail
+
+```ts
+'low' | 'high' | 'auto' | 'original'
+```
+
+## responses.NamespaceTool
+
+| Field | Type |
+| --- | --- |
+| description | `string` |
+| name | `string` |
+| tools | `Array<NamespaceTool.Function \| CustomTool>` |
+| type | `'namespace'` |
+
+## responses.NamespaceTool.Function
+
+| Field | Type |
+| --- | --- |
+| name | `string` |
+| type | `'function'` |
+| allowed_callers? | `Array<'direct' \| 'programmatic'> \| null` |
+| async? | `boolean` |
+| defer_loading? | `boolean` |
+| description? | `string \| null` |
+| output_schema? | `{ [key: string]: unknown; } \| null` |
+| parameters? | `unknown \| null` |
+| strict? | `boolean \| null` |
+
+## responses.ResponseCustomToolCall
+
+| Field | Type |
+| --- | --- |
+| call_id | `string` |
+| input | `string` |
+| name | `string` |
+| type | `'custom_tool_call'` |
+| id? | `string` |
+| async? | `boolean` |
+| caller? | `ResponseCustomToolCall.Direct \| ResponseCustomToolCall.Program \| null` |
+| namespace? | `string` |
+
+## responses.ResponseCustomToolCall.Direct
+
+| Field | Type |
+| --- | --- |
+| type | `'direct'` |
+
+## responses.ResponseCustomToolCall.Program
+
+| Field | Type |
+| --- | --- |
+| caller_id | `string` |
+| type | `'program'` |
+
+## responses.ResponseCustomToolCallInputDeltaEvent
+
+| Field | Type |
+| --- | --- |
+| delta | `string` |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.custom_tool_call_input.delta'` |
+
+## responses.ResponseCustomToolCallInputDoneEvent
+
+| Field | Type |
+| --- | --- |
+| input | `string` |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.custom_tool_call_input.done'` |
+
+## responses.ResponseCustomToolCallItem
+
+| Field | Type |
+| --- | --- |
+| id | `string` |
+| status | `'in_progress' \| 'completed' \| 'incomplete'` |
+| created_by? | `string` |
+
+## responses.ResponseCustomToolCallOutput
+
+| Field | Type |
+| --- | --- |
+| call_id | `string` |
+| output | `string \| Array<ResponseInputText \| ResponseInputImage \| ResponseInputFile>` |
+| type | `'custom_tool_call_output'` |
+| id? | `string` |
+| caller? | `ResponseCustomToolCallOutput.Direct \| ResponseCustomToolCallOutput.Program \| null` |
+
+## responses.ResponseCustomToolCallOutput.Direct
+
+| Field | Type |
+| --- | --- |
+| type | `'direct'` |
+
+## responses.ResponseCustomToolCallOutput.Program
+
+| Field | Type |
+| --- | --- |
+| caller_id | `string` |
+| type | `'program'` |
+
+## responses.ResponseCustomToolCallOutputItem
+
+| Field | Type |
+| --- | --- |
+| id | `string` |
+| status | `'in_progress' \| 'completed' \| 'incomplete'` |
+| created_by? | `string` |
+
+## responses.ResponseInputFile
+
+| Field | Type |
+| --- | --- |
+| type | `'input_file'` |
+| detail? | `'auto' \| 'low' \| 'high'` |
+| file_data? | `string` |
+| file_id? | `string \| null` |
+| file_url? | `string` |
+| filename? | `string` |
+| prompt_cache_breakpoint? | `ResponseInputFile.PromptCacheBreakpoint` |
+
+## responses.ResponseInputFile.PromptCacheBreakpoint
+
+| Field | Type |
+| --- | --- |
+| mode | `'explicit'` |
+| ttl? | `'30m' \| '12h'` |
+
+## responses.ResponseInputImage
+
+| Field | Type |
+| --- | --- |
+| detail | `ImageDetail` |
+| type | `'input_image'` |
+| file_id? | `string \| null` |
+| image_url? | `string \| null` |
+| prompt_cache_breakpoint? | `ResponseInputImage.PromptCacheBreakpoint` |
+
+## responses.ResponseInputImage.PromptCacheBreakpoint
+
+| Field | Type |
+| --- | --- |
+| mode | `'explicit'` |
+| ttl? | `'30m' \| '12h'` |
+
+## responses.ResponseInputText
+
+| Field | Type |
+| --- | --- |
+| text | `string` |
+| type | `'input_text'` |
+| prompt_cache_breakpoint? | `ResponseInputText.PromptCacheBreakpoint` |
+
+## responses.ResponseInputText.PromptCacheBreakpoint
+
+| Field | Type |
+| --- | --- |
+| mode | `'explicit'` |
+| ttl? | `'30m' \| '12h'` |
+
+## responses.ResponseOutputItemAddedEvent
+
+| Field | Type |
+| --- | --- |
+| item | `ResponseOutputItem` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.output_item.added'` |
+
+## responses.ResponseOutputItemDoneEvent
+
+| Field | Type |
+| --- | --- |
+| item | `ResponseOutputItem` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.output_item.done'` |
+
+## responses.ToolChoiceAllowed
+
+| Field | Type |
+| --- | --- |
+| mode | `'auto' \| 'required'` |
+| tools | `Array<{ [key: string]: unknown; }>` |
+| type | `'allowed_tools'` |
+
+## responses.ToolChoiceCustom
+
+| Field | Type |
+| --- | --- |
+| name | `string` |
+| type | `'custom'` |
+
+## responses.Tool
+
+Shallow union signature; variants are not all integrated.
+
+```ts
+FunctionTool
+  | FileSearchTool
+  | ComputerTool
+  | ComputerUsePreviewTool
+  | WebSearchTool
+  | Tool.Mcp
+  | Tool.CodeInterpreter
+  | Tool.ProgrammaticToolCalling
+  | Tool.ImageGeneration
+  | Tool.LocalShell
+  | FunctionShellTool
+  | CustomTool
+  | NamespaceTool
+  | ToolSearchTool
+  | WebSearchPreviewTool
+  | ApplyPatchTool
+```
+
+## responses.ResponseInputItem
+
+Shallow union signature; variants are not all integrated.
+
+```ts
+EasyInputMessage
+  | ResponseInputItem.Message
+  | ResponseOutputMessage
+  | ResponseFileSearchToolCall
+  | ResponseComputerToolCall
+  | ResponseInputItem.ComputerCallOutput
+  | ResponseFunctionWebSearch
+  | ResponseFunctionToolCall
+  | ResponseInputItem.FunctionCallOutput
+  | ResponseInputItem.ToolSearchCall
+  | ResponseToolSearchOutputItemParam
+  | ResponseInputItem.AdditionalTools
+  | ResponseConfigurationUpdateItemParam
+  | ResponseReasoningItem
+  | ResponseCompactionItemParam
+  | ResponseInputItem.ImageGenerationCall
+  | ResponseCodeInterpreterToolCall
+  | ResponseInputItem.LocalShellCall
+  | ResponseInputItem.LocalShellCallOutput
+  | ResponseInputItem.ShellCall
+  | ResponseInputItem.ShellCallOutput
+  | ResponseInputItem.ApplyPatchCall
+  | ResponseInputItem.ApplyPatchCallOutput
+  | ResponseInputItem.McpListTools
+  | ResponseInputItem.McpApprovalRequest
+  | ResponseInputItem.McpApprovalResponse
+  | ResponseInputItem.McpCall
+  | ResponseCustomToolCallOutput
+  | ResponseCustomToolCall
+  | ResponseInputItem.CompactionTrigger
+  | ResponseInputItem.ItemReference
+  | ResponseInputItem.Program
+  | ResponseInputItem.ProgramOutput
+```
+
+## responses.ResponseOutputItem
+
+Shallow union signature; variants are not all integrated.
+
+```ts
+ResponseOutputMessage
+  | ResponseFileSearchToolCall
+  | ResponseFunctionToolCall
+  | ResponseFunctionToolCallOutputItem
+  | ResponseFunctionWebSearch
+  | ResponseComputerToolCall
+  | ResponseComputerToolCallOutputItem
+  | ResponseReasoningItem
+  | ResponseOutputItem.Program
+  | ResponseOutputItem.ProgramOutput
+  | ResponseToolSearchCall
+  | ResponseToolSearchOutputItem
+  | ResponseOutputItem.AdditionalTools
+  | ResponseCompactionItem
+  | ResponseOutputItem.ImageGenerationCall
+  | ResponseCodeInterpreterToolCall
+  | ResponseOutputItem.LocalShellCall
+  | ResponseOutputItem.LocalShellCallOutput
+  | ResponseFunctionShellToolCall
+  | ResponseFunctionShellToolCallOutput
+  | ResponseApplyPatchToolCall
+  | ResponseApplyPatchToolCallOutput
+  | ResponseOutputItem.McpCall
+  | ResponseOutputItem.McpListTools
+  | ResponseOutputItem.McpApprovalRequest
+  | ResponseOutputItem.McpApprovalResponse
+  | ResponseCustomToolCall
+  | ResponseCustomToolCallOutputItem
+```
+
+## responses.ResponseStreamEvent
+
+Shallow union signature; variants are not all integrated.
+
+```ts
+ResponseAudioDeltaEvent
+  | ResponseAudioDoneEvent
+  | ResponseAudioTranscriptDeltaEvent
+  | ResponseAudioTranscriptDoneEvent
+  | ResponseCodeInterpreterCallCodeDeltaEvent
+  | ResponseCodeInterpreterCallCodeDoneEvent
+  | ResponseCodeInterpreterCallCompletedEvent
+  | ResponseCodeInterpreterCallInProgressEvent
+  | ResponseCodeInterpreterCallInterpretingEvent
+  | ResponseCompactionCompactingEvent
+  | ResponseCompletedEvent
+  | ResponseContentPartAddedEvent
+  | ResponseContentPartDoneEvent
+  | ResponseCreatedEvent
+  | ResponseErrorEvent
+  | ResponseFileSearchCallCompletedEvent
+  | ResponseFileSearchCallInProgressEvent
+  | ResponseFileSearchCallSearchingEvent
+  | ResponseFunctionCallArgumentsDeltaEvent
+  | ResponseFunctionCallArgumentsDoneEvent
+  | ResponseShellCallCommandAddedEvent
+  | ResponseShellCallCommandDeltaEvent
+  | ResponseShellCallCommandDoneEvent
+  | ResponseShellCallOutputContentDeltaEvent
+  | ResponseShellCallOutputContentDoneEvent
+  | ResponseInProgressEvent
+  | ResponseFailedEvent
+  | ResponseIncompleteEvent
+  | ResponseOutputItemAddedEvent
+  | ResponseOutputItemDoneEvent
+  | ResponseReasoningSummaryPartAddedEvent
+  | ResponseReasoningSummaryPartDoneEvent
+  | ResponseReasoningSummaryTextDeltaEvent
+  | ResponseReasoningSummaryTextDoneEvent
+  | ResponseReasoningTextDeltaEvent
+  | ResponseReasoningTextDoneEvent
+  | ResponseRefusalDeltaEvent
+  | ResponseRefusalDoneEvent
+  | ResponseTextDeltaEvent
+  | ResponseTextDoneEvent
+  | ResponseWebSearchCallCompletedEvent
+  | ResponseWebSearchCallInProgressEvent
+  | ResponseWebSearchCallSearchingEvent
+  | ResponseImageGenCallCompletedEvent
+  | ResponseImageGenCallGeneratingEvent
+  | ResponseImageGenCallInProgressEvent
+  | ResponseImageGenCallPartialImageEvent
+  | ResponseMcpCallArgumentsDeltaEvent
+  | ResponseMcpCallArgumentsDoneEvent
+  | ResponseMcpCallCompletedEvent
+  | ResponseMcpCallFailedEvent
+  | ResponseMcpCallInProgressEvent
+  | ResponseMcpListToolsCompletedEvent
+  | ResponseMcpListToolsFailedEvent
+  | ResponseMcpListToolsInProgressEvent
+  | ResponseOutputTextAnnotationAddedEvent
+  | ResponseQueuedEvent
+  | ResponseCustomToolCallInputDeltaEvent
+  | ResponseCustomToolCallInputDoneEvent
+```
+
+## shared.CustomToolInputFormat
+
+```ts
+CustomToolInputFormat.Text | CustomToolInputFormat.Grammar
+```
+
+## shared.CustomToolInputFormat.Text
+
+| Field | Type |
+| --- | --- |
+| type | `'text'` |
+
+## shared.CustomToolInputFormat.Grammar
+
+| Field | Type |
+| --- | --- |
+| definition | `string` |
+| syntax | `'lark' \| 'regex'` |
+| type | `'grammar'` |
 
 
 # Source: docs/openai-mcp.md
@@ -6434,7 +7075,8 @@ HTTP failures, with status and the native transport's redacted request ID.
 Error bodies and response headers are dropped. SDK 9.0.1 streaming exceptions
 retain status but omit the server request ID; do not mistake a client correlation
 ID for it. [Upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445)
-addresses this loss and is separate from a released SDK dependency.
+was approved and merged on 2026-11-04. The workspace still pins 9.0.1;
+the upstream merge is separate from a released SDK dependency update.
 The native transport has no
 automatic retries. The SDK-backed stream also makes one send, but pinned SDK
 9.0.1 cannot abort while waiting for response headers. Prefer the native client
@@ -7254,7 +7896,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
-| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. Remote MCP approval/denial and private replay have offline coverage; see [MCP approvals](openai-mcp.md). | See [OpenAI audit](openai-options-audit.md): shell/custom/patch continuations, precise public highlights, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
+| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. Remote MCP approval/denial and private replay have offline coverage; see [MCP approvals](openai-mcp.md). Direct [custom text tools](openai-custom-tools.md) have typed executors, namespaced automatic selection, approval/resume and native outputs. | See [OpenAI audit](openai-options-audit.md): shell/patch continuations, asynchronous and programmatic custom execution, namespaced function tools, precise public highlights, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
 | Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Native MCP use/result/listing replay, three explicit beta modes, mixed local approvals and indeterminate recovery have offline fixtures; see [MCP](anthropic-mcp.md). Complete nested semantics, browser tools, inline tool-change messages, other endpoint workflows and live behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
 | OpenRouter Chat, Responses and dedicated images | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected routing/reasoning/cache options and private replay. Dedicated Image API has typed requests/results, discovery capabilities/pricing, four native SSE events and same-request buffered fallback. | The [inventory](openrouter-api-reference.md) records all 144 pinned operations; five have selected integrations. Management, background jobs, hosted tools, streamed Chat images, audio and exhaustive fragment/model behavior remain incomplete. Fixtures do not establish live billing, routing or model acceptance. See [OpenRouter](openrouter.md) and [dedicated images](openrouter-image-api.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
@@ -7343,7 +7985,10 @@ and retain the old history. Public client bindings remain unchanged. See
 
 - Selected native computer use is implemented for OpenAI Responses and the
   Anthropic computer toolset. The application provides the actual driver. Native
-  client-executed tools and other native tool kinds are unsupported; native
+  client-executed tools remain unsupported. Direct OpenAI custom tools support
+  text/grammar input, namespaces, approvals and native string/content results;
+  see [custom text tools](openai-custom-tools.md). Asynchronous/programmatic
+  custom execution and namespaced function tools remain unsupported. Native
   approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, client-owned MCP discovery,
   and general provider-hosted progress are not implemented. Citation normalization
@@ -7423,6 +8068,16 @@ private provider continuation. Use hydration projections for UI history.
 Protocol journals remain in core; optional adapter-package extraction is not
 complete. See [native streaming](native-streaming.md).
 
+## Complete registered-tool profiles
+
+Unfinished checkpoints now store `kind: agent_execution` with the adapter's
+model profile and all ordered registered-tool contracts. Prior provider-only
+snapshots cannot prove the original complete registry and cannot resume.
+Keep the original conversation for history and start a new one. No SQL table
+migration or automatic replay is required. Current matching profiles can resume;
+completed custom-tool history can replay under a changed registry without
+executing its historical calls. See [approval contracts](approval-contracts.md).
+
 
 # Source: docs/updating.md
 
@@ -7479,8 +8134,11 @@ See [approval contracts](approval-contracts.md).
 ## Model continuation migration
 
 Unfinished checkpoints now retain a versioned `modelContinuationContract`.
-Older pending approvals and provider pauses without that snapshot cannot prove
-the original provider profile, even if their local `toolContract` is present.
+The current private format is `{v: 1, kind: agent_execution, model: ..., tools: [...]}`.
+It binds the complete ordered registered-tool contracts, including tools that did
+not produce the pending call. Older pending approvals and provider pauses without
+that envelope cannot prove the original registry, even if individual
+`toolContract` records and a former provider-only model snapshot are present.
 Retain their history and start a new conversation; do not synthesize a binding.
 No database table migration is needed.
 
@@ -7738,6 +8396,25 @@ See [hosted options](anthropic-hosted.md#immutable-request-options). Both model
 constructors are non-const. Keep the original profile through unfinished turns;
 legacy pending state without it fails closed, without a table migration.
 
+## OpenAI custom-tool contracts
+
+The custom projection shares the pinned Responses source with the computer
+inventory and adds the unmodified shared format declarations from the same
+upstream commit. Update both hashes and reviewed declarations together. Review
+custom output content, caller/async modes, namespaces, selectors and stream
+identity semantics separately from the shallow union membership inventory.
+
+```sh
+node --test tool/interop/openai-custom-inventory.test.mjs
+node tool/interop/openai-custom-inventory.mjs --check
+node tool/interop/openai-custom-inventory.mjs --upstream
+```
+
+The executable Dart fixture accompanies the check. New fields need an explicit
+handling disposition; declarations for programmatic callers and namespaced
+functions are inventoried but not integrated. Never infer model support or
+workflow certification from a constructor or unchanged request URL.
+
 
 # Source: docs/validation.md
 
@@ -7767,15 +8444,15 @@ and interoperability with the pinned official JavaScript client.
 The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
 SDK and the stable channel; inspect the run for the commit you use.
 
-- 611 Dart unit and regression tests: tool validation, approvals, client tools,
+- 694 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 31 Serverpod integration tests with a real isolated PostgreSQL database:
+- 38 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 26 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 28 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
   generation, provider-owned MCP approval/denial, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
   replay, and eight media/history cases, including ordered output images. The media cases include document
@@ -8628,8 +9305,9 @@ and freshly fetched upstream main `eed64e89576f9d977fb0cf7728d766cf898f079a`,
 including the merged cancellation fix. This is an upstream metadata gap, not a
 claim about actual remote effects. Local correlation IDs are not substituted.
 
-The streaming-error correction is submitted as
-[upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445).
+The streaming-error correction was approved and merged on 2026-11-04 as
+[upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445),
+commit `1396797bbd70ddfd0b40c975e9929128c279144e`.
 The additive `ApiException.requestId` reads server response metadata for typed
 Messages, raw POST/GET and default JSONL errors; it never substitutes a local
 correlation ID. Streaming metadata excludes body excerpts and unrelated headers,
@@ -8745,6 +9423,53 @@ checks and strict MkDocs build pass. Core Dartdoc reports zero warnings/errors.
 The earlier OpenRouter increment's GitHub minimum/stable CI and Pages deployment
 also finished successfully. No paid test was added for native streaming.
 
+## OpenAI custom text tools
+
+The selected direct custom-tool integration has offline fixtures for text and
+regex/Lark declarations, raw input, native output content and cache fields,
+namespace dispatch, strict stream correlation, exact private replay, selector
+validation and completed-history registration changes. DTO tests reject
+asynchronous and programmatic modes. Native fallbacks have tests for approval
+denial/cancellation, schema validation, mixed computer batches, unexpected errors
+and complete registry changes before any resumed effect. Legacy unfinished
+model-only profiles fail closed while retaining their original snapshots.
+
+Five new actual PostgreSQL integration cases use recreated agents and SDK
+loopback HTTP. They cover approved text/content results, denial, approval
+cancellation, and changed unrelated custom grammar/binding before an approved
+ordinary function. Three Dart-client restoration cases use a synthetic transport.
+Two official JavaScript-client cases use SDK loopback HTTP and verify native
+approval/denial, exact provider output, history privacy and effect counts.
+
+The custom contract projection records 21 roots and 31 declarations, with explicit
+unsupported or inventory-only dispositions. The 15 parser tests, frozen source
+check, executable Dart fixture and selected upstream projection check pass. These
+counts do not establish complete Responses support. The independent consumer
+scored the tested offline workflow 8/10. No paid call or real external effect was
+made, and the live CLI example was compiled only.
+
+The missing SDK custom-tool selector was reproduced on published 11.0.1 and
+upstream main `6e1e5313ae5bb24b5f61443acc8f69ce19f051e7`. The narrow correction
+is [upstream PR #451](https://github.com/davidmigloz/ai_clients_dart/pull/451).
+Independent review found no blocking issue. The patched SDK's full offline unit
+suite passes 25,898 tests with three skipped, with provider credentials unset.
+Tests used an isolated sparse checkout and a previously resolved package
+configuration; normal-workspace CI remains a separate check. Adding a sealed
+choice variant requires downstream exhaustive switches to handle it. AgentWeave
+still uses the published SDK and rejects this selector in typed mode with a
+message recommending its native transport.
+
+Final round 30 coordinating verification: `dart run tool/check.dart` passes all
+694 unit/regression tests, 38 PostgreSQL/Serverpod tests, 28 standalone official
+JavaScript-client scenarios, four Dart Frog scenarios, all contract checks and
+offline recipes. The live CLI examples compile without execution. The three
+documentation checks and strict MkDocs build pass; core and OpenAI Dartdoc dry
+runs report zero warnings/errors. Compile checks reuse one temporary output and
+clean it in `finally`; this run used an external-volume `TMPDIR` after the main
+disk ran out of space. No new paid provider request was made. Upstream PR #451's
+GitHub run currently requires maintainer action and has no executed jobs; the
+local SDK tests are separate evidence.
+
 
 # Source: CONTRIBUTING.md
 
@@ -8822,6 +9547,12 @@ authorization guards. Validate the entire resume batch before effects. Persist o
 continuation contracts across unfinished turns; never reconstruct a missing
 profile from current configuration. Provider-managed execution must declare
 secret-free authority and freeze its options before local tools resume.
+The private execution profile binds the complete ordered tool registry, including
+native executor bindings and fallback policy, before any resumed effect. Legacy
+unfinished profiles fail closed. Completed history must remain replayable after
+registration changes without reexecuting old calls.
+Custom text-tool public arguments contain only `input`; native call identity and
+opaque fields stay in private replay. Keep native result variants distinct.
 Native MCP work remains provider-owned: preserve private correlation and listing
 replay, and checkpoint possible remote execution before dispatch.
 Completed media and typed citations are public content; native output/replay

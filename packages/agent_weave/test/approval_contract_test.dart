@@ -363,7 +363,10 @@ void main() {
       );
       final events = await f.run(changed, resume('stream'));
       final streamed = events.last.json['message'];
-      expect(streamed, 'Tool configuration changed. Start a new conversation.');
+      expect(
+        streamed,
+        'Execution configuration changed. Start a new conversation.',
+      );
       try {
         await changed.generate(
           resume('future'),

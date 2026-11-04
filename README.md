@@ -136,6 +136,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [OpenAI hosted tools and images](docs/openai-hosted.md)
+- [OpenAI custom text tools](docs/openai-custom-tools.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
 - [Anthropic MCP connector](docs/anthropic-mcp.md)

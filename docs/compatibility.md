@@ -61,7 +61,10 @@ and retain the old history. Public client bindings remain unchanged. See
 
 - Selected native computer use is implemented for OpenAI Responses and the
   Anthropic computer toolset. The application provides the actual driver. Native
-  client-executed tools and other native tool kinds are unsupported; native
+  client-executed tools remain unsupported. Direct OpenAI custom tools support
+  text/grammar input, namespaces, approvals and native string/content results;
+  see [custom text tools](openai-custom-tools.md). Asynchronous/programmatic
+  custom execution and namespaced function tools remain unsupported. Native
   approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, client-owned MCP discovery,
   and general provider-hosted progress are not implemented. Citation normalization
@@ -140,3 +143,13 @@ local-model API: interim updates are provisional and final results can contain
 private provider continuation. Use hydration projections for UI history.
 Protocol journals remain in core; optional adapter-package extraction is not
 complete. See [native streaming](native-streaming.md).
+
+## Complete registered-tool profiles
+
+Unfinished checkpoints now store `kind: agent_execution` with the adapter's
+model profile and all ordered registered-tool contracts. Prior provider-only
+snapshots cannot prove the original complete registry and cannot resume.
+Keep the original conversation for history and start a new one. No SQL table
+migration or automatic replay is required. Current matching profiles can resume;
+completed custom-tool history can replay under a changed registry without
+executing its historical calls. See [approval contracts](approval-contracts.md).

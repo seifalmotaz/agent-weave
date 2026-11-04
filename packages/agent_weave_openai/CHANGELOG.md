@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add application-owned native custom tools, text/grammar input, namespaces, optional result metadata, typed text/image/file content, approval/denial and private replay. Reject unsupported asynchronous/programmatic execution.
+- Validate the complete native registry and typed SDK roundtrip before execution; reconcile custom input fragments, identity and terminal output before local effects.
+
 - Stop waiting promptly when an MCP credential resolver is cancelled before dispatch; consume late resolver errors without poisoning the thread.
 
 - Bind Responses continuations to frozen options, ordered managed tools and a stable provider authority. Managed tools require `authorityBindingId` and immutable `options`/`toolChoice`/`functionToolOptions` instead of `configure`; constructors copy their collections and are no longer const.

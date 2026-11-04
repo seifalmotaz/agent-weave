@@ -201,7 +201,8 @@ HTTP failures, with status and the native transport's redacted request ID.
 Error bodies and response headers are dropped. SDK 9.0.1 streaming exceptions
 retain status but omit the server request ID; do not mistake a client correlation
 ID for it. [Upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445)
-addresses this loss and is separate from a released SDK dependency.
+was approved and merged on 2026-11-04. The workspace still pins 9.0.1;
+the upstream merge is separate from a released SDK dependency update.
 The native transport has no
 automatic retries. The SDK-backed stream also makes one send, but pinned SDK
 9.0.1 cannot abort while waiting for response headers. Prefer the native client

@@ -40,6 +40,14 @@ The [operation inventory](openai-api-inventory.json) records the official
 reference index for update reviews. Each entry is a discovery/review item, not
 a passing endpoint test. See [validation](validation.md) for what was exercised.
 
+## Custom text tools
+
+Register `OpenAICustomTool<C>` for direct Responses calls with raw text input,
+optional regex/Lark grammar, namespaced provider identities and application-owned
+execution. Approval and denial use native output correlation and private replay.
+See [custom tools](openai-custom-tools.md). Asynchronous/programmatic execution
+and namespaced functions are not integrated.
+
 ## Media and realtime
 
 `imageTask`, `speechTask`, and `transcriptionTask` emit normalized TanStack

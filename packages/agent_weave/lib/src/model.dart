@@ -680,6 +680,11 @@ abstract interface class ChatModel {
   });
 }
 
+/// Optional validation of the complete tool registry before a run can execute.
+abstract interface class ModelToolValidator {
+  void validateTools(Iterable<ModelTool> tools);
+}
+
 sealed class ModelEvent {
   const ModelEvent();
 }
