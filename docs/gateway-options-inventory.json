@@ -1,0 +1,169 @@
+{
+  "provider": "vercel-ai-gateway",
+  "repository": "vercel/ai",
+  "revision": "6adf8c797d5e2bf056c077f946aa12dabb3cb268",
+  "reviewed": "2026-11-04",
+  "license": "Apache-2.0",
+  "source_path": "packages/gateway/src/gateway-provider-options.ts",
+  "reference": "https://vercel.com/docs/ai-gateway/models-and-providers/provider-options",
+  "source": "https://raw.githubusercontent.com/vercel/ai/6adf8c797d5e2bf056c077f946aa12dabb3cb268/packages/gateway/src/gateway-provider-options.ts",
+  "sha256": "1109d196157a8b5a1a9a9fdedd93eb05cadad978a367913a506b89a4b943b08f",
+  "meaning": "SDK option declarations and reviewed dispositions. Does not prove public HTTP, nested, model or live parity.",
+  "fields": [
+    {
+      "name": "byok",
+      "optional": true,
+      "type": "Record<string, Array<Record<string, unknown>>>"
+    },
+    {
+      "name": "caching",
+      "optional": true,
+      "type": "'auto'"
+    },
+    {
+      "name": "experimental_streamingImageDecoding",
+      "optional": true,
+      "type": "boolean"
+    },
+    {
+      "name": "disallowPromptTraining",
+      "optional": true,
+      "type": "boolean"
+    },
+    {
+      "name": "has",
+      "optional": true,
+      "type": "Array<'implicit-caching' | 'reasoning' | 'structured-output' | 'tool-use' | 'vision' | `quantization:${string}` | `!quantization:${string}`>"
+    },
+    {
+      "name": "idempotencyKey",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "models",
+      "optional": true,
+      "type": "GatewayModelFallbackList<QUESTION_ID>"
+    },
+    {
+      "name": "only",
+      "optional": true,
+      "type": "string[]"
+    },
+    {
+      "name": "order",
+      "optional": true,
+      "type": "string[]"
+    },
+    {
+      "name": "providerTimeouts",
+      "optional": true,
+      "type": "{\n    byok?: Record<string, number>;\n}"
+    },
+    {
+      "name": "quotaEntityId",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "serviceTier",
+      "optional": true,
+      "type": "'flex' | 'priority'"
+    },
+    {
+      "name": "sort",
+      "optional": true,
+      "type": "'cost' | 'tps' | 'ttft'"
+    },
+    {
+      "name": "tags",
+      "optional": true,
+      "type": "string[]"
+    },
+    {
+      "name": "user",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "zeroDataRetention",
+      "optional": true,
+      "type": "boolean"
+    }
+  ],
+  "extensions": [
+    "/**\n * Service-owned options may be added by the Gateway without requiring an SDK\n * release. The Gateway service validates and applies the runtime schema.\n */\n[key: string]: unknown;"
+  ],
+  "dispositions": {
+    "byok": {
+      "status": "request-credentials",
+      "api": "GatewayCredentials.byok via credentialResolver"
+    },
+    "caching": {
+      "status": "typed-option",
+      "api": "GatewayOptions.caching"
+    },
+    "experimental_streamingImageDecoding": {
+      "status": "sdk-client-only",
+      "api": "Not sent; image decoding is outside Chat/Responses"
+    },
+    "disallowPromptTraining": {
+      "status": "typed-option",
+      "api": "GatewayOptions.disallowPromptTraining"
+    },
+    "has": {
+      "status": "typed-option",
+      "api": "GatewayOptions.has"
+    },
+    "idempotencyKey": {
+      "status": "native-extension",
+      "api": "GatewayOptions.extra; no batch lifecycle implementation"
+    },
+    "models": {
+      "status": "typed-option",
+      "api": "GatewayOptions.models; string fallbacks only"
+    },
+    "only": {
+      "status": "typed-option",
+      "api": "GatewayOptions.only"
+    },
+    "order": {
+      "status": "typed-option",
+      "api": "GatewayOptions.order"
+    },
+    "providerTimeouts": {
+      "status": "typed-option",
+      "api": "GatewayOptions.byokProviderTimeouts"
+    },
+    "quotaEntityId": {
+      "status": "typed-option",
+      "api": "GatewayOptions.quotaEntityId"
+    },
+    "serviceTier": {
+      "status": "typed-option",
+      "api": "GatewayOptions.serviceTier"
+    },
+    "sort": {
+      "status": "typed-option",
+      "api": "GatewayOptions.sort"
+    },
+    "tags": {
+      "status": "typed-option",
+      "api": "GatewayOptions.tags"
+    },
+    "user": {
+      "status": "typed-option",
+      "api": "GatewayOptions.user"
+    },
+    "zeroDataRetention": {
+      "status": "typed-option",
+      "api": "GatewayOptions.zeroDataRetention"
+    }
+  },
+  "remaining": [
+    "Public endpoint service semantics for each option and live account/model behavior",
+    "Native Messages/OpenResponses/Decisions, batch and media capabilities",
+    "Conditional decision fallbacks, SDK V4 internal protocol, image decoding",
+    "Normalized selected-provider/cost metadata; use raw native response envelopes"
+  ]
+}

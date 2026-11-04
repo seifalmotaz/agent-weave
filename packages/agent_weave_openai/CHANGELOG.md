@@ -1,5 +1,9 @@
 # Unreleased
 
+- Extract reusable typed Chat/Responses protocol models and isolate provider replay.
+- Fix assistant text and tool-call history serialization for Chat continuation.
+- Reject unsupported choices/audio and require a Responses terminal event.
+
 - Add URL, inline-data, and provider-scoped document inputs to Responses.
 
 - Fail explicitly on native tool continuations that the function-tool loop cannot execute.

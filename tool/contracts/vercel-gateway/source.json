@@ -1,0 +1,9 @@
+{
+  "provider": "vercel-ai-gateway",
+  "repository": "vercel/ai",
+  "revision": "6adf8c797d5e2bf056c077f946aa12dabb3cb268",
+  "reviewed": "2026-11-04",
+  "license": "Apache-2.0",
+  "source_path": "packages/gateway/src/gateway-provider-options.ts",
+  "reference": "https://vercel.com/docs/ai-gateway/models-and-providers/provider-options"
+}

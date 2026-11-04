@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:openai_dart/openai_dart.dart' as api;
@@ -17,6 +18,51 @@ final class OpenAIResponsesModel implements ChatModel {
   });
 
   @override
+  ModelCapabilities get capabilities => ResponsesProtocolModel(
+    model: model,
+    transport: _transport,
+    configure: configure,
+  ).capabilities;
+
+  Stream<JsonObject> _transport(
+    api.CreateResponseRequest request,
+    CancellationToken cancellation,
+  ) => client.responses
+      .createStream(request, abortTrigger: cancellation.whenCancelled)
+      .map((event) => event.toJson());
+
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) => ResponsesProtocolModel(
+    model: model,
+    transport: _transport,
+    configure: configure,
+  ).stream(request, cancellation: cancellation);
+}
+
+/// Responses request serialization and event normalization over a typed transport.
+final class ResponsesProtocolModel implements ChatModel {
+  final String model;
+  final Stream<JsonObject> Function(
+    api.CreateResponseRequest,
+    CancellationToken,
+  )
+  transport;
+  final api.CreateResponseRequest Function(api.CreateResponseRequest)?
+  configure;
+  final String providerDataKey;
+  final String? fileIdProvider;
+  const ResponsesProtocolModel({
+    required this.model,
+    required this.transport,
+    this.configure,
+    this.providerDataKey = 'openai.responses',
+    this.fileIdProvider = 'openai',
+  });
+
+  @override
   ModelCapabilities get capabilities => const ModelCapabilities(
     tools: true,
     structuredOutput: true,
@@ -27,6 +73,14 @@ final class OpenAIResponsesModel implements ChatModel {
 
   @override
   Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) => _cancelWithSubscription(
+    cancellation,
+    (token) => _stream(request, cancellation: token),
+  );
+
+  Stream<ModelEvent> _stream(
     ModelRequest request, {
     required CancellationToken cancellation,
   }) async* {
@@ -41,7 +95,7 @@ final class OpenAIResponsesModel implements ChatModel {
         });
         continue;
       }
-      final replay = message.providerData['openai.responses'];
+      final replay = message.providerData[providerDataKey];
       if (replay != null && replay.isNotEmpty) {
         input.addAll(replay);
         continue;
@@ -63,11 +117,14 @@ final class OpenAIResponsesModel implements ChatModel {
                   'type': 'input_image',
                   'image_url': url,
                 },
-                DocumentPart part => _responseDocument(part),
-                FilePart(:final fileId) => {
+                DocumentPart part => _responseDocument(part, fileIdProvider),
+                FilePart(:final fileId) when fileIdProvider == 'openai' => {
                   'type': 'input_file',
                   'file_id': fileId,
                 },
+                FilePart() => throw ArgumentError(
+                  'Legacy file handles require OpenAI.',
+                ),
                 VideoPart(:final url) => {
                   'type': 'input_video',
                   'video_url': url,
@@ -129,12 +186,9 @@ final class OpenAIResponsesModel implements ChatModel {
     }.toList();
     params = api.CreateResponseRequest.fromJson(options);
 
-    await for (final event in client.responses.createStream(
-      params,
-      abortTrigger: cancellation.whenCancelled,
-    )) {
+    var terminal = false;
+    await for (final json in transport(params, cancellation)) {
       cancellation.throwIfCancelled();
-      final json = event.toJson();
       switch (json['type']) {
         case 'response.output_text.delta':
           yield TextDelta(json['delta'] as String);
@@ -169,9 +223,10 @@ final class OpenAIResponsesModel implements ChatModel {
             );
           }
         case 'response.completed' || 'response.incomplete':
+          terminal = true;
           final response = json['response'] as Map;
           yield ProviderOutput(
-            provider: 'openai.responses',
+            provider: providerDataKey,
             items: [
               for (final item in response['output'] as List? ?? [])
                 Map<String, Object?>.from(item as Map),
@@ -197,6 +252,7 @@ final class OpenAIResponsesModel implements ChatModel {
           throw StateError('OpenAI response failed.');
       }
     }
+    if (!terminal) throw StateError('OpenAI stream has no terminal response.');
   }
 }
 
@@ -213,6 +269,48 @@ final class OpenAIChatModel implements ChatModel {
     this.configure,
   });
   @override
+  ModelCapabilities get capabilities => ChatCompletionsProtocolModel(
+    model: model,
+    transport: _transport,
+    configure: configure,
+  ).capabilities;
+
+  Stream<JsonObject> _transport(
+    api.ChatCompletionCreateRequest request,
+    CancellationToken cancellation,
+  ) => client.chat.completions
+      .createStream(request, abortTrigger: cancellation.whenCancelled)
+      .map((event) => event.toJson());
+
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) => ChatCompletionsProtocolModel(
+    model: model,
+    transport: _transport,
+    configure: configure,
+  ).stream(request, cancellation: cancellation);
+}
+
+/// Chat Completions request serialization and event normalization.
+final class ChatCompletionsProtocolModel implements ChatModel {
+  final String model;
+  final Stream<JsonObject> Function(
+    api.ChatCompletionCreateRequest,
+    CancellationToken,
+  )
+  transport;
+  final api.ChatCompletionCreateRequest Function(
+    api.ChatCompletionCreateRequest,
+  )?
+  configure;
+  const ChatCompletionsProtocolModel({
+    required this.model,
+    required this.transport,
+    this.configure,
+  });
+  @override
   ModelCapabilities get capabilities => const ModelCapabilities(
     tools: true,
     structuredOutput: true,
@@ -224,8 +322,24 @@ final class OpenAIChatModel implements ChatModel {
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
+  }) => _cancelWithSubscription(
+    cancellation,
+    (token) => _stream(request, cancellation: token),
+  );
+
+  Stream<ModelEvent> _stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
+    for (final message in request.messages) {
+      if (message.role == MessageRole.assistant &&
+          message.content.any((part) => part is! TextPart)) {
+        throw const FormatException(
+          'Chat model does not accept assistant multimedia.',
+        );
+      }
+    }
     var params = api.ChatCompletionCreateRequest.fromJson({
       'model': model,
       'max_completion_tokens': request.maxOutputTokens,
@@ -240,26 +354,32 @@ final class OpenAIChatModel implements ChatModel {
               'tool_call_id': message.toolCallId,
               'content': message.text,
             } else ...{
-              'content': [
-                for (final part in message.content)
-                  switch (part) {
-                    TextPart(:final text) => {'type': 'text', 'text': text},
-                    ImagePart(:final url) => {
-                      'type': 'image_url',
-                      'image_url': {'url': url},
-                    },
-                    DocumentPart() || FilePart() => throw const FormatException(
-                      'Chat model does not accept files.',
-                    ),
-                    AudioPart(:final data, :final format) => {
-                      'type': 'input_audio',
-                      'input_audio': {'data': data, 'format': format},
-                    },
-                    VideoPart() => throw const FormatException(
-                      'Chat model does not accept video.',
-                    ),
-                  },
-              ],
+              'content': message.role == MessageRole.assistant
+                  ? (message.content.isEmpty ? null : message.text)
+                  : [
+                      for (final part in message.content)
+                        switch (part) {
+                          TextPart(:final text) => {
+                            'type': 'text',
+                            'text': text,
+                          },
+                          ImagePart(:final url) => {
+                            'type': 'image_url',
+                            'image_url': {'url': url},
+                          },
+                          DocumentPart() ||
+                          FilePart() => throw const FormatException(
+                            'Chat model does not accept files.',
+                          ),
+                          AudioPart(:final data, :final format) => {
+                            'type': 'input_audio',
+                            'input_audio': {'data': data, 'format': format},
+                          },
+                          VideoPart() => throw const FormatException(
+                            'Chat model does not accept video.',
+                          ),
+                        },
+                    ],
               if (message.toolCalls.isNotEmpty)
                 'tool_calls': [
                   for (final call in message.toolCalls)
@@ -308,14 +428,18 @@ final class OpenAIChatModel implements ChatModel {
       ),
     );
 
+    final options = params.toJson();
+    if ((options['n'] != null && options['n'] != 1) ||
+        (options['modalities'] as List? ?? []).contains('audio') ||
+        options['audio'] != null ||
+        options['functions'] != null ||
+        options['function_call'] != null) {
+      throw ArgumentError('Unsupported Chat Completions output mode.');
+    }
     final calls = <int, _CallBuffer>{};
     String? finishReason;
-    await for (final event in client.chat.completions.createStream(
-      params,
-      abortTrigger: cancellation.whenCancelled,
-    )) {
+    await for (final json in transport(params, cancellation)) {
       cancellation.throwIfCancelled();
-      final json = event.toJson();
       if (json['usage'] case final Map<String, dynamic> usage) {
         yield TokenUsage(
           inputTokens: usage['prompt_tokens'] as int,
@@ -333,6 +457,11 @@ final class OpenAIChatModel implements ChatModel {
         final choice = raw as Map;
         if (choice['index'] != 0) continue;
         final delta = choice['delta'] as Map? ?? const {};
+        if (delta['function_call'] != null ||
+            delta['audio'] != null ||
+            choice['finish_reason'] == 'function_call') {
+          throw UnsupportedError('Unsupported Chat Completions output.');
+        }
         if (delta['content'] case final String text) yield TextDelta(text);
         if (delta['refusal'] case final String text) yield TextDelta(text);
         if (delta['reasoning_content'] case final String text) {
@@ -422,7 +551,7 @@ Map<String, dynamic> _preserveRequest(
   return Map<String, dynamic>.from(configured);
 }
 
-JsonObject _responseDocument(DocumentPart part) => {
+JsonObject _responseDocument(DocumentPart part, String? fileIdProvider) => {
   'type': 'input_file',
   'filename': ?part.filename,
   ...switch (part) {
@@ -433,10 +562,55 @@ JsonObject _responseDocument(DocumentPart part) => {
         'filename': mimeType == 'application/pdf' ? 'document.pdf' : 'document',
     },
     FileIdDocumentPart(:final fileId, :final provider)
-        when provider == 'openai' =>
+        when fileIdProvider != null && provider == fileIdProvider =>
       {'file_id': fileId},
     FileIdDocumentPart() => throw ArgumentError(
-      'The document file handle was not issued by OpenAI.',
+      'The document file handle is not supported by this provider.',
     ),
   },
 };
+
+Stream<T> _cancelWithSubscription<T>(
+  CancellationToken parent,
+  Stream<T> Function(CancellationToken) create,
+) {
+  final token = CancellationToken();
+  late StreamController<T> controller;
+  StreamSubscription<T>? subscription;
+  StreamSubscription<void>? parentSubscription;
+  var active = true;
+  controller = StreamController<T>(
+    onListen: () {
+      if (parent.isCancelled) token.cancel();
+      parentSubscription = parent.onCancelled.listen((_) {
+        if (active) token.cancel();
+      });
+      subscription = create(token).listen(
+        controller.add,
+        onError: (Object error, StackTrace stack) {
+          if (active) controller.addError(error, stack);
+        },
+        onDone: () {
+          active = false;
+          unawaited(parentSubscription?.cancel());
+          controller.close();
+        },
+      );
+    },
+    onPause: () => subscription?.pause(),
+    onResume: () => subscription?.resume(),
+    onCancel: () async {
+      active = false;
+      token.cancel();
+      await parentSubscription?.cancel();
+      try {
+        await subscription?.cancel();
+      } on api.AbortedException {
+        // The SDK reports an intentional abort while waiting for headers.
+      } on RunCancelled {
+        // A transport may report the linked cancellation directly.
+      }
+    },
+  );
+  return controller.stream;
+}

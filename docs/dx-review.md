@@ -168,3 +168,26 @@ The initial review exposed dropped usage after a finish event; the fix passed th
 Commands passed: `dart test packages/agent_weave_together/test/consumer_test.dart`; `dart --enable-asserts run examples/review_cases/together.dart`.
 
 All checks used offline loopback responses with synthetic data. No paid calls, live Together model acceptance, billing, real network interruption, or exhaustive native fields were tested.
+
+
+## Round 7: Gateway consumer review
+
+Independent offline consumer exercise using Dart 3.12.2 with assertions and a real loopback HTTP server: `dart --enable-asserts run examples/review_cases/gateway.dart`. Synthetic fixtures model expected wire events; they do not establish actual Vercel Gateway API behavior, routing, or live compatibility.
+
+Initial run: Responses structured output and approval continuation passed, including per-request rotating bearer and BYOK, routing options, provider options, credential-free stored history and serialized UI hydration. A separately generated request confirms wrong-provider Responses replay is excluded. Native JSON client preserved a response header and an unknown metadata field. Cancellation while awaiting a resolver prevented late dispatch.
+
+Chat structured output and approval interrupt passed, but the approved continuation failed before HTTP dispatch with `AgentRunException(MODEL_FAILED)`, caused by `AssistantMessage.fromJson` during `ChatCompletionsProtocolModel.stream`. The test remains a runnable repro pending fix.
+
+Scores (targeted experience, not SDK-wide acceptance): discoverability 5/10 (README lacks runnable usage and option examples), clarity 6/10 (simple constructor but credential and endpoint behavior need recipes), type safety 6/10 (typed routing, but BYOK and provider options are JSON maps), debugging 5/10 (generic run failure obscures continuation issue), testing 7/10 (real loopback is practical; provider service contract not verified). Overall 5.8/10.
+
+Limits: no real Gateway, paid requests, deployed service, actual Flutter UI, concurrency/backpressure or complete provider surface. Header/metadata test covers native JSON response, not streamed model metadata. Hydration checks the serialized UI payload, not a running client UI.
+
+### Retest after protocol fix
+
+The same command now passes all four loopback checks, including the approved Chat tool continuation, credential-free stored history, and serialized pending UI hydration. `dart analyze examples/review_cases/gateway.dart` also reports no issues. The initial scores above remain the review record; the corrected continuation improves reliability, but the missing runnable package README and the unverified live Gateway contract still constrain the DX assessment. A revised targeted score is 6.4/10: discoverability 5, clarity 6, type safety 6, debugging 6, testing 9. The testing score reflects the consumer exercise and reproducibility, not production service coverage.
+
+### Guide and diagnostic re-review
+
+Both complete code blocks in `docs/vercel-gateway.md` were copied unchanged into fresh temporary Dart files and compiled with the workspace package configuration and Dart 3.12.2; neither was run because the examples use a live, potentially paid endpoint. The offline consumer journey was rerun successfully. It now additionally exercises `withApiKey`, enum-based cache/service-tier/sort configuration, forward-compatible extra options, and HTTP and stream errors with status/request ID and provider details. Known bearer and BYOK values were redacted in diagnostics while error codes remained available. These are synthetic loopback responses, not confirmation of the Gateway's production error shapes. The dynamic resolver journey rotates credentials between requests; the guide's environment-based example itself was compiled, not executed against a secret manager.
+
+Revised targeted DX score: 7.6/10 — discoverability 8, clarity 8, type safety 7, debugging 7, testing 8. The complete runnable guide and typed routing materially improve setup and diagnosis; provider-specific configuration and BYOK still require JSON, and live provider behavior remains unverified. Earlier 5.8 and 6.4 assessments remain above as the initial and first-retest records.

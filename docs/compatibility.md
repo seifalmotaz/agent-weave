@@ -45,8 +45,9 @@ not a claim of full TanStack AI core parity.
   remain unfinished.
 - Document support varies by adapter. Responses accepts URLs, inline data, and
   OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
-  file IDs are blocked by the pinned SDK. Chat Completions and OpenRouter
-  and Together reject documents. See [documents](documents.md) for storage
+  file IDs are blocked by the pinned SDK. Gateway Responses accepts URLs and
+  inline data but blocks file IDs. Chat Completions, OpenRouter, and Together
+  reject documents. See [documents](documents.md) for storage
   implications.
 - OpenRouter supports selected typed request options; plugins, top-level cache
   control, newer routing fields, and response provider, cost, and reasoning
@@ -54,6 +55,9 @@ not a claim of full TanStack AI core parity.
 - Together Chat has typed options and native JSON methods. Its agent adapter
   supports one choice; model acceptance of tools, schema, and media remains
   unverified. See [Together](together.md).
+- Vercel AI Gateway supports selected Chat and Responses contracts with offline
+  fixtures; provider selection, model acceptance, and billing are unverified.
+  See [Vercel AI Gateway](vercel-gateway.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 

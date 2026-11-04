@@ -21,10 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native Together increment was checked on Dart 3.12.2. The prior
+The latest Gateway/protocol increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 192 Dart unit and regression tests: tool validation, approvals, client tools,
+- 222 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -158,3 +158,35 @@ in the pinned files. No new paid requests were made.
 
 The Together package publication dry-run passed with zero warnings on Dart
 3.12.2. This is packaging evidence, not a pub.dev publication.
+
+## Gateway, protocol and shared transport increment
+
+Seven Gateway fixtures cover separate public Chat/Responses requests, routing
+serialization, concurrent rotating bearer/BYOK credentials, private redacted
+HTTP and SSE diagnostics, request cancellation and controlled native extensions.
+Nine shared HTTP tests cover fragmented UTF-8/CRLF/multiline SSE with event IDs
+and headers, credential-wait cancellation/deadlines, late-dispatch prevention,
+pending-header cancellation, custom clients with stalled bodies, malformed frames,
+request validation and borrowed-client ownership. Together's existing 18 tests
+pass against the shared transport.
+
+The 28 OpenAI chat/protocol tests now include protocol and actual SDK two-turn
+Chat tool continuation, assistant text/null encoding, provider replay/file-handle
+isolation, explicit unsupported choices/audio, Responses EOF, and independent
+subscription cancellation with a concurrent request. Three core tests cover
+sticky cancellation events and disposable listeners.
+
+The independent Gateway consumer tests both protocols through schema generation,
+stored approval/resume, request credential rotation, serialized UI hydration,
+wrong-provider replay exclusion and native response metadata. Both public guide
+examples compile unchanged. Its documented targeted score progressed from 5.8
+to 6.4 and then 7.6/10 after fixes. These are local fixtures, not a live Gateway
+account, Flutter UI, secret manager, route selection, cache hit or billing test.
+
+The five AST/coverage parser tests and executable Dart fixtures verify reviewed
+Together fields and 16 named Gateway SDK options. The Gateway source type permits
+unknown service options; classifying its fields does not prove a complete public
+HTTP contract. No new paid provider calls were made.
+
+Both new HTTP and Gateway package publication dry-runs passed with zero warnings
+on Dart 3.12.2. Neither package has been published to pub.dev.

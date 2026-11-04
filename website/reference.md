@@ -1,12 +1,14 @@
 # Packages and API
 
-The monorepo contains nine packages. Use the smallest set needed by your application.
+The monorepo contains eleven packages. Use the smallest set needed by your application.
 
 | Package | Owns |
 | --- | --- |
 | `agent_weave` | Provider contracts, typed tools, agent execution, results, generation tasks, protocol events |
 | `agent_weave_anthropic` | Native Anthropic Messages adapter |
 | `agent_weave_openrouter` | OpenRouter Chat Completions adapter |
+| `agent_weave_http` | Shared JSON HTTP transport for provider adapters |
+| `agent_weave_vercel_gateway` | Vercel AI Gateway Chat and Responses adapters |
 | `agent_weave_together` | Native Together Chat Completions client and adapter |
 | `agent_weave_openai` | OpenAI model adapters and typed provider resource access |
 | `agent_weave_serverpod` | Authenticated HTTP/SSE routes and native endpoint helpers |
@@ -25,7 +27,7 @@ The monorepo contains nine packages. Use the smallest set needed by your applica
 | `AiAgent.run` | Stored conversation run returning streaming events |
 | `Tool<I, O, C>` | Schema-validated tool with typed input, output, and context |
 | `ClientTool<C>` | Explicitly registered client-executed tool |
-| `CancellationToken` | Cooperative cancellation signal |
+| `CancellationToken` | Cancellation Future and disposable single-event Stream |
 | `RunStore` | Atomic reservations, checkpoints, and persisted events |
 | `GenerationTask<P, R>` | Typed operation with generation progress/result events |
 

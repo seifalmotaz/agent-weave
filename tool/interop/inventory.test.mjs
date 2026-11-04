@@ -36,3 +36,18 @@ test('requires field dispositions and all executable typed options', () => {
   assert.throws(() => validateCoverage(fields, coverage, {}), /every typed option/);
   assert.throws(() => validateCoverage(fields, { ...coverage, model: { status: 'assumed' } }), /Invalid coverage/);
 });
+
+test('Gateway option extraction retains open index signatures and named fields', async () => {
+  const { gatewayFields } = await import('./gateway-inventory.mjs');
+  const parsed = gatewayFields("export type GatewayProviderOptions<T = string> = { [key: string]: unknown; models?: T[]; caching?: 'auto' };");
+  assert.deepEqual(parsed.fields, [
+    {name: 'models', optional: true, type: 'T[]'},
+    {name: 'caching', optional: true, type: "'auto'"},
+  ]);
+  assert.equal(parsed.extensions.length, 1);
+});
+test('Gateway extraction fails on a changed declaration or unsupported member', async () => {
+  const { gatewayFields } = await import('./gateway-inventory.mjs');
+  assert.throws(() => gatewayFields('export type GatewayProviderOptions = Record<string, unknown>;'), /changed GatewayProviderOptions shape/);
+  assert.throws(() => gatewayFields('export type GatewayProviderOptions = { create(): void };'), /Unsupported gateway member/);
+});

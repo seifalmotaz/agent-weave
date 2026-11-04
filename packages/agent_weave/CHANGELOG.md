@@ -1,5 +1,7 @@
 # Unreleased
 
+- Add a disposable cancellation event stream while preserving the existing Future signal.
+
 - Add URL, inline bytes, and provider-scoped document inputs with canonical media hydration.
 - Release run reservations safely when stored history cannot be decoded.
 

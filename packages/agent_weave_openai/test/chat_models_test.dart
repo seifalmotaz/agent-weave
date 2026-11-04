@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:agent_weave/agent_weave.dart';
@@ -67,6 +68,336 @@ final modelRequest = ModelRequest(
 );
 
 void main() {
+  test(
+    'protocol subscription cancellation signals only its linked token',
+    () async {
+      final started = Completer<CancellationToken>();
+      final ended = Completer<void>();
+      final model = openai.ResponsesProtocolModel(
+        model: 'fixture',
+        transport: (_, token) async* {
+          started.complete(token);
+          await token.whenCancelled;
+          ended.complete();
+          throw const RunCancelled();
+        },
+      );
+      final parent = CancellationToken();
+      final sub = model
+          .stream(modelRequest, cancellation: parent)
+          .listen((_) {});
+      final child = await started.future;
+      await sub.cancel().timeout(const Duration(seconds: 2));
+      await ended.future.timeout(const Duration(seconds: 2));
+      expect(child.isCancelled, isTrue);
+      expect(parent.isCancelled, isFalse);
+    },
+  );
+
+  for (final responses in [true, false]) {
+    test(
+      'SDK ${responses ? "Responses" : "Chat"} subscription cancellation aborts pending headers independently',
+      () async {
+        final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+        addTearDown(() => server.close(force: true));
+        final requests = <HttpRequest>[];
+        final accepted = Completer<void>();
+        server.listen((request) async {
+          requests.add(request);
+          if (requests.length == 2) accepted.complete();
+        });
+        final client = openai.OpenAIClient(
+          config: openai.OpenAIConfig(
+            baseUrl: 'http://127.0.0.1:${server.port}/v1',
+            authProvider: const openai.ApiKeyProvider('fixture'),
+            retryPolicy: const openai.RetryPolicy(maxRetries: 0),
+          ),
+        );
+        addTearDown(client.close);
+        final ChatModel model = responses
+            ? openai.OpenAIResponsesModel(client: client, model: 'fixture')
+            : openai.OpenAIChatModel(client: client, model: 'fixture');
+        final token = CancellationToken();
+        final first = model
+            .stream(modelRequest, cancellation: token)
+            .listen((_) {});
+        final second = model.stream(modelRequest, cancellation: token).toList();
+        await accepted.future.timeout(const Duration(seconds: 3));
+        await first.cancel().timeout(const Duration(seconds: 2));
+        expect(token.isCancelled, isFalse);
+        final response = requests[1].response;
+        response.headers.contentType = ContentType('text', 'event-stream');
+        final event = responses
+            ? responseEvent('response.completed', {'response': responseJson()})
+            : chatEvent(delta: {'content': 'ok'}, finish: 'stop');
+        response.write('data: ${jsonEncode(event)}\n\ndata: [DONE]\n\n');
+        await response.close();
+        expect(
+          (await second.timeout(
+            const Duration(seconds: 3),
+          )).whereType<ModelFinished>(),
+          hasLength(1),
+        );
+      },
+    );
+  }
+
+  for (final useSdk in [false, true]) {
+    test(
+      'Chat ${useSdk ? "SDK facade" : "protocol"} continues tool calls',
+      () async {
+        final requests = <Map<String, dynamic>>[];
+        List<JsonObject> capture(Map<String, dynamic> request) {
+          requests.add(request);
+          return requests.length == 1
+              ? [
+                  chatEvent(
+                    delta: {
+                      'tool_calls': [
+                        {
+                          'index': 0,
+                          'id': 'call',
+                          'type': 'function',
+                          'function': {
+                            'name': 'lookup',
+                            'arguments': '{"id":42}',
+                          },
+                        },
+                      ],
+                    },
+                    finish: 'tool_calls',
+                  ),
+                ]
+              : [
+                  chatEvent(delta: {'content': 'done'}, finish: 'stop'),
+                ];
+        }
+
+        late final ChatModel model;
+        if (useSdk) {
+          final httpClient = MockClient((request) async {
+            final events = capture(
+              jsonDecode(request.body) as Map<String, dynamic>,
+            );
+            return http.Response(
+              '${events.map((event) => 'data: ${jsonEncode(event)}\n\n').join()}data: [DONE]\n\n',
+              200,
+              headers: {'content-type': 'text/event-stream'},
+            );
+          });
+          final client = openai.OpenAIClient(
+            config: const openai.OpenAIConfig(
+              authProvider: openai.ApiKeyProvider('fixture'),
+            ),
+            httpClient: httpClient,
+            streamClientFactory: () => httpClient,
+          );
+          addTearDown(client.close);
+          model = openai.OpenAIChatModel(client: client, model: 'fixture');
+        } else {
+          model = openai.ChatCompletionsProtocolModel(
+            model: 'fixture',
+            transport: (request, _) =>
+                Stream.fromIterable(capture(request.toJson())),
+          );
+        }
+        final first = await model
+            .stream(modelRequest, cancellation: CancellationToken())
+            .toList();
+        final call = first.whereType<ToolCallReady>().single.call;
+        final second = await model
+            .stream(
+              ModelRequest(
+                messages: [
+                  ChatMessage.user('Hello', id: 'u'),
+                  ChatMessage(
+                    id: 'a',
+                    role: MessageRole.assistant,
+                    toolCalls: [call],
+                  ),
+                  ChatMessage(
+                    id: 't',
+                    role: MessageRole.tool,
+                    toolCallId: call.id,
+                    content: [TextPart('42')],
+                  ),
+                  ChatMessage(
+                    id: 'a2',
+                    role: MessageRole.assistant,
+                    content: [TextPart('Earlier answer')],
+                  ),
+                ],
+              ),
+              cancellation: CancellationToken(),
+            )
+            .toList();
+        final messages = requests.last['messages'] as List;
+        expect((messages[1] as Map)['tool_calls'], isNotEmpty);
+        expect((messages[1] as Map)['content'], isNull);
+        expect((messages[2] as Map)['content'], '42');
+        expect((messages[3] as Map)['content'], 'Earlier answer');
+        expect(second.whereType<TextDelta>().single.text, 'done');
+      },
+    );
+  }
+  test('Chat rejects assistant multimedia before dispatch', () async {
+    final model = openai.ChatCompletionsProtocolModel(
+      model: 'fixture',
+      transport: (_, _) => throw StateError('must not dispatch'),
+    );
+    await expectLater(
+      model
+          .stream(
+            ModelRequest(
+              messages: [
+                ChatMessage(
+                  id: 'a',
+                  role: MessageRole.assistant,
+                  content: [ImagePart('https://example.com/a.png')],
+                ),
+              ],
+            ),
+            cancellation: CancellationToken(),
+          )
+          .toList(),
+      throwsFormatException,
+    );
+  });
+
+  test('protocol isolates replay and guards conversation ownership', () async {
+    Map<String, dynamic>? sent;
+    final model = openai.ResponsesProtocolModel(
+      model: 'fixture',
+      providerDataKey: 'vercel.gateway.responses',
+      fileIdProvider: null,
+      transport: (request, _) {
+        sent = request.toJson();
+        return Stream.value(
+          responseEvent('response.completed', {'response': responseJson()}),
+        );
+      },
+    );
+    final events = await model
+        .stream(
+          ModelRequest(
+            messages: [
+              ChatMessage(
+                id: 'a',
+                role: MessageRole.assistant,
+                content: [TextPart('visible')],
+                providerData: {
+                  'openai.responses': [
+                    {'type': 'reasoning', 'id': 'secret'},
+                  ],
+                },
+              ),
+            ],
+          ),
+          cancellation: CancellationToken(),
+        )
+        .toList();
+    expect(jsonEncode(sent!['input']), isNot(contains('secret')));
+    expect(jsonEncode(sent!['input']), contains('visible'));
+    expect(
+      events.whereType<ProviderOutput>().single.provider,
+      'vercel.gateway.responses',
+    );
+    final guarded = openai.ResponsesProtocolModel(
+      model: 'fixture',
+      transport: (_, _) => throw StateError('must not dispatch'),
+      configure: (r) => openai.CreateResponseRequest.fromJson({
+        ...r.toJson(),
+        'input': <Object?>[],
+      }),
+    );
+    await expectLater(
+      guarded.stream(modelRequest, cancellation: CancellationToken()).toList(),
+      throwsArgumentError,
+    );
+  });
+
+  test(
+    'gateway protocol rejects provider handles and legacy file parts before dispatch',
+    () async {
+      final model = openai.ResponsesProtocolModel(
+        model: 'fixture',
+        fileIdProvider: null,
+        transport: (_, _) => throw StateError('must not dispatch'),
+      );
+      for (final part in [
+        FilePart('id'),
+        DocumentPart.fileId('id', provider: 'openai'),
+      ]) {
+        await expectLater(
+          model
+              .stream(
+                ModelRequest(
+                  messages: [
+                    ChatMessage(
+                      id: 'u',
+                      role: MessageRole.user,
+                      content: [part],
+                    ),
+                  ],
+                ),
+                cancellation: CancellationToken(),
+              )
+              .toList(),
+          throwsArgumentError,
+        );
+      }
+    },
+  );
+
+  test(
+    'Responses protocol rejects EOF without terminal and provider failure',
+    () async {
+      for (final events in <List<JsonObject>>[
+        [],
+        [responseEvent('response.failed')],
+        [responseEvent('error')],
+      ]) {
+        final model = openai.ResponsesProtocolModel(
+          model: 'fixture',
+          transport: (_, _) => Stream.fromIterable(events),
+        );
+        await expectLater(
+          model
+              .stream(modelRequest, cancellation: CancellationToken())
+              .toList(),
+          throwsStateError,
+        );
+      }
+    },
+  );
+
+  for (final option in <Map<String, Object?>>[
+    {'n': 2},
+    {
+      'modalities': ['text', 'audio'],
+    },
+  ]) {
+    test('Chat protocol rejects $option before dispatch', () async {
+      var sent = false;
+      final model = openai.ChatCompletionsProtocolModel(
+        model: 'fixture',
+        transport: (_, _) {
+          sent = true;
+          return const Stream.empty();
+        },
+        configure: (r) => openai.ChatCompletionCreateRequest.fromJson({
+          ...r.toJson(),
+          ...option,
+        }),
+      );
+      await expectLater(
+        model.stream(modelRequest, cancellation: CancellationToken()).toList(),
+        throwsArgumentError,
+      );
+      expect(sent, isFalse);
+    });
+  }
+
   for (final (part, field, value) in <(DocumentPart, String, String)>[
     (
       DocumentPart.url(

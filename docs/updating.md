@@ -70,3 +70,21 @@ node tool/interop/inventory.mjs --check
 
 A classified field is not evidence of model acceptance or exhaustive coverage.
 Keep raw-native access, normalized agent behavior and live results distinct.
+
+## Gateway option declarations
+
+`tool/contracts/vercel-gateway/source.json` pins the official SDK option source
+and retains its upstream license. The generated reference classifies named
+options, credentials, native extensions and SDK-only fields. It is not a public
+endpoint specification. Verify new options against current official HTTP docs.
+
+```sh
+node tool/interop/gateway-inventory.mjs --upstream
+dart run tool/gateway_contract.dart
+node tool/interop/gateway-inventory.mjs --check
+```
+
+Review any source change before updating the full commit and snapshot. Update
+coverage dispositions, Dart options and fixture, then regenerate with `--write`
+and run the full check. The manually invoked upstream workflow compares both
+Together and Gateway sources; it does not publish packages or mutate pins.

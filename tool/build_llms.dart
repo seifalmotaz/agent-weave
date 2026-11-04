@@ -12,6 +12,8 @@ const documents = [
   'docs/openai.md',
   'docs/openrouter.md',
   'docs/together.md',
+  'docs/vercel-gateway.md',
+  'docs/gateway-options.md',
   'docs/together-options.md',
   'docs/anthropic.md',
   'docs/openai-options-audit.md',

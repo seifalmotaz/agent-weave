@@ -17,3 +17,4 @@ jobs:
           node-version: 22
       - run: npm ci --prefix tool/interop --ignore-scripts --no-audit --no-fund
       - run: node tool/interop/inventory.mjs --upstream
+      - run: node tool/interop/gateway-inventory.mjs --upstream

@@ -78,6 +78,8 @@ nav:
       - OpenAI capabilities: openai.md
       - OpenRouter: openrouter.md
       - Together: together.md
+      - Vercel AI Gateway: vercel-gateway.md
+      - Gateway request fields: gateway-options.md
       - Together request fields: together-options.md
       - Anthropic Messages: anthropic.md
       - Testing your application: testing.md

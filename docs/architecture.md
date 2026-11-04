@@ -69,3 +69,32 @@ approvals, validation, tool execution and authoritative history. The raw client
 provides a separate JSON contract for native choices and metadata that the agent
 does not normalize. Cancellation and timeout belong to each HTTP request;
 cancelling one stream does not close a shared client.
+
+## Compatible protocol reuse
+
+`ResponsesProtocolModel` and `ChatCompletionsProtocolModel` own canonical request
+serialization, runtime option guards and event normalization. The OpenAI SDK
+facades retain their existing client API and supply typed SDK transports. Gateway
+supplies a native JSON transport instead, appending its documented
+`providerOptions.gateway` extension after canonical request construction.
+
+This keeps one tested implementation of each wire protocol. Copying the entire
+encoder/parser into each compatible provider would make continuation fixes drift.
+Rewriting HTTP bodies behind an SDK client would obscure the actual request type.
+The explicit protocol boundary avoids both problems.
+
+Provider replay is namespaced separately. Gateway Responses cannot replay a
+message's private OpenAI Responses state, and it rejects provider file handles
+until their gateway/account ownership can be established. URLs and inline input
+remain separate source variants.
+
+`agent_weave_http` owns optional JSON POST/SSE I/O for native adapters. Together
+and Gateway use the same per-request deadline, abort, metadata and error-body
+handling. Provider adapters own finish/EOF semantics and credential redaction.
+This package does not add an HTTP dependency to the core agent runtime.
+
+`CancellationToken.whenCancelled` remains the one-shot Future API.
+`onCancelled` supplies a single-event Stream when a component needs a removable
+listener. Late subscribers still receive cancellation. Native request scopes and
+linked model subscriptions dispose that listener after completion or cancellation
+so a long-lived parent token does not retain completed request callbacks.

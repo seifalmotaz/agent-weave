@@ -36,6 +36,8 @@ Future<void> main() async {
     'packages/agent_weave_anthropic/test',
     'packages/agent_weave_openrouter/test',
     'packages/agent_weave_together/test',
+    'packages/agent_weave_http/test',
+    'packages/agent_weave_vercel_gateway/test',
     'packages/agent_weave_serverpod_client/test',
   ]);
   await run('npm', [
@@ -50,6 +52,8 @@ Future<void> main() async {
   await run('node', ['--test', 'tool/interop/inventory.test.mjs']);
   await run('dart', ['run', 'tool/together_contract.dart']);
   await run('node', ['tool/interop/inventory.mjs', '--check']);
+  await run('dart', ['run', 'tool/gateway_contract.dart']);
+  await run('node', ['tool/interop/gateway-inventory.mjs', '--check']);
 
   const example = 'examples/serverpod/agent_weave_demo_server';
   final passwords = File('$example/config/passwords.yaml');
@@ -76,6 +80,11 @@ Future<void> main() async {
     '--enable-asserts',
     'run',
     'examples/review_cases/together.dart',
+  ]);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/gateway.dart',
   ]);
   await run('python3', ['tool/test_audit_openai.py']);
   final secret = RegExp(

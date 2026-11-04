@@ -31,6 +31,7 @@ class DocumentationTest(unittest.TestCase):
                          'providers/index.html', 'compatibility/index.html',
                          'documents/index.html', 'openrouter/index.html',
                          'together/index.html', 'together-options/index.html', 'together-chat-inventory.json',
+                         'vercel-gateway/index.html', 'gateway-options/index.html', 'gateway-options-inventory.json',
                          'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
@@ -44,6 +45,8 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('openrouter/', locations)
             self.assertIn('together/', locations)
             self.assertIn('together-options/', locations)
+            self.assertIn('vercel-gateway/', locations)
+            self.assertIn('gateway-options/', locations)
             inventory = json.loads((target / 'together-chat-inventory.json').read_text())
             self.assertEqual(inventory['dispositions']['logprobs']['status'], 'typed-option')
             self.assertIn('architecture/', locations)

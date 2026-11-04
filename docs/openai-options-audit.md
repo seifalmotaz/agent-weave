@@ -45,3 +45,16 @@ released. AgentWeave still uses its published SDK dependency. Native computer,
 shell/custom/patch calls and MCP approval continuations fail explicitly instead
 of being silently treated as completed function-tool runs. Runtime execution
 and full computer-use orchestration remain unfinished.
+
+## Protocol reuse and Chat continuation
+
+The current SDK facades delegate canonical encoding and normalization to reusable
+protocol models. Chat assistant history now uses text or null as required by the
+SDK request type; two-turn tool continuation previously failed before dispatch
+because assistant content was encoded as a user-style parts list. Protocol and
+actual SDK transport regressions now exercise the second request.
+
+Chat explicitly rejects multiple choices and requested audio output instead of
+silently dropping unsupported results. Responses requires a terminal event before
+EOF. These supersede the corresponding silent-drop/EOF observations above;
+remaining event, media and computer-use gaps are still open.

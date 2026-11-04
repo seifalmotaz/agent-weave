@@ -1,0 +1,74 @@
+{
+  "fields": {
+    "byok": {
+      "status": "request-credentials",
+      "api": "GatewayCredentials.byok via credentialResolver"
+    },
+    "caching": {
+      "status": "typed-option",
+      "api": "GatewayOptions.caching"
+    },
+    "experimental_streamingImageDecoding": {
+      "status": "sdk-client-only",
+      "api": "Not sent; image decoding is outside Chat/Responses"
+    },
+    "disallowPromptTraining": {
+      "status": "typed-option",
+      "api": "GatewayOptions.disallowPromptTraining"
+    },
+    "has": {
+      "status": "typed-option",
+      "api": "GatewayOptions.has"
+    },
+    "idempotencyKey": {
+      "status": "native-extension",
+      "api": "GatewayOptions.extra; no batch lifecycle implementation"
+    },
+    "models": {
+      "status": "typed-option",
+      "api": "GatewayOptions.models; string fallbacks only"
+    },
+    "only": {
+      "status": "typed-option",
+      "api": "GatewayOptions.only"
+    },
+    "order": {
+      "status": "typed-option",
+      "api": "GatewayOptions.order"
+    },
+    "providerTimeouts": {
+      "status": "typed-option",
+      "api": "GatewayOptions.byokProviderTimeouts"
+    },
+    "quotaEntityId": {
+      "status": "typed-option",
+      "api": "GatewayOptions.quotaEntityId"
+    },
+    "serviceTier": {
+      "status": "typed-option",
+      "api": "GatewayOptions.serviceTier"
+    },
+    "sort": {
+      "status": "typed-option",
+      "api": "GatewayOptions.sort"
+    },
+    "tags": {
+      "status": "typed-option",
+      "api": "GatewayOptions.tags"
+    },
+    "user": {
+      "status": "typed-option",
+      "api": "GatewayOptions.user"
+    },
+    "zeroDataRetention": {
+      "status": "typed-option",
+      "api": "GatewayOptions.zeroDataRetention"
+    }
+  },
+  "remaining": [
+    "Public endpoint service semantics for each option and live account/model behavior",
+    "Native Messages/OpenResponses/Decisions, batch and media capabilities",
+    "Conditional decision fallbacks, SDK V4 internal protocol, image decoding",
+    "Normalized selected-provider/cost metadata; use raw native response envelopes"
+  ]
+}

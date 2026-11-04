@@ -19,6 +19,8 @@ using it in production.
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
+| [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
+| [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
 | [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
@@ -115,6 +117,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Anthropic Messages](docs/anthropic.md)
 - [OpenRouter](docs/openrouter.md)
 - [Together Chat Completions](docs/together.md)
+- [Vercel AI Gateway](docs/vercel-gateway.md)
 - [Compatibility and limitations](docs/compatibility.md)
 - [Validation evidence](docs/validation.md)
 - [Upstream updates](docs/updating.md)
@@ -583,6 +586,29 @@ Commands passed: `dart test packages/agent_weave_together/test/consumer_test.dar
 All checks used offline loopback responses with synthetic data. No paid calls, live Together model acceptance, billing, real network interruption, or exhaustive native fields were tested.
 
 
+## Round 7: Gateway consumer review
+
+Independent offline consumer exercise using Dart 3.12.2 with assertions and a real loopback HTTP server: `dart --enable-asserts run examples/review_cases/gateway.dart`. Synthetic fixtures model expected wire events; they do not establish actual Vercel Gateway API behavior, routing, or live compatibility.
+
+Initial run: Responses structured output and approval continuation passed, including per-request rotating bearer and BYOK, routing options, provider options, credential-free stored history and serialized UI hydration. A separately generated request confirms wrong-provider Responses replay is excluded. Native JSON client preserved a response header and an unknown metadata field. Cancellation while awaiting a resolver prevented late dispatch.
+
+Chat structured output and approval interrupt passed, but the approved continuation failed before HTTP dispatch with `AgentRunException(MODEL_FAILED)`, caused by `AssistantMessage.fromJson` during `ChatCompletionsProtocolModel.stream`. The test remains a runnable repro pending fix.
+
+Scores (targeted experience, not SDK-wide acceptance): discoverability 5/10 (README lacks runnable usage and option examples), clarity 6/10 (simple constructor but credential and endpoint behavior need recipes), type safety 6/10 (typed routing, but BYOK and provider options are JSON maps), debugging 5/10 (generic run failure obscures continuation issue), testing 7/10 (real loopback is practical; provider service contract not verified). Overall 5.8/10.
+
+Limits: no real Gateway, paid requests, deployed service, actual Flutter UI, concurrency/backpressure or complete provider surface. Header/metadata test covers native JSON response, not streamed model metadata. Hydration checks the serialized UI payload, not a running client UI.
+
+### Retest after protocol fix
+
+The same command now passes all four loopback checks, including the approved Chat tool continuation, credential-free stored history, and serialized pending UI hydration. `dart analyze examples/review_cases/gateway.dart` also reports no issues. The initial scores above remain the review record; the corrected continuation improves reliability, but the missing runnable package README and the unverified live Gateway contract still constrain the DX assessment. A revised targeted score is 6.4/10: discoverability 5, clarity 6, type safety 6, debugging 6, testing 9. The testing score reflects the consumer exercise and reproducibility, not production service coverage.
+
+### Guide and diagnostic re-review
+
+Both complete code blocks in `docs/vercel-gateway.md` were copied unchanged into fresh temporary Dart files and compiled with the workspace package configuration and Dart 3.12.2; neither was run because the examples use a live, potentially paid endpoint. The offline consumer journey was rerun successfully. It now additionally exercises `withApiKey`, enum-based cache/service-tier/sort configuration, forward-compatible extra options, and HTTP and stream errors with status/request ID and provider details. Known bearer and BYOK values were redacted in diagnostics while error codes remained available. These are synthetic loopback responses, not confirmation of the Gateway's production error shapes. The dynamic resolver journey rotates credentials between requests; the guide's environment-based example itself was compiled, not executed against a secret manager.
+
+Revised targeted DX score: 7.6/10 — discoverability 8, clarity 8, type safety 7, debugging 7, testing 8. The complete runnable guide and typed routing materially improve setup and diagnosis; provider-specific configuration and BYOK still require JSON, and live provider behavior remains unverified. Earlier 5.8 and 6.4 assessments remain above as the initial and first-retest records.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -656,6 +682,35 @@ approvals, validation, tool execution and authoritative history. The raw client
 provides a separate JSON contract for native choices and metadata that the agent
 does not normalize. Cancellation and timeout belong to each HTTP request;
 cancelling one stream does not close a shared client.
+
+## Compatible protocol reuse
+
+`ResponsesProtocolModel` and `ChatCompletionsProtocolModel` own canonical request
+serialization, runtime option guards and event normalization. The OpenAI SDK
+facades retain their existing client API and supply typed SDK transports. Gateway
+supplies a native JSON transport instead, appending its documented
+`providerOptions.gateway` extension after canonical request construction.
+
+This keeps one tested implementation of each wire protocol. Copying the entire
+encoder/parser into each compatible provider would make continuation fixes drift.
+Rewriting HTTP bodies behind an SDK client would obscure the actual request type.
+The explicit protocol boundary avoids both problems.
+
+Provider replay is namespaced separately. Gateway Responses cannot replay a
+message's private OpenAI Responses state, and it rejects provider file handles
+until their gateway/account ownership can be established. URLs and inline input
+remain separate source variants.
+
+`agent_weave_http` owns optional JSON POST/SSE I/O for native adapters. Together
+and Gateway use the same per-request deadline, abort, metadata and error-body
+handling. Provider adapters own finish/EOF semantics and credential redaction.
+This package does not add an HTTP dependency to the core agent runtime.
+
+`CancellationToken.whenCancelled` remains the one-shot Future API.
+`onCancelled` supplies a single-event Stream when a component needs a removable
+listener. Late subscribers still receive cancellation. Native request scopes and
+linked model subscriptions dispose that listener after completion or cancellation
+so a long-lived parent token does not retain completed request callbacks.
 
 
 # Source: docs/tools.md
@@ -1157,6 +1212,205 @@ metadata are available through the raw native client and are not normalized into
 `AgentResult`. Message names and URL audio also require native requests.
 
 
+# Source: docs/vercel-gateway.md
+
+# Use Vercel AI Gateway
+
+`agent_weave_vercel_gateway` provides `GatewayChatModel` for the public Chat
+Completions endpoint and `GatewayResponsesModel` for the public Responses
+endpoint. They use different request and stream formats. Neither uses the
+internal Vercel AI SDK V4 language-model wire protocol.
+
+## Send a request
+
+From the workspace root, run `dart pub get`. Save the following as
+`examples/gateway_demo.dart`. Set `GATEWAY_API_KEY`, `GATEWAY_MODEL`, and
+`GATEWAY_PROVIDER` in your backend environment. Choose a model and a provider
+available to your account. Running the example makes a paid request.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_vercel_gateway/agent_weave_vercel_gateway.dart' as gateway;
+
+Future<void> main() async {
+  final key = Platform.environment['GATEWAY_API_KEY'];
+  final modelId = Platform.environment['GATEWAY_MODEL'];
+  final provider = Platform.environment['GATEWAY_PROVIDER'];
+  if (key == null || modelId == null || provider == null) {
+    throw StateError('Set GATEWAY_API_KEY, GATEWAY_MODEL, and GATEWAY_PROVIDER.');
+  }
+  final client = gateway.GatewayClient.withApiKey(apiKey: key);
+  try {
+    final model = gateway.GatewayChatModel(
+      client: client,
+      model: modelId,
+      options: gateway.GatewayOptions(order: [provider]),
+    );
+    final result = await generateText(model: model, prompt: 'Say hello.');
+    print(result.text);
+  } finally {
+    client.close();
+  }
+}
+```
+
+Run `dart run examples/gateway_demo.dart`. The response prints to the terminal.
+To use Responses, replace `GatewayChatModel` with `GatewayResponsesModel`.
+The same models work with `AiAgent` and its tools, approvals, and stored
+history. See the [Dart API guide](dart-api.md).
+
+## Resolve credentials per request
+
+For a rotating Gateway token or bring-your-own-key (BYOK) credentials, use a
+resolver. This example reads the environment each time the client makes a
+request. Save it as `examples/gateway_byok_demo.dart`, and set
+`GATEWAY_API_KEY`, `GATEWAY_MODEL`, and `ANTHROPIC_API_KEY` on the backend.
+Choose a model available through the Anthropic provider. Running the example
+makes a paid request.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_vercel_gateway/agent_weave_vercel_gateway.dart' as gateway;
+
+String requiredEnvironment(String name) {
+  final value = Platform.environment[name];
+  if (value == null || value.isEmpty) throw StateError('Set $name.');
+  return value;
+}
+
+Future<void> main() async {
+  final modelId = requiredEnvironment('GATEWAY_MODEL');
+  final client = gateway.GatewayClient(
+    credentialResolver: () => gateway.GatewayCredentials(
+      token: requiredEnvironment('GATEWAY_API_KEY'),
+      byok: {
+        'anthropic': [
+          {'apiKey': requiredEnvironment('ANTHROPIC_API_KEY')},
+        ],
+      },
+    ),
+  );
+  try {
+    final model = gateway.GatewayResponsesModel(client: client, model: modelId);
+    final result = await generateText(model: model, prompt: 'Say hello.');
+    print(result.text);
+  } finally {
+    client.close();
+  }
+}
+```
+
+Replace the environment reads with your backend secret manager to rotate
+credentials while the process runs. BYOK credential fields differ by provider.
+Credentials belong in `GatewayCredentials`, not `GatewayOptions` or ordinary
+`providerOptions`.
+
+## Options and raw responses
+
+`GatewayOptions` serializes routing preferences such as `models`, `order`, and
+`only`, plus cache, timeout, privacy, and other fields. Both models also accept
+provider-specific JSON through `providerOptions`. Serialization fixtures do not
+prove that the live Gateway or a selected provider accepts or honors each field,
+nor do they establish cost or billing behavior.
+
+For native JSON, use `GatewayClient.createChat`, `streamChat`, `createResponse`,
+or `streamResponse`. Nonstreaming results include native JSON, status, and
+headers. Streams expose event envelopes and retain unknown metadata. Model
+adapters normalize a limited set of fields; they do not invent a selected
+provider identity from unverified metadata.
+
+Responses accepts document URLs and inline data, but the high-level Gateway
+adapter blocks file IDs. Chat does not accept documents or audio output. Model
+and provider input support varies. See [documents](documents.md).
+
+## Request lifetime and privacy
+
+Credential resolution runs inside each request's deadline. The default total
+deadline is two minutes; configure `requestTimeout` on `GatewayClient` or its
+transport. A cancellation token or expired deadline prevents a late credential
+resolver from dispatching the request. Close the Gateway client at shutdown.
+`GatewayClient.withTransport` borrows its transport, and an injected HTTP client
+is also caller-owned. Close borrowed resources yourself.
+
+Errors are redacted using the request's credentials. Treat raw error details and
+backend logs as private, and never send credentials or provider error details to
+clients. AgentWeave stores model content in history, not request credentials.
+A provider could still echo a secret in its model output, so the application
+must protect any content it sends or stores.
+
+Offline fixtures cover selected request and stream behavior, including Chat
+continuation. Live Gateway behavior, provider selection, model acceptance, and
+billing have not been verified. See [provider coverage](provider-coverage.md).
+
+## Track option updates
+
+The generated [option reference](gateway-options.md) maps 16 named options from
+the pinned official SDK to their Dart entry points. It distinguishes typed
+routing, request credentials, native extensions and SDK-only features. This is
+an update-review aid, not proof of public endpoint or model behavior.
+
+Use `GatewayCaching`, `GatewayServiceTier`, and `GatewayProviderSort` for fixed
+option values. Unrepresented service-owned fields can use `GatewayOptions.extra`;
+it rejects credentials, typed-field replacement and client-only image decoding.
+Conditional Decisions fallbacks, batch jobs and image decoding are not implemented
+by these Chat/Responses adapters.
+
+After `npm ci --prefix tool/interop --ignore-scripts`, reproduce the field check:
+
+```sh
+dart run tool/gateway_contract.dart
+node tool/interop/gateway-inventory.mjs --check
+```
+
+The independent consumer exercise is also runnable without a provider key:
+
+```sh
+dart --enable-asserts run examples/review_cases/gateway.dart
+```
+
+
+# Source: docs/gateway-options.md
+
+# Gateway option reference
+
+Generated from Vercel's SDK commit `6adf8c797d5e2bf056c077f946aa12dabb3cb268`. This is an
+option inventory, not a certificate of public endpoint behavior. Read the
+[Gateway guide](vercel-gateway.md) for setup and limits.
+
+| Wire option | Dart entry point | Disposition |
+| --- | --- | --- |
+| byok | GatewayCredentials.byok via credentialResolver | request-credentials |
+| caching | GatewayOptions.caching | typed-option |
+| experimental_streamingImageDecoding | Not sent; image decoding is outside Chat/Responses | sdk-client-only |
+| disallowPromptTraining | GatewayOptions.disallowPromptTraining | typed-option |
+| has | GatewayOptions.has | typed-option |
+| idempotencyKey | GatewayOptions.extra; no batch lifecycle implementation | native-extension |
+| models | GatewayOptions.models; string fallbacks only | typed-option |
+| only | GatewayOptions.only | typed-option |
+| order | GatewayOptions.order | typed-option |
+| providerTimeouts | GatewayOptions.byokProviderTimeouts | typed-option |
+| quotaEntityId | GatewayOptions.quotaEntityId | typed-option |
+| serviceTier | GatewayOptions.serviceTier | typed-option |
+| sort | GatewayOptions.sort | typed-option |
+| tags | GatewayOptions.tags | typed-option |
+| user | GatewayOptions.user | typed-option |
+| zeroDataRetention | GatewayOptions.zeroDataRetention | typed-option |
+
+The public Chat and Responses extension uses `providerOptions.gateway`.
+BYOK credentials are resolved per request and are excluded from ordinary option
+serialization. Unknown service-owned options can use `GatewayOptions.extra`;
+that does not prove their endpoint applicability. Conditional decision fallbacks
+and the SDK's image decoder are outside these adapters.
+
+See the [machine-readable inventory](gateway-options-inventory.json). Do not
+edit this generated page by hand; review the pin and run
+`node tool/interop/gateway-inventory.mjs --write`.
+
+
 # Source: docs/together-options.md
 
 # Together chat request fields
@@ -1320,6 +1574,19 @@ shell/custom/patch calls and MCP approval continuations fail explicitly instead
 of being silently treated as completed function-tool runs. Runtime execution
 and full computer-use orchestration remain unfinished.
 
+## Protocol reuse and Chat continuation
+
+The current SDK facades delegate canonical encoding and normalization to reusable
+protocol models. Chat assistant history now uses text or null as required by the
+SDK request type; two-turn tool continuation previously failed before dispatch
+because assistant content was encoded as a user-style parts list. Protocol and
+actual SDK transport regressions now exercise the second request.
+
+Chat explicitly rejects multiple choices and requested audio output instead of
+silently dropping unsupported results. Responses requires a terminal event before
+EOF. These supersede the corresponding silent-drop/EOF observations above;
+remaining event, media and computer-use gaps are still open.
+
 
 # Source: docs/provider-coverage.md
 
@@ -1329,7 +1596,7 @@ Status: incremental inventory, not an assertion of complete provider support. Re
 
 ## What exists
 
-The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. There are no dedicated Vercel Gateway or Cloudflare packages. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. The Vercel Gateway package implements public Chat and Responses adapters with offline fixtures. There is no dedicated Cloudflare package. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
@@ -1337,7 +1604,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | Anthropic native Messages | Native Messages adapter with text, URL-image and URL or inline PDF/plain-text document input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
 | OpenRouter Chat and Responses | Dedicated Chat adapter exposes selected typed provider preferences, fallback models, route, reasoning, and usage options with offline fixtures. Responses is not implemented. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Plugins, top-level cache control and newer routing fields are unavailable. The adapter does not preserve response provider identity, cost or reasoning continuation metadata. Inventory nested options, routing, sticky/cache behavior, plugins, headers and usage/cost; preserve actual provider metadata. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
-| Vercel AI Gateway | A configurable compatible transport is possible; no Gateway-specific adapter, routing controls or response metadata integration. | Gateway documents distinct [Chat, Responses, Anthropic Messages and other interfaces](https://vercel.com/docs/ai-gateway/sdks-and-apis). Its [provider options](https://vercel.com/docs/ai-gateway/models-and-providers/provider-options) include routing order/filtering, cache behavior, timeouts/fallbacks and request-scoped credentials. Map each API's actual wire format and security boundary rather than copying AI SDK JavaScript option objects into OpenAI requests. Preserve selected provider and usage; protect BYOK secrets. |
+| Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
 | Cloudflare Workers AI / AI Gateway | Configurable OpenAI Chat/embedding SDK path is possible; no dedicated Workers AI `/run` adapter, Worker binding or Gateway-specific integration. | [Workers AI bindings](https://developers.cloudflare.com/workers-ai/configuration/bindings/) and [model parameters](https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/) are model- and endpoint-specific; [changelog](https://developers.cloudflare.com/changelog/product/workers-ai/2/) also documents Responses for particular models. Inventory `/run`, compatible endpoints and gateway separately; model-specific input/output schemas, auth/account path, streaming, errors, gateway caching and metadata cannot be inferred from OpenAI support. |
 | Other providers | Custom `ChatModel` can be implemented by users. | No blanket support or parity claim. Add named provider/API/version inventory entries and evidence before advertising them. Model availability, feature support and defaults are not stable constants. |
 
@@ -1405,8 +1672,9 @@ not a claim of full TanStack AI core parity.
   remain unfinished.
 - Document support varies by adapter. Responses accepts URLs, inline data, and
   OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
-  file IDs are blocked by the pinned SDK. Chat Completions and OpenRouter
-  and Together reject documents. See [documents](documents.md) for storage
+  file IDs are blocked by the pinned SDK. Gateway Responses accepts URLs and
+  inline data but blocks file IDs. Chat Completions, OpenRouter, and Together
+  reject documents. See [documents](documents.md) for storage
   implications.
 - OpenRouter supports selected typed request options; plugins, top-level cache
   control, newer routing fields, and response provider, cost, and reasoning
@@ -1414,6 +1682,9 @@ not a claim of full TanStack AI core parity.
 - Together Chat has typed options and native JSON methods. Its agent adapter
   supports one choice; model acceptance of tools, schema, and media remains
   unverified. See [Together](together.md).
+- Vercel AI Gateway supports selected Chat and Responses contracts with offline
+  fixtures; provider selection, model acceptance, and billing are unverified.
+  See [Vercel AI Gateway](vercel-gateway.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 
@@ -1496,6 +1767,24 @@ node tool/interop/inventory.mjs --check
 A classified field is not evidence of model acceptance or exhaustive coverage.
 Keep raw-native access, normalized agent behavior and live results distinct.
 
+## Gateway option declarations
+
+`tool/contracts/vercel-gateway/source.json` pins the official SDK option source
+and retains its upstream license. The generated reference classifies named
+options, credentials, native extensions and SDK-only fields. It is not a public
+endpoint specification. Verify new options against current official HTTP docs.
+
+```sh
+node tool/interop/gateway-inventory.mjs --upstream
+dart run tool/gateway_contract.dart
+node tool/interop/gateway-inventory.mjs --check
+```
+
+Review any source change before updating the full commit and snapshot. Update
+coverage dispositions, Dart options and fixture, then regenerate with `--write`
+and run the full check. The manually invoked upstream workflow compares both
+Together and Gateway sources; it does not publish packages or mutate pins.
+
 
 # Source: docs/validation.md
 
@@ -1522,10 +1811,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native Together increment was checked on Dart 3.12.2. The prior
+The latest Gateway/protocol increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 192 Dart unit and regression tests: tool validation, approvals, client tools,
+- 222 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -1660,6 +1949,38 @@ in the pinned files. No new paid requests were made.
 The Together package publication dry-run passed with zero warnings on Dart
 3.12.2. This is packaging evidence, not a pub.dev publication.
 
+## Gateway, protocol and shared transport increment
+
+Seven Gateway fixtures cover separate public Chat/Responses requests, routing
+serialization, concurrent rotating bearer/BYOK credentials, private redacted
+HTTP and SSE diagnostics, request cancellation and controlled native extensions.
+Nine shared HTTP tests cover fragmented UTF-8/CRLF/multiline SSE with event IDs
+and headers, credential-wait cancellation/deadlines, late-dispatch prevention,
+pending-header cancellation, custom clients with stalled bodies, malformed frames,
+request validation and borrowed-client ownership. Together's existing 18 tests
+pass against the shared transport.
+
+The 28 OpenAI chat/protocol tests now include protocol and actual SDK two-turn
+Chat tool continuation, assistant text/null encoding, provider replay/file-handle
+isolation, explicit unsupported choices/audio, Responses EOF, and independent
+subscription cancellation with a concurrent request. Three core tests cover
+sticky cancellation events and disposable listeners.
+
+The independent Gateway consumer tests both protocols through schema generation,
+stored approval/resume, request credential rotation, serialized UI hydration,
+wrong-provider replay exclusion and native response metadata. Both public guide
+examples compile unchanged. Its documented targeted score progressed from 5.8
+to 6.4 and then 7.6/10 after fixes. These are local fixtures, not a live Gateway
+account, Flutter UI, secret manager, route selection, cache hit or billing test.
+
+The five AST/coverage parser tests and executable Dart fixtures verify reviewed
+Together fields and 16 named Gateway SDK options. The Gateway source type permits
+unknown service options; classifying its fields does not prove a complete public
+HTTP contract. No new paid provider calls were made.
+
+Both new HTTP and Gateway package publication dry-runs passed with zero warnings
+on Dart 3.12.2. Neither package has been published to pub.dev.
+
 
 # Source: CONTRIBUTING.md
 
@@ -1699,7 +2020,8 @@ TypeScript API conventions into the Dart developer API.
 - Core model contracts and agent execution live in `packages/agent_weave`.
 - Provider-specific types stay in `packages/agent_weave_openai` and
   `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
-  `packages/agent_weave_together`.
+  `packages/agent_weave_together`, and `packages/agent_weave_vercel_gateway`.
+  Shared JSON HTTP transport belongs in `packages/agent_weave_http`.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
