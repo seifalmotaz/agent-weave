@@ -8,6 +8,7 @@ Future<void> main() async {
   try {
     final agent = AiAgent<void>(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: Platform.environment['OPENAI_MODEL'] ?? 'gpt-5.4-nano',
         mcpTools: [

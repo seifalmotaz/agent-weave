@@ -48,6 +48,22 @@ Older checkpoints lack the original exact contract and fail closed; keep their
 history and start a new conversation. No database table migration is needed.
 See [approval contracts](approval-contracts.md).
 
+## Model continuation migration
+
+Unfinished checkpoints now retain a versioned `modelContinuationContract`.
+Older pending approvals and provider pauses without that snapshot cannot prove
+the original provider profile, even if their local `toolContract` is present.
+Retain their history and start a new conversation; do not synthesize a binding.
+No database table migration is needed.
+
+For native OpenAI Responses with hosted or MCP tools, add a stable nonsecret
+`authorityBindingId`, move additional native fields from `configure` into frozen
+`options`, and move tool selection into `toolChoice`. Move supported local
+function decorations into `functionToolOptions`, keyed by registered name. Declare every managed tool
+through `hostedTools` or `mcpTools`. Both Responses model constructors now copy
+their collections and are no longer const. Ordinary models retain callbacks,
+but callbacks cannot inject managed tools or replace the model/tool choice.
+
 ## Custom store migration
 
 `RunStore.complete` must atomically append the terminal event, save the final

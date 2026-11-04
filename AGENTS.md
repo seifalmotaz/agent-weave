@@ -40,7 +40,10 @@ Use `jsonEquals` for Dart-owned JSON guards; `canonicalJson` deliberately uses
 JavaScript numeric semantics for protocol hashing and is not a guard comparison.
 Pending tool contracts are private versioned snapshots. Never reconstruct an
 older contract from current definitions or use wire schema hashes as server
-authorization guards. Validate the entire resume batch before effects.
+authorization guards. Validate the entire resume batch before effects. Persist original model
+continuation contracts across unfinished turns; never reconstruct a missing
+profile from current configuration. Provider-managed execution must declare
+secret-free authority and freeze its options before local tools resume.
 Completed media and typed citations are public content; native output/replay
 metadata stays private. Citation answer offsets use UTF-16; source coordinates
 retain native units. Preserve citations and references when cloning canonical

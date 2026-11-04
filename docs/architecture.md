@@ -20,6 +20,15 @@ use separate capability interfaces. A provider implements only the interfaces
 it supports. `GenerationTask<P, R>` adds result/progress streaming to a typed
 operation.
 
+## Provider configuration across turns
+
+An adapter can implement `ModelContinuationContract` to bind its frozen,
+secret-free execution profile across a pending batch or provider pause. Core
+checks the original private snapshot before resumed effects and dispatch.
+Native OpenAI Responses uses it for managed tools, options and provider/account
+authority; other adapters need their own declaration. Unbound custom models do
+not gain an identity guarantee. See [approval contracts](approval-contracts.md).
+
 ## Native computer calls
 
 `NativeModelTool` and `NativeToolCall` distinguish provider-native definitions

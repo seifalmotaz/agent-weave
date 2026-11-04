@@ -113,6 +113,7 @@ Future<void> main() async {
   AiAgent<void> agent({bool changed = false}) => AiAgent<void>(
     store: store,
     model: openai.OpenAIResponsesModel.native(
+      authorityBindingId: 'example-authority',
       client: client,
       model: 'fixture',
       mcpTools: [

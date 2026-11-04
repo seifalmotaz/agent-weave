@@ -26,6 +26,44 @@ driver state. If an executor's meaning changes without changes to its declared
 configuration, version the tool name or native binding. Keep authorization and
 idempotency checks in the application service.
 
+## Model continuation contracts
+
+A paused local tool can share a turn with provider-executed tools even when
+there is no provider approval. Its continuation must retain the provider
+configuration as well as the local tool definition.
+
+`ModelContinuationContract` is an optional adapter capability. Core stores its
+versioned, secret-free `continuationContract` alongside private pending state
+and checks it before resumed local effects and provider invocations. The
+original snapshot survives staged batches, provider pauses and step-limit
+restarts until the turn finishes. Mismatches preserve the old checkpoint and
+release the attempted run's reservation. Retry with the original configuration
+or start a new conversation; never rebind an old approval to today's settings.
+
+Native OpenAI Responses models implement this capability. Their profiles bind
+the model and protocol, stable `authorityBindingId`, complete ordered managed
+tool definitions, MCP credential bindings, `toolChoice`, frozen `functionToolOptions` and
+`options`.
+Managed tools require an authority ID and reject arbitrary `configure`
+callbacks. Credential rotation under the same logical account is permitted;
+actual tokens are resolved per request and stay outside the profile. The
+application must assign authority IDs honestly, including endpoint and account
+changes. An ID does not discover or verify a provider account.
+
+Adapters without this capability receive an explicit unbound marker. That
+marker distinguishes replacement by a bound model; it cannot detect changes
+inside an arbitrary unbound adapter. Other built-in adapters do not inherit
+OpenAI's profile guarantee merely because they reuse its protocol codec.
+Custom adapters with provider-controlled execution must implement the capability
+and guard all effective execution configuration. See
+[writing a provider](providers.md#bind-provider-controlled-continuations).
+
+Older unfinished checkpoints without the original model snapshot fail closed,
+including checkpoints that already contain a local `toolContract`. No database
+schema change is required. Completed conversation history remains readable.
+Contracts describe declared configuration; application permissions and external
+effects still require authorization and idempotency at the destination service.
+
 ## Private contracts and public client hashes
 
 | Data | Purpose | Where it belongs |

@@ -13,6 +13,7 @@ Future<void> main() async {
   try {
     final result = await generateText(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: modelId,
         hostedTools: [
@@ -25,7 +26,7 @@ Future<void> main() async {
             },
           }),
         ],
-        configure: (body) => {...body, 'tool_choice': 'auto'},
+        toolChoice: 'auto',
       ),
       prompt: 'Find the latest stable Dart release.',
       maxOutputTokens: 1024,

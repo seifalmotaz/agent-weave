@@ -776,7 +776,15 @@ final class ProviderOutput extends ModelEvent {
     : items = List.unmodifiable(items.map(immutableJson));
 }
 
-/// Models that can validate their current provider-owned approval configuration.
+/// A stable, secret-free profile of provider-controlled execution across a turn.
+/// Changes invalidate unfinished continuations. Custom models that can cause
+/// provider-managed effects must implement this contract.
+abstract interface class ModelContinuationContract {
+  /// Versioned JSON with integer `v: 1` and a nonempty adapter-defined `kind`.
+  JsonObject get continuationContract;
+}
+
+/// Models that validate provider-owned approval configuration.
 abstract interface class ProviderApprovalModel implements ChatModel {
   /// Secret-free exact configuration used to bind and validate this approval.
   JsonObject approvalContract(ProviderApprovalCall call);

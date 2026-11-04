@@ -143,6 +143,7 @@ Future<void> journey(String mode) async {
   final store = MemoryRunStore();
   AiAgent<void> agent() => AiAgent<void>(
     model: openai.OpenAIResponsesModel.native(
+      authorityBindingId: 'example-authority',
       client: client,
       model: 'local',
       hostedTools: [
@@ -165,8 +166,7 @@ Future<void> journey(String mode) async {
           'future_image_option': 'preserve',
         }),
       ],
-      configure: (body) => {
-        ...body,
+      options: const {
         'future_request_option': {'value': 7},
       },
     ),
@@ -336,6 +336,7 @@ Future<void> journey(String mode) async {
 Future<void> wrongProvider() async {
   Map<String, dynamic>? sent;
   final model = openai.ResponsesProtocolModel(
+    authorityBindingId: 'example-authority',
     model: 'local',
     transport: (request, _) {
       sent = request.toJson();
@@ -374,6 +375,7 @@ Future<void> wrongProvider() async {
 Future<void> configurationGuard() async {
   var sent = false;
   final model = openai.ResponsesProtocolModel(
+    authorityBindingId: 'example-authority',
     model: 'local',
     configure: (request) => request.copyWith(instructions: 'replaced'),
     transport: (_, _) {
@@ -400,34 +402,21 @@ Future<void> configurationGuard() async {
 
 Future<void> hostedGuard() async {
   var sent = false;
-  final model = openai.ResponsesProtocolModel.native(
-    model: 'local',
-    hostedTools: [
-      openai.OpenAIHostedTool.fromJson({
-        'type': 'web_search',
-        'future': 'keep',
-      }),
-    ],
-    configure: (body) => {
-      ...body,
-      'tools': [
-        {'type': 'web_search'},
-      ],
-    },
-    transport: (_, _) {
-      sent = true;
-      return const Stream.empty();
-    },
-  );
   var failed = false;
   try {
-    await model
-        .stream(
-          ModelRequest(messages: [ChatMessage.user('hello', id: 'u')]),
-          cancellation: CancellationToken(),
-        )
-        .toList();
-  } catch (_) {
+    openai.ResponsesProtocolModel.native(
+      authorityBindingId: 'example-authority',
+      model: 'local',
+      hostedTools: [
+        openai.OpenAIHostedTool.fromJson({'type': 'web_search'}),
+      ],
+      configure: (body) => {...body, 'tools': []},
+      transport: (_, _) {
+        sent = true;
+        return const Stream.empty();
+      },
+    );
+  } on ArgumentError {
     failed = true;
   }
   check(failed && !sent, 'Configuration replaced hosted definition');
@@ -436,6 +425,7 @@ Future<void> hostedGuard() async {
 Future<void> injectedToolGuard() async {
   var sent = false;
   final model = openai.ResponsesProtocolModel.native(
+    authorityBindingId: 'example-authority',
     model: 'local',
     configure: (body) => {
       ...body,
@@ -469,6 +459,7 @@ Future<void> injectedToolGuard() async {
 Future<void> schemaGuard() async {
   var sent = false;
   final model = openai.ResponsesProtocolModel.native(
+    authorityBindingId: 'example-authority',
     model: 'local',
     configure: (body) => {
       ...body,
@@ -532,6 +523,7 @@ Future<void> postDispatchCancellation() async {
   final token = CancellationToken();
   final agent = AiAgent<void>(
     model: openai.OpenAIResponsesModel.native(
+      authorityBindingId: 'example-authority',
       client: client,
       model: 'local',
       hostedTools: [openai.OpenAIHostedTool(const openai.WebSearchTool())],

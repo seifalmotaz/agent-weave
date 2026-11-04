@@ -219,6 +219,31 @@ final class AiAgent<C> {
         previous['providerApprovalIndeterminate'] == true;
     final stagedCalls = <ToolCall>[];
     final stagedContracts = <JsonObject>[];
+    JsonObject? modelContinuationContract;
+    JsonObject currentModelContract() {
+      final value = model is ModelContinuationContract
+          ? (model as ModelContinuationContract).continuationContract
+          : const <String, Object?>{'v': 1, 'kind': 'unbound_model'};
+      final snapshot = Map<String, Object?>.from(
+        jsonDecode(jsonEncode(value)) as Map,
+      );
+      if (snapshot['v'] != 1 ||
+          snapshot['v'] is! int ||
+          snapshot['kind'] is! String ||
+          (snapshot['kind'] as String).isEmpty) {
+        throw const FormatException('Invalid model continuation contract.');
+      }
+      return immutableJson(snapshot);
+    }
+
+    void checkModelContract() {
+      if (!jsonEquals(modelContinuationContract, currentModelContract())) {
+        throw const _ToolContractException(
+          'Model configuration changed. Start a new conversation.',
+        );
+      }
+    }
+
     String? partialMessageId;
     StringBuffer? partialText;
     List<TextCitation>? partialCitations;
@@ -265,6 +290,7 @@ final class AiAgent<C> {
       'pending': pending,
       if (providerContinuationPending) 'providerContinuationPending': true,
       'nativeContinuationClosed': ?nativeContinuationClosed,
+      'modelContinuationContract': ?modelContinuationContract,
       if (providerApprovalIndeterminate) 'providerApprovalIndeterminate': true,
       if (providerDecisions.isNotEmpty)
         'providerApprovalDecisions': [
@@ -318,6 +344,54 @@ final class AiAgent<C> {
         throw const FormatException(
           'Provider approval outcome is uncertain; start a new conversation.',
         );
+      }
+      final completedCallIds = {
+        for (final message in messages)
+          if (message.role == MessageRole.tool) message.toolCallId,
+      };
+      final hasUnresolvedCall = messages.any(
+        (message) => message.toolCalls.any(
+          (call) => call is ProviderApprovalCall
+              ? !providerDecisions.any(
+                  (decision) =>
+                      decision.provider == call.provider &&
+                      decision.providerRequestId == call.providerRequestId,
+                )
+              : !completedCallIds.contains(call.id),
+        ),
+      );
+      final needsContract =
+          (previous['pending'] as List? ?? []).isNotEmpty ||
+          providerContinuationPending ||
+          hasUnresolvedCall ||
+          ({
+                'running',
+                'interrupted',
+                'failed',
+                'cancelled',
+              }.contains(previous['status']) &&
+              (previous['messages'] as List? ?? []).isNotEmpty) ||
+          (previous['providerApprovalStagedCalls'] as List? ?? []).isNotEmpty;
+      final savedContract = previous['modelContinuationContract'];
+      if (savedContract != null) {
+        if (savedContract is! Map<String, Object?> ||
+            savedContract['v'] != 1 ||
+            savedContract['v'] is! int ||
+            savedContract['kind'] is! String ||
+            (savedContract['kind'] as String).isEmpty) {
+          throw const _ToolContractException(
+            'Unsupported model continuation contract. Start a new conversation.',
+          );
+        }
+        modelContinuationContract = immutableJson(savedContract);
+        checkModelContract();
+      } else if (needsContract ||
+          previous.containsKey('modelContinuationContract')) {
+        throw const _ToolContractException(
+          'This continuation predates model contract checks. Start a new conversation.',
+        );
+      } else {
+        modelContinuationContract = currentModelContract();
       }
       if (nativeContinuationClosed != null) {
         throw const FormatException(
@@ -627,6 +701,7 @@ final class AiAgent<C> {
           if (resolution['approved'] == true) {
             final edited = resolution['editedArgs'];
             phase = 'tool';
+            checkModelContract();
             result = await _invokeInBatch(
               failedNativeBatches,
               tool,
@@ -653,6 +728,7 @@ final class AiAgent<C> {
       for (final call in stagedCalls) {
         final tool = _tool(call.name);
         phase = 'tool';
+        checkModelContract();
         final result = await _invokeInBatch(
           failedNativeBatches,
           tool,
@@ -688,6 +764,7 @@ final class AiAgent<C> {
         var finished = false;
         var continueTurn = false;
         var finishReason = 'stop';
+        checkModelContract();
         await for (final item in model.stream(
           ModelRequest(
             messages: messages,
@@ -860,6 +937,7 @@ final class AiAgent<C> {
               providerData[provider] = items;
           }
         }
+        checkModelContract();
         if (!finished) {
           throw StateError('Provider stream ended without a terminal event.');
         }
@@ -964,6 +1042,7 @@ final class AiAgent<C> {
               'messages': chatHydration(state())['messages'],
             });
           }
+          modelContinuationContract = null;
           status = RunStatus.completed;
           yield await event('RUN_FINISHED', {'finishReason': finishReason});
           return;
@@ -1095,6 +1174,7 @@ final class AiAgent<C> {
             });
           } else {
             phase = 'tool';
+            checkModelContract();
             final result = await _invokeInBatch(
               failedNativeBatches,
               tool,

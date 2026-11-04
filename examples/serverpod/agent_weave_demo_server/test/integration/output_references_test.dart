@@ -51,6 +51,7 @@ void main() {
         AiAgent<void> agent() => AiAgent<void>(
           store: ServerpodRunStore(builder.build()),
           model: api.ResponsesProtocolModel.native(
+            authorityBindingId: 'fixture-provider-account',
             model: 'fixture',
             transport: (body, _) async* {
               requests.add(immutableJson(body));

@@ -196,6 +196,7 @@ Future<void> main() async {
   var effects = 0;
   AiAgent<void> agent() => AiAgent(
     model: openai.OpenAIResponsesModel.native(
+      authorityBindingId: 'example-authority',
       client: client,
       model: 'fixture',
       hostedTools: [
@@ -471,6 +472,7 @@ Future<void> failureCases() async {
     try {
       final agent = AiAgent<void>(
         model: openai.OpenAIResponsesModel.native(
+          authorityBindingId: 'example-authority',
           client: client,
           model: 'fixture',
         ),
@@ -553,6 +555,7 @@ Future<void> cancelCase() async {
   try {
     final agent = AiAgent<void>(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: 'fixture',
       ),

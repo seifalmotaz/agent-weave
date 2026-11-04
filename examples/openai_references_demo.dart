@@ -13,6 +13,7 @@ Future<void> main() async {
   try {
     final result = await generateText(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: model,
         hostedTools: [

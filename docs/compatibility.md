@@ -36,6 +36,18 @@ round trips against a Dart HTTP server. The Dart tests exercise the client again
 the runtime and a generated Serverpod endpoint over a real WebSocket. This is
 not a claim of full TanStack AI core parity.
 
+## Declared provider identity across resumes
+
+Native OpenAI Responses binds unfinished local approvals and provider pauses to
+its declared model, frozen options, complete managed-tool set and stable provider
+account/transport authority. Managed tools require `authorityBindingId` and
+immutable `options`/`toolChoice` in place of arbitrary configuration callbacks.
+Old pending checkpoints without their original model profile fail closed.
+See [approval contracts](approval-contracts.md#model-continuation-contracts).
+This is an adapter capability, not a blanket identity guarantee for all providers
+or undeclared custom models. Actual credentials, permissions and external effect
+reconciliation remain application responsibilities.
+
 ## Pending checkpoint migration
 
 Approvals now require a private exact tool contract. Pending records written by

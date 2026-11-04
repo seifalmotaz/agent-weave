@@ -1410,6 +1410,36 @@ unimplemented; passing a safety regression is not a functional score increase.
 Run `dart test packages/agent_weave_anthropic/test/mcp_guard_test.dart` to
 reproduce the tracked boundary checks. Full integration remains in scope.
 
+## Round 26: bind provider configuration before local effects
+
+The independent consumer reproduced a local approval alongside configured
+OpenAI MCP, without a provider approval. Changing the server, allowlist,
+credential binding, model or hosted tools still executed the approved local
+tool before making the next provider request. This used simulated provider
+transport and a real local tool executor, not a live MCP server.
+
+After the fix, changed declared profiles reject before the local executor or
+resumed transport. The consumer also verified provider authority changes,
+no-MCP to MCP replacement, unchanged credential rotation, and a scripted
+step-limit continuation. A public SDK `MockClient` case checks frozen nested
+options, caller mutation, original-options retry and construction-time rejection
+of dynamic callbacks with managed tools. Its final rerun also verifies frozen
+function options on the HTTP fixture wire, changed-option rejection before
+effects and retry with the original options. The scoped score is **8/10**; it is
+not comparable to a package-wide acceptance score.
+
+The new setup is explicit: provide `authorityBindingId`, declare managed tools,
+and use immutable options and tool choice. The application must keep the
+binding consistent with its real provider account and endpoint. Ordinary
+callbacks can still fail on the next invocation after an approved local tool
+has run; arbitrary unbound adapters are outside the profile guarantee.
+
+The consumer did not run PostgreSQL, native OpenAI pauses or live providers.
+The coordinating suite separately recreates agents over PostgreSQL and checks
+profile drift, retained pending history and credential rotation. The tracked
+`model_continuation_test.dart` files and OpenAI `model_profile_test.dart` make
+these regressions reproducible through `dart run tool/check.dart`.
+
 
 # Source: docs/architecture.md
 
@@ -1434,6 +1464,15 @@ Images, speech, transcription, embeddings, Decisions, video jobs, and realtime
 use separate capability interfaces. A provider implements only the interfaces
 it supports. `GenerationTask<P, R>` adds result/progress streaming to a typed
 operation.
+
+## Provider configuration across turns
+
+An adapter can implement `ModelContinuationContract` to bind its frozen,
+secret-free execution profile across a pending batch or provider pause. Core
+checks the original private snapshot before resumed effects and dispatch.
+Native OpenAI Responses uses it for managed tools, options and provider/account
+authority; other adapters need their own declaration. Unbound custom models do
+not gain an identity guarantee. See [approval contracts](approval-contracts.md).
 
 ## Native computer calls
 
@@ -1793,6 +1832,44 @@ driver state. If an executor's meaning changes without changes to its declared
 configuration, version the tool name or native binding. Keep authorization and
 idempotency checks in the application service.
 
+## Model continuation contracts
+
+A paused local tool can share a turn with provider-executed tools even when
+there is no provider approval. Its continuation must retain the provider
+configuration as well as the local tool definition.
+
+`ModelContinuationContract` is an optional adapter capability. Core stores its
+versioned, secret-free `continuationContract` alongside private pending state
+and checks it before resumed local effects and provider invocations. The
+original snapshot survives staged batches, provider pauses and step-limit
+restarts until the turn finishes. Mismatches preserve the old checkpoint and
+release the attempted run's reservation. Retry with the original configuration
+or start a new conversation; never rebind an old approval to today's settings.
+
+Native OpenAI Responses models implement this capability. Their profiles bind
+the model and protocol, stable `authorityBindingId`, complete ordered managed
+tool definitions, MCP credential bindings, `toolChoice`, frozen `functionToolOptions` and
+`options`.
+Managed tools require an authority ID and reject arbitrary `configure`
+callbacks. Credential rotation under the same logical account is permitted;
+actual tokens are resolved per request and stay outside the profile. The
+application must assign authority IDs honestly, including endpoint and account
+changes. An ID does not discover or verify a provider account.
+
+Adapters without this capability receive an explicit unbound marker. That
+marker distinguishes replacement by a bound model; it cannot detect changes
+inside an arbitrary unbound adapter. Other built-in adapters do not inherit
+OpenAI's profile guarantee merely because they reuse its protocol codec.
+Custom adapters with provider-controlled execution must implement the capability
+and guard all effective execution configuration. See
+[writing a provider](providers.md#bind-provider-controlled-continuations).
+
+Older unfinished checkpoints without the original model snapshot fail closed,
+including checkpoints that already contain a local `toolContract`. No database
+schema change is required. Completed conversation history remains readable.
+Contracts describe declared configuration; application permissions and external
+effects still require authorization and idempotency at the destination service.
+
 ## Private contracts and public client hashes
 
 | Data | Purpose | Where it belongs |
@@ -1967,6 +2044,26 @@ has occurred, such as a server configured to execute without asking.
 The [OpenAI MCP adapter](openai-mcp.md) demonstrates this contract. Its pinned
 clients use generic approval payloads. Native computer execution remains a
 separate local-driver contract with different denial behavior.
+
+## Bind provider-controlled continuations
+
+Implement `ModelContinuationContract` when an adapter has provider-controlled
+execution configuration. Return a stable, immutable JSON object with integer
+`v: 1`, a nonempty adapter-defined `kind`, and all nonsecret execution authority: provider/model, endpoint or a
+stable transport/account binding, managed tools, policies and effective options.
+Keep live credentials separate. Core saves the original snapshot and compares
+it before resumed local effects or dispatch, including local-only approvals
+that share a turn with remote tools.
+
+Build requests from the same frozen configuration. An arbitrary callback cannot
+safely redefine that configuration after a pause. Reject such combinations or
+provide an immutable options API, as native OpenAI Responses does. Preserve the
+private snapshot in custom storage. Never reconstruct a missing historical
+profile from current settings.
+
+This capability does not validate arbitrary application code or infer identity
+from tokens. An undeclared adapter gets an unbound marker, not a verified
+no-effects contract. See [approval contracts](approval-contracts.md).
 
 
 # Source: docs/documents.md
@@ -2306,6 +2403,7 @@ Future<void> main() async {
   try {
     final result = await generateText(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: model,
         hostedTools: [
@@ -3014,6 +3112,7 @@ Future<void> main() async {
   try {
     final result = await generateText(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: modelId,
         hostedTools: [
@@ -3026,7 +3125,7 @@ Future<void> main() async {
             },
           }),
         ],
-        configure: (body) => {...body, 'tool_choice': 'auto'},
+        toolChoice: 'auto',
       ),
       prompt: 'Find the latest stable Dart release.',
       maxOutputTokens: 1024,
@@ -3065,16 +3164,41 @@ integrated and fail explicitly. Computer use has its own
 [application-controlled contract](computer-use.md).
 
 `OpenAIResponsesModel.native` keeps SDK authentication, client ownership and
-cancellation while using native JSON/SSE for Responses. Its `configure` callback
-receives immutable canonical JSON. Return a new map, copying any nested map or
-list you need to edit. History, output schema, tool definitions and output-token
-bounds remain runtime-owned. Native extensions retain unknown fields; they are
-not a promise that every field has a runtime handler or is accepted by a model.
+cancellation while using native JSON/SSE for Responses. Declare a stable,
+nonsecret `authorityBindingId` for the provider account and endpoint. Change it
+when that authority changes. It cannot be inferred from rotating API keys.
 
-The ordinary constructor keeps its typed SDK configuration callback. Changes
-made through that typed view are patched onto the original JSON, preserving
-unchanged fields the SDK does not know. If the SDK cannot decode a definition,
-use the native constructor. With `openai_dart 11.0.1`, image-generation masks,
+For managed tools, supply immutable `options` for additional native request
+fields and `toolChoice` for tool selection. These values are copied at
+construction and included in the private continuation contract. Both typed and
+native constructors reject `configure` callbacks when managed tools are present.
+History, model, tools, output schema and execution bounds remain runtime-owned.
+Native extensions are preserved; acceptance by a live model is not guaranteed.
+
+For ordinary models without managed tools, the existing typed and native
+`configure` callbacks remain available. The typed view patches changes onto
+original JSON, retaining unchanged unknown fields. These callbacks cannot add
+managed tools or replace the model or tool choice. Use immutable `options` for
+configuration that must stay stable across resumed approvals. Callback validation
+runs during the next model invocation and can fail after a local tool has run;
+it is not a preflight guarantee for arbitrary application code.
+
+For registered local functions used alongside managed tools, declare native
+function settings through `functionToolOptions`, keyed by the registered name:
+
+```dart
+functionToolOptions: {
+  'lookupCustomer': {'strict': true, 'defer_loading': false},
+},
+```
+
+This map is frozen and included in the profile. Supported settings retain the
+existing function handler's limits: `strict`, `defer_loading`, `async: false`
+and direct `allowed_callers`. Asynchronous or programmatic function execution
+still requires a separate handler. A name must identify a registered function;
+the map cannot replace its schema, description or executor.
+
+With `openai_dart 11.0.1`, image-generation masks,
 moderation and compression have incorrect SDK types; native JSON accepts an
 object mask, `auto` or `low` moderation, and integer compression from 0 to 100.
 The type correction is proposed in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);
@@ -3162,6 +3286,7 @@ Future<void> main() async {
   try {
     final agent = AiAgent<void>(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: Platform.environment['OPENAI_MODEL'] ?? 'gpt-5.4-nano',
         mcpTools: [
@@ -3234,10 +3359,18 @@ legacy `connector_id`. The provider and model determine address availability.
 `OpenAIMcpTool` accepts the pinned SDK's `McpTool`; `fromJson` preserves native
 options not represented by that SDK, including allowed-tool filters,
 `require_approval` policies, deferred loading and future JSON fields.
-Configured MCP tools cannot be injected or replaced through `configure`.
-When using MCP, declare other hosted tools through `hostedTools` as well;
-`configure` cannot add extra tools. Pending approvals bind the whole ordered
-MCP configuration and hosted-tool set, including credential identities.
+Declare MCP tools through `mcpTools` and other managed tools through
+`hostedTools`. Supply a stable, nonsecret `authorityBindingId` for the backend
+provider account and transport configuration. Change that ID when the account,
+endpoint or routing authority changes; never use an API key as the ID.
+It is distinct from each MCP server's credential binding.
+
+Models with managed tools use immutable `options` and `toolChoice`, and reject
+`configure` callbacks at construction. Extra native parameters belong in
+`options: {'temperature': 0.2}`. Runtime-owned history, tools, model and bounds
+cannot be supplied there. Pending local approvals and provider continuations
+bind the ordered MCP and hosted-tool sets, model, options and authority. See
+[model continuation contracts](approval-contracts.md#model-continuation-contracts).
 
 Keep credentials separate from the persisted configuration. Construct the model
 for the authenticated owner and resolve that owner's credential on each request:
@@ -6229,6 +6362,18 @@ round trips against a Dart HTTP server. The Dart tests exercise the client again
 the runtime and a generated Serverpod endpoint over a real WebSocket. This is
 not a claim of full TanStack AI core parity.
 
+## Declared provider identity across resumes
+
+Native OpenAI Responses binds unfinished local approvals and provider pauses to
+its declared model, frozen options, complete managed-tool set and stable provider
+account/transport authority. Managed tools require `authorityBindingId` and
+immutable `options`/`toolChoice` in place of arbitrary configuration callbacks.
+Old pending checkpoints without their original model profile fail closed.
+See [approval contracts](approval-contracts.md#model-continuation-contracts).
+This is an adapter capability, not a blanket identity guarantee for all providers
+or undeclared custom models. Actual credentials, permissions and external effect
+reconciliation remain application responsibilities.
+
 ## Pending checkpoint migration
 
 Approvals now require a private exact tool contract. Pending records written by
@@ -6358,6 +6503,22 @@ Do not derive missing contracts from current tools or public client hashes.
 Older checkpoints lack the original exact contract and fail closed; keep their
 history and start a new conversation. No database table migration is needed.
 See [approval contracts](approval-contracts.md).
+
+## Model continuation migration
+
+Unfinished checkpoints now retain a versioned `modelContinuationContract`.
+Older pending approvals and provider pauses without that snapshot cannot prove
+the original provider profile, even if their local `toolContract` is present.
+Retain their history and start a new conversation; do not synthesize a binding.
+No database table migration is needed.
+
+For native OpenAI Responses with hosted or MCP tools, add a stable nonsecret
+`authorityBindingId`, move additional native fields from `configure` into frozen
+`options`, and move tool selection into `toolChoice`. Move supported local
+function decorations into `functionToolOptions`, keyed by registered name. Declare every managed tool
+through `hostedTools` or `mcpTools`. Both Responses model constructors now copy
+their collections and are no longer const. Ordinary models retain callbacks,
+but callbacks cannot inject managed tools or replace the model/tool choice.
 
 ## Custom store migration
 
@@ -6601,10 +6762,10 @@ and interoperability with the pinned official JavaScript client.
 The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
 SDK and the stable channel; inspect the run for the commit you use.
 
-- 548 Dart unit and regression tests: tool validation, approvals, client tools,
+- 566 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 25 Serverpod integration tests with a real isolated PostgreSQL database:
+- 26 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -7384,6 +7545,34 @@ connector lifecycle or claim higher functional coverage for that provider.
 The broader goal still includes owned configuration, beta/credential handling,
 private MCP replay and model contracts checked before resumed local effects.
 
+## Provider profiles across unfinished turns
+
+The runtime persists an adapter's versioned private model continuation profile
+and validates it before resumed local effects, staged calls and subsequent
+provider invocations. Native OpenAI Responses binds immutable options, tool
+choice, the full ordered managed-tool set and a stable application-owned
+provider/account authority. Both its typed and native wrappers copy inputs;
+managed tools reject dynamic configuration callbacks at construction.
+
+Core fixtures cover changed profiles, unbound-to-bound replacement, legacy and
+malformed snapshots, an orphan call checkpoint, provider pause at the step
+limit, original-profile recovery and terminal clearing. Missing-profile legacy
+unfinished statuses fail closed; completed legacy history permits a new turn. OpenAI fixtures check
+nested snapshot ownership, native request and function-option preservation, runtime-owned field
+rejection, typed transport field-loss detection and authority drift before
+local execution. PostgreSQL recreation checks changes to server, allowlist,
+MCP credential binding, model, hosted tools, provider authority, options and
+tool choice before any local effect or resumed dispatch. Original configuration
+with a refreshed token completes; rejected attempts preserve the saved state.
+
+The independent consumer separately exercised the public SDK with `MockClient`
+and a protocol transport fixture, scoring the tested path 8/10. Its scripted
+provider pause is not a native OpenAI pause. These checks do not establish live
+remote execution, automatic authority discovery, identity-provider behavior or
+exactly-once external effects. Undeclared custom adapters do not receive an
+identity guarantee; other built-in providers need their own profile support.
+No paid provider call was made for this increment.
+
 
 # Source: CONTRIBUTING.md
 
@@ -7453,7 +7642,10 @@ Use `jsonEquals` for Dart-owned JSON guards; `canonicalJson` deliberately uses
 JavaScript numeric semantics for protocol hashing and is not a guard comparison.
 Pending tool contracts are private versioned snapshots. Never reconstruct an
 older contract from current definitions or use wire schema hashes as server
-authorization guards. Validate the entire resume batch before effects.
+authorization guards. Validate the entire resume batch before effects. Persist original model
+continuation contracts across unfinished turns; never reconstruct a missing
+profile from current configuration. Provider-managed execution must declare
+secret-free authority and freeze its options before local tools resume.
 Completed media and typed citations are public content; native output/replay
 metadata stays private. Citation answer offsets use UTF-16; source coordinates
 retain native units. Preserve citations and references when cloning canonical

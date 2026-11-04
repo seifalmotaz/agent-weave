@@ -668,3 +668,33 @@ leaving explicit raw APIs available. Native Anthropic MCP functionality remains
 unimplemented; passing a safety regression is not a functional score increase.
 Run `dart test packages/agent_weave_anthropic/test/mcp_guard_test.dart` to
 reproduce the tracked boundary checks. Full integration remains in scope.
+
+## Round 26: bind provider configuration before local effects
+
+The independent consumer reproduced a local approval alongside configured
+OpenAI MCP, without a provider approval. Changing the server, allowlist,
+credential binding, model or hosted tools still executed the approved local
+tool before making the next provider request. This used simulated provider
+transport and a real local tool executor, not a live MCP server.
+
+After the fix, changed declared profiles reject before the local executor or
+resumed transport. The consumer also verified provider authority changes,
+no-MCP to MCP replacement, unchanged credential rotation, and a scripted
+step-limit continuation. A public SDK `MockClient` case checks frozen nested
+options, caller mutation, original-options retry and construction-time rejection
+of dynamic callbacks with managed tools. Its final rerun also verifies frozen
+function options on the HTTP fixture wire, changed-option rejection before
+effects and retry with the original options. The scoped score is **8/10**; it is
+not comparable to a package-wide acceptance score.
+
+The new setup is explicit: provide `authorityBindingId`, declare managed tools,
+and use immutable options and tool choice. The application must keep the
+binding consistent with its real provider account and endpoint. Ordinary
+callbacks can still fail on the next invocation after an approved local tool
+has run; arbitrary unbound adapters are outside the profile guarantee.
+
+The consumer did not run PostgreSQL, native OpenAI pauses or live providers.
+The coordinating suite separately recreates agents over PostgreSQL and checks
+profile drift, retained pending history and credential rotation. The tracked
+`model_continuation_test.dart` files and OpenAI `model_profile_test.dart` make
+these regressions reproducible through `dart run tool/check.dart`.

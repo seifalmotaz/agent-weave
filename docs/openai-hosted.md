@@ -28,6 +28,7 @@ Future<void> main() async {
   try {
     final result = await generateText(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: modelId,
         hostedTools: [
@@ -40,7 +41,7 @@ Future<void> main() async {
             },
           }),
         ],
-        configure: (body) => {...body, 'tool_choice': 'auto'},
+        toolChoice: 'auto',
       ),
       prompt: 'Find the latest stable Dart release.',
       maxOutputTokens: 1024,
@@ -79,16 +80,41 @@ integrated and fail explicitly. Computer use has its own
 [application-controlled contract](computer-use.md).
 
 `OpenAIResponsesModel.native` keeps SDK authentication, client ownership and
-cancellation while using native JSON/SSE for Responses. Its `configure` callback
-receives immutable canonical JSON. Return a new map, copying any nested map or
-list you need to edit. History, output schema, tool definitions and output-token
-bounds remain runtime-owned. Native extensions retain unknown fields; they are
-not a promise that every field has a runtime handler or is accepted by a model.
+cancellation while using native JSON/SSE for Responses. Declare a stable,
+nonsecret `authorityBindingId` for the provider account and endpoint. Change it
+when that authority changes. It cannot be inferred from rotating API keys.
 
-The ordinary constructor keeps its typed SDK configuration callback. Changes
-made through that typed view are patched onto the original JSON, preserving
-unchanged fields the SDK does not know. If the SDK cannot decode a definition,
-use the native constructor. With `openai_dart 11.0.1`, image-generation masks,
+For managed tools, supply immutable `options` for additional native request
+fields and `toolChoice` for tool selection. These values are copied at
+construction and included in the private continuation contract. Both typed and
+native constructors reject `configure` callbacks when managed tools are present.
+History, model, tools, output schema and execution bounds remain runtime-owned.
+Native extensions are preserved; acceptance by a live model is not guaranteed.
+
+For ordinary models without managed tools, the existing typed and native
+`configure` callbacks remain available. The typed view patches changes onto
+original JSON, retaining unchanged unknown fields. These callbacks cannot add
+managed tools or replace the model or tool choice. Use immutable `options` for
+configuration that must stay stable across resumed approvals. Callback validation
+runs during the next model invocation and can fail after a local tool has run;
+it is not a preflight guarantee for arbitrary application code.
+
+For registered local functions used alongside managed tools, declare native
+function settings through `functionToolOptions`, keyed by the registered name:
+
+```dart
+functionToolOptions: {
+  'lookupCustomer': {'strict': true, 'defer_loading': false},
+},
+```
+
+This map is frozen and included in the profile. Supported settings retain the
+existing function handler's limits: `strict`, `defer_loading`, `async: false`
+and direct `allowed_callers`. Asynchronous or programmatic function execution
+still requires a separate handler. A name must identify a registered function;
+the map cannot replace its schema, description or executor.
+
+With `openai_dart 11.0.1`, image-generation masks,
 moderation and compression have incorrect SDK types; native JSON accepts an
 object mask, `auto` or `low` moderation, and integer compression from 0 to 100.
 The type correction is proposed in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);

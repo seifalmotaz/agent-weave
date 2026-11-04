@@ -24,10 +24,10 @@ and interoperability with the pinned official JavaScript client.
 The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
 SDK and the stable channel; inspect the run for the commit you use.
 
-- 548 Dart unit and regression tests: tool validation, approvals, client tools,
+- 566 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 25 Serverpod integration tests with a real isolated PostgreSQL database:
+- 26 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -806,3 +806,31 @@ suite passes 70 tests with Dart 3.12.2. This does not implement the native MCP
 connector lifecycle or claim higher functional coverage for that provider.
 The broader goal still includes owned configuration, beta/credential handling,
 private MCP replay and model contracts checked before resumed local effects.
+
+## Provider profiles across unfinished turns
+
+The runtime persists an adapter's versioned private model continuation profile
+and validates it before resumed local effects, staged calls and subsequent
+provider invocations. Native OpenAI Responses binds immutable options, tool
+choice, the full ordered managed-tool set and a stable application-owned
+provider/account authority. Both its typed and native wrappers copy inputs;
+managed tools reject dynamic configuration callbacks at construction.
+
+Core fixtures cover changed profiles, unbound-to-bound replacement, legacy and
+malformed snapshots, an orphan call checkpoint, provider pause at the step
+limit, original-profile recovery and terminal clearing. Missing-profile legacy
+unfinished statuses fail closed; completed legacy history permits a new turn. OpenAI fixtures check
+nested snapshot ownership, native request and function-option preservation, runtime-owned field
+rejection, typed transport field-loss detection and authority drift before
+local execution. PostgreSQL recreation checks changes to server, allowlist,
+MCP credential binding, model, hosted tools, provider authority, options and
+tool choice before any local effect or resumed dispatch. Original configuration
+with a refreshed token completes; rejected attempts preserve the saved state.
+
+The independent consumer separately exercised the public SDK with `MockClient`
+and a protocol transport fixture, scoring the tested path 8/10. Its scripted
+provider pause is not a native OpenAI pause. These checks do not establish live
+remote execution, automatic authority discovery, identity-provider behavior or
+exactly-once external effects. Undeclared custom adapters do not receive an
+identity guarantee; other built-in providers need their own profile support.
+No paid provider call was made for this increment.

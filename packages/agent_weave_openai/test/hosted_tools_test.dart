@@ -31,9 +31,10 @@ void main() {
       final tool = openai.OpenAIHostedTool.fromJson(definition);
       (definition['future_option'] as Map)['nested'] = false;
       final model = openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         hostedTools: [tool],
-        configure: (body) => {...body, 'temperature': 0.2},
+        options: const {'temperature': 0.2},
         transport: (body, _) async* {
           sent = body;
           yield {
@@ -77,6 +78,7 @@ void main() {
     );
     addTearDown(client.close);
     final model = openai.OpenAIResponsesModel(
+      authorityBindingId: 'fixture-authority',
       client: client,
       model: 'm',
       hostedTools: [
@@ -85,7 +87,7 @@ void main() {
           'future_field': {'nested': 42},
         }),
       ],
-      configure: (request) => request.copyWith(temperature: 0.2),
+      options: const {'temperature': 0.2},
     );
     await model
         .stream(ModelRequest(messages: []), cancellation: CancellationToken())
@@ -97,8 +99,8 @@ void main() {
   test('configure cannot mutate runtime history before dispatch', () async {
     var dispatched = false;
     final model = openai.ResponsesProtocolModel.native(
+      authorityBindingId: 'fixture-authority',
       model: 'm',
-      hostedTools: [hosted],
       configure: (body) {
         (body['input'] as List).clear();
         return body;
@@ -144,6 +146,7 @@ void main() {
       );
     }
     final model = openai.ResponsesProtocolModel.native(
+      authorityBindingId: 'fixture-authority',
       model: 'm',
       hostedTools: [
         openai.OpenAIHostedTool.fromJson({'type': 'web_search'}),
@@ -198,6 +201,7 @@ void main() {
       ];
       final requests = <JsonObject>[];
       final model = openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         hostedTools: [
           hosted,
@@ -244,6 +248,7 @@ void main() {
     'image placement, MIME and base64 follow terminal output order',
     () async {
       final model = openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         hostedTools: [hosted],
         transport: (_, _) async* {
@@ -331,6 +336,7 @@ void main() {
     ]) {
       final events = <ModelEvent>[];
       final model = openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         hostedTools: [hosted],
         transport: (_, _) async* {

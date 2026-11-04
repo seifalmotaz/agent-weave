@@ -10,7 +10,8 @@ import 'output_references.dart';
 import 'platform_api.dart';
 
 /// Caller owns [client] and closes it when the application shuts down.
-final class OpenAIResponsesModel implements ProviderApprovalModel {
+final class OpenAIResponsesModel
+    implements ProviderApprovalModel, ModelContinuationContract {
   final api.OpenAIClient client;
   final String model;
   final api.CreateResponseRequest Function(api.CreateResponseRequest)?
@@ -18,28 +19,80 @@ final class OpenAIResponsesModel implements ProviderApprovalModel {
   final JsonObject Function(JsonObject)? _nativeConfigure;
   final List<OpenAIHostedTool> hostedTools;
   final List<OpenAIMcpTool> mcpTools;
-  const OpenAIResponsesModel({
+
+  /// A native tool-choice string or JSON object, snapshotted at construction.
+  final Object? toolChoice;
+
+  /// Stable nonsecret provider account/transport identity, required for managed tools.
+  /// Change it when the account, endpoint or routing authority changes.
+  final String? authorityBindingId;
+
+  /// Frozen native request parameters, excluding runtime-owned fields and secrets.
+  final JsonObject options;
+
+  /// Frozen native decorations keyed by registered local function name.
+  /// Supports strict, defer_loading, async:false and direct allowed_callers only.
+  final Map<String, JsonObject> functionToolOptions;
+  OpenAIResponsesModel({
     required this.client,
     required this.model,
     this.configure,
-    this.hostedTools = const [],
-    this.mcpTools = const [],
-  }) : _nativeConfigure = null;
+    List<OpenAIHostedTool> hostedTools = const [],
+    List<OpenAIMcpTool> mcpTools = const [],
+    Object? toolChoice,
+    this.authorityBindingId,
+    JsonObject options = const {},
+    Map<String, JsonObject> functionToolOptions = const {},
+  }) : functionToolOptions = _functionOptions(functionToolOptions),
+       options = _responsesOptions(options),
+       hostedTools = List.unmodifiable(hostedTools),
+       mcpTools = List.unmodifiable(mcpTools),
+       toolChoice = _responsesToolChoice(toolChoice),
+       _nativeConfigure = null {
+    _validateAuthority(this.hostedTools, this.mcpTools, authorityBindingId);
+    if ((this.hostedTools.isNotEmpty || this.mcpTools.isNotEmpty) &&
+        configure != null) {
+      throw ArgumentError(
+        'Provider-managed tools require immutable options instead of configure.',
+      );
+    }
+  }
 
   /// Native options preserve fields not represented by the installed SDK.
-  const OpenAIResponsesModel.native({
+  OpenAIResponsesModel.native({
     required this.client,
     required this.model,
     JsonObject Function(JsonObject)? configure,
-    this.hostedTools = const [],
-    this.mcpTools = const [],
-  }) : _nativeConfigure = configure,
-       configure = null;
+    List<OpenAIHostedTool> hostedTools = const [],
+    List<OpenAIMcpTool> mcpTools = const [],
+    Object? toolChoice,
+    this.authorityBindingId,
+    JsonObject options = const {},
+    Map<String, JsonObject> functionToolOptions = const {},
+  }) : functionToolOptions = _functionOptions(functionToolOptions),
+       options = _responsesOptions(options),
+       hostedTools = List.unmodifiable(hostedTools),
+       mcpTools = List.unmodifiable(mcpTools),
+       toolChoice = _responsesToolChoice(toolChoice),
+       _nativeConfigure = configure,
+       configure = null {
+    _validateAuthority(this.hostedTools, this.mcpTools, authorityBindingId);
+    if ((this.hostedTools.isNotEmpty || this.mcpTools.isNotEmpty) &&
+        configure != null) {
+      throw ArgumentError(
+        'Provider-managed tools require immutable options instead of configure.',
+      );
+    }
+  }
 
   ResponsesProtocolModel get _delegate => ResponsesProtocolModel.native(
     model: model,
     hostedTools: hostedTools,
     mcpTools: mcpTools,
+    toolChoice: toolChoice,
+    authorityBindingId: authorityBindingId,
+    options: options,
+    functionToolOptions: functionToolOptions,
     configure:
         _nativeConfigure ??
         (configure == null
@@ -52,6 +105,8 @@ final class OpenAIResponsesModel implements ProviderApprovalModel {
     ),
   );
   @override
+  JsonObject get continuationContract => _delegate.continuationContract;
+  @override
   JsonObject approvalContract(ProviderApprovalCall call) =>
       _delegate.approvalContract(call);
   @override
@@ -63,8 +118,126 @@ final class OpenAIResponsesModel implements ProviderApprovalModel {
   }) => _delegate.stream(request, cancellation: cancellation);
 }
 
+Stream<JsonObject> Function(JsonObject, CancellationToken)
+_typedResponsesTransport(
+  Stream<JsonObject> Function(api.CreateResponseRequest, CancellationToken)
+  transport,
+  bool preservesManagedTools,
+) => (body, token) {
+  final request = _responseRequest(body);
+  if (preservesManagedTools && !jsonEquals(request.toJson(), body)) {
+    throw UnsupportedError(
+      'Typed transport cannot preserve these options. Use ResponsesProtocolModel.native.',
+    );
+  }
+  return transport(request, token);
+};
+
+Map<String, JsonObject> _functionOptions(Map<String, JsonObject> value) {
+  final result = <String, JsonObject>{};
+  for (final entry in value.entries) {
+    final options = entry.value;
+    if (entry.key.trim().isEmpty ||
+        options.keys.any(
+          (key) => !{
+            'strict',
+            'defer_loading',
+            'async',
+            'allowed_callers',
+          }.contains(key),
+        ) ||
+        (options['strict'] != null && options['strict'] is! bool) ||
+        (options['defer_loading'] != null &&
+            options['defer_loading'] is! bool) ||
+        (options['async'] != null && options['async'] is! bool) ||
+        (options['allowed_callers'] != null &&
+            (options['allowed_callers'] is! List ||
+                (options['allowed_callers'] as List).any(
+                  (caller) => caller != 'direct',
+                )))) {
+      throw ArgumentError('Invalid function tool options.');
+    }
+    if (options['async'] == true) {
+      throw UnsupportedError('Asynchronous function calls are not integrated.');
+    }
+    result[entry.key] = immutableJson(
+      Map<String, Object?>.from(jsonDecode(jsonEncode(options)) as Map),
+    );
+  }
+  return Map.unmodifiable(result);
+}
+
+Object? _responsesToolChoice(Object? value) {
+  if (value == null) return null;
+  if (value is! String && value is! Map<String, Object?>) {
+    throw ArgumentError('toolChoice must be a string or object.');
+  }
+  if (value is String && !{'auto', 'none', 'required'}.contains(value) ||
+      value is Map<String, Object?> &&
+          (value['type'] is! String || (value['type'] as String).isEmpty)) {
+    throw ArgumentError('Invalid toolChoice.');
+  }
+  try {
+    return immutableJson({'value': jsonDecode(jsonEncode(value))})['value'];
+  } catch (_) {
+    throw ArgumentError('toolChoice must contain JSON values.');
+  }
+}
+
+JsonObject _responsesOptions(JsonObject value) {
+  const reserved = {
+    'model',
+    'tools',
+    'tool_choice',
+    'input',
+    'instructions',
+    'max_output_tokens',
+    'stream',
+    'authorization',
+    'api_key',
+    'headers',
+    'store',
+    'previous_response_id',
+    'conversation',
+    'background',
+  };
+  if (value.keys.any(reserved.contains)) {
+    throw ArgumentError('Options contain runtime-owned or credential fields.');
+  }
+  if (value['text'] != null &&
+      (value['text'] is! Map<String, Object?> ||
+          (value['text'] as Map).containsKey('format'))) {
+    throw ArgumentError(
+      'Options text must be an object without runtime-owned format.',
+    );
+  }
+  if (value['include'] != null &&
+      (value['include'] is! List ||
+          (value['include'] as List).any((entry) => entry is! String))) {
+    throw ArgumentError('include must be a list of strings.');
+  }
+  return immutableJson(
+    Map<String, Object?>.from(jsonDecode(jsonEncode(value)) as Map),
+  );
+}
+
+void _validateAuthority(
+  List<OpenAIHostedTool> hosted,
+  List<OpenAIMcpTool> mcp,
+  String? id,
+) {
+  if ((hosted.isNotEmpty || mcp.isNotEmpty) &&
+          (id == null || id.trim().isEmpty) ||
+      (id != null && id.trim().isEmpty)) {
+    throw ArgumentError(
+      'Provider-managed tools require a stable authorityBindingId.',
+    );
+  }
+}
+
 /// Responses serialization and normalization, shared by explicit protocol adapters.
-final class ResponsesProtocolModel implements ProviderApprovalModel {
+final class ResponsesProtocolModel
+    implements ProviderApprovalModel, ModelContinuationContract {
   final String model;
   final Stream<JsonObject> Function(JsonObject, CancellationToken) _transport;
   final JsonObject Function(JsonObject)? _configure;
@@ -73,6 +246,20 @@ final class ResponsesProtocolModel implements ProviderApprovalModel {
   final bool includeEncryptedReasoning;
   final List<OpenAIHostedTool> hostedTools;
   final List<OpenAIMcpTool> mcpTools;
+
+  /// A native tool-choice string or JSON object, snapshotted at construction.
+  final Object? toolChoice;
+
+  /// Stable nonsecret provider account/transport identity, required for managed tools.
+  /// Change it when the account, endpoint or routing authority changes.
+  final String? authorityBindingId;
+
+  /// Frozen native request parameters, excluding runtime-owned fields and secrets.
+  final JsonObject options;
+
+  /// Frozen native decorations keyed by registered local function name.
+  /// Supports strict, defer_loading, async:false and direct allowed_callers only.
+  final Map<String, JsonObject> functionToolOptions;
 
   ResponsesProtocolModel({
     required String model,
@@ -87,18 +274,16 @@ final class ResponsesProtocolModel implements ProviderApprovalModel {
     bool includeEncryptedReasoning = true,
     List<OpenAIHostedTool> hostedTools = const [],
     List<OpenAIMcpTool> mcpTools = const [],
+    Object? toolChoice,
+    String? authorityBindingId,
+    JsonObject options = const {},
+    Map<String, JsonObject> functionToolOptions = const {},
   }) : this.native(
          model: model,
-         transport: (body, token) {
-           final request = _responseRequest(body);
-           if ((hostedTools.isNotEmpty || mcpTools.isNotEmpty) &&
-               !jsonEquals(request.toJson(), body)) {
-             throw UnsupportedError(
-               'Typed transport cannot preserve these options. Use ResponsesProtocolModel.native.',
-             );
-           }
-           return transport(request, token);
-         },
+         transport: _typedResponsesTransport(
+           transport,
+           hostedTools.isNotEmpty || mcpTools.isNotEmpty,
+         ),
          configure: configure == null
              ? null
              : (body) => _configureResponse(body, configure),
@@ -107,6 +292,10 @@ final class ResponsesProtocolModel implements ProviderApprovalModel {
          includeEncryptedReasoning: includeEncryptedReasoning,
          hostedTools: hostedTools,
          mcpTools: mcpTools,
+         toolChoice: toolChoice,
+         authorityBindingId: authorityBindingId,
+         options: options,
+         functionToolOptions: functionToolOptions,
        );
 
   ResponsesProtocolModel.native({
@@ -119,15 +308,45 @@ final class ResponsesProtocolModel implements ProviderApprovalModel {
     this.includeEncryptedReasoning = true,
     List<OpenAIHostedTool> hostedTools = const [],
     List<OpenAIMcpTool> mcpTools = const [],
-  }) : // Public parameter names are stable; transport ownership stays internal.
+    Object? toolChoice,
+    this.authorityBindingId,
+    JsonObject options = const {},
+    Map<String, JsonObject> functionToolOptions = const {},
+  }) : functionToolOptions = _functionOptions(functionToolOptions),
+       options = _responsesOptions(options),
+       // Public parameter names are stable; transport ownership stays internal.
        // ignore: prefer_initializing_formals
        _transport = transport,
        // ignore: prefer_initializing_formals
        _configure = configure,
        hostedTools = List.unmodifiable(hostedTools),
-       mcpTools = List.unmodifiable(mcpTools) {
+       mcpTools = List.unmodifiable(mcpTools),
+       toolChoice = _responsesToolChoice(toolChoice) {
     validateMcpTools(this.mcpTools);
+    _validateAuthority(this.hostedTools, this.mcpTools, authorityBindingId);
+    if ((this.hostedTools.isNotEmpty || this.mcpTools.isNotEmpty) &&
+        configure != null) {
+      throw ArgumentError(
+        'Provider-managed tools require immutable options instead of configure.',
+      );
+    }
   }
+
+  @override
+  JsonObject get continuationContract => immutableJson({
+    'v': 1,
+    'kind': 'responses',
+    'provider': providerDataKey,
+    'model': model,
+    'fileIdProvider': fileIdProvider,
+    'includeEncryptedReasoning': includeEncryptedReasoning,
+    'hostedTools': [for (final tool in hostedTools) tool.definition],
+    'mcpTools': [for (final tool in mcpTools) tool.contract],
+    'toolChoice': toolChoice,
+    'authorityBindingId': authorityBindingId,
+    'options': options,
+    'functionToolOptions': functionToolOptions,
+  });
 
   @override
   JsonObject approvalContract(ProviderApprovalCall call) {
@@ -327,11 +546,24 @@ final class ResponsesProtocolModel implements ProviderApprovalModel {
       }
     }
     mcpHistory.finish();
+    final functionNames = request.tools
+        .whereType<FunctionModelTool>()
+        .map((tool) => tool.name)
+        .toSet();
+    if (functionToolOptions.keys.any((name) => !functionNames.contains(name))) {
+      throw ArgumentError('Function options must name a registered function.');
+    }
     final canonical = immutableJson({
+      ...this.options,
       'model': model,
+      'tool_choice': ?toolChoice,
       'input': input,
       'store': false,
-      if (includeEncryptedReasoning) 'include': ['reasoning.encrypted_content'],
+      if (this.options['include'] != null || includeEncryptedReasoning)
+        'include': {
+          ...?this.options['include'] as List?,
+          if (includeEncryptedReasoning) 'reasoning.encrypted_content',
+        }.toList(),
       'max_output_tokens': request.maxOutputTokens,
       if (request.instructions != null) 'instructions': request.instructions,
       if (request.tools.isNotEmpty ||
@@ -349,11 +581,13 @@ final class ResponsesProtocolModel implements ProviderApprovalModel {
                 'description': tool.description,
                 'parameters': tool.inputSchema,
                 'strict': false,
+                ...?functionToolOptions[tool.name],
               },
             },
         ],
       if (request.outputSchema != null)
         'text': {
+          ...?this.options['text'] as Map<String, Object?>?,
           'format': {
             'type': 'json_schema',
             'name': 'result',
@@ -366,10 +600,18 @@ final class ResponsesProtocolModel implements ProviderApprovalModel {
     final options = _preserveRequest(
       canonical,
       Map<String, dynamic>.from(configured),
-      owned: ['input', 'instructions', 'max_output_tokens', 'stream'],
+      owned: [
+        'input',
+        'instructions',
+        'max_output_tokens',
+        'stream',
+        'model',
+        'tool_choice',
+      ],
       schemaField: 'text',
-      allowAdditionalTools:
-          providerDataKey == 'openai.responses' && mcpTools.isEmpty,
+      allowAdditionalTools: false,
+      preserveToolOrder: true,
+      immutableFunctionOptions: functionToolOptions.keys.toSet(),
       functionDecorations: const [
         'strict',
         'defer_loading',
@@ -1126,6 +1368,8 @@ Map<String, dynamic> _preserveRequest(
   required List<String> owned,
   required String schemaField,
   bool allowAdditionalTools = false,
+  bool preserveToolOrder = false,
+  Set<String> immutableFunctionOptions = const {},
   List<String> functionDecorations = const [],
 }) {
   for (final key in owned) {
@@ -1145,7 +1389,11 @@ Map<String, dynamic> _preserveRequest(
     throw ArgumentError('configure cannot replace the runtime output schema.');
   }
   Object? toolValue(Object? value) {
-    if (value is! Map || value['type'] != 'function') return value;
+    if (value is! Map ||
+        value['type'] != 'function' ||
+        immutableFunctionOptions.contains(value['name'])) {
+      return value;
+    }
     return Map<String, Object?>.from(value)
       ..removeWhere((key, _) => functionDecorations.contains(key));
   }
@@ -1154,6 +1402,17 @@ Map<String, dynamic> _preserveRequest(
       (configured['tools'] as List? ?? []).length !=
           (canonical['tools'] as List? ?? []).length) {
     throw ArgumentError('configure cannot add unregistered tools.');
+  }
+  if (preserveToolOrder) {
+    final before = canonical['tools'] as List? ?? [];
+    final after = configured['tools'] as List? ?? [];
+    if (before.length != after.length ||
+        List.generate(
+          before.length,
+          (i) => jsonEquals(toolValue(before[i]), toolValue(after[i])),
+        ).contains(false)) {
+      throw ArgumentError('configure must preserve runtime tool order.');
+    }
   }
   for (final tool in canonical['tools'] as List? ?? []) {
     final matches = (configured['tools'] as List? ?? []).where(

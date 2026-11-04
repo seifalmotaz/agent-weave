@@ -111,6 +111,7 @@ Future<void> main() async {
   );
   final mcpAgent = AiAgent<void>(
     model: openai.OpenAIResponsesModel.native(
+      authorityBindingId: 'interop-provider-account',
       client: mcpClient,
       model: 'fixture',
       mcpTools: [

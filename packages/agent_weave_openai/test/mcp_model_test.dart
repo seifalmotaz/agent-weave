@@ -37,6 +37,7 @@ Future<List<ModelEvent>> events(
   List<openai.OpenAIMcpTool>? tools,
 }) =>
     openai.ResponsesProtocolModel.native(
+          authorityBindingId: 'fixture-authority',
           model: 'fixture',
           mcpTools: tools ?? [tool()],
           transport: (_, _) => Stream.fromIterable(stream),
@@ -128,6 +129,7 @@ void main() {
   test('MCP configuration and namespace cannot be bypassed', () async {
     expect(
       () => openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         mcpTools: [tool(), tool()],
         transport: (_, _) => const Stream.empty(),
@@ -136,6 +138,7 @@ void main() {
     );
     var dispatched = false;
     final model = openai.ResponsesProtocolModel.native(
+      authorityBindingId: 'fixture-authority',
       model: 'm',
       configure: (body) => {
         ...body,
@@ -236,6 +239,7 @@ void main() {
       );
       JsonObject? sent;
       final model = openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         mcpTools: [tool()],
         transport: (body, _) async* {
@@ -285,6 +289,7 @@ void main() {
 
   test('known response metadata cannot reintroduce MCP credentials', () async {
     final model = openai.ResponsesProtocolModel.native(
+      authorityBindingId: 'fixture-authority',
       model: 'm',
       mcpTools: [tool()],
       transport: (_, _) async* {
@@ -352,6 +357,7 @@ void main() {
         'reason': 'Not permitted',
       };
       final model = openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         mcpTools: [tool()],
         transport: (body, _) async* {
@@ -375,6 +381,7 @@ void main() {
         {...echo, 'approval_request_id': 'unknown'},
       ]) {
         final invalid = openai.ResponsesProtocolModel.native(
+          authorityBindingId: 'fixture-authority',
           model: 'm',
           mcpTools: [tool()],
           transport: (_, _) async* {
@@ -424,6 +431,7 @@ void main() {
       );
       JsonObject? sent;
       final model = openai.ResponsesProtocolModel.native(
+        authorityBindingId: 'fixture-authority',
         model: 'm',
         mcpTools: [tool()],
         transport: (body, _) async* {
@@ -471,6 +479,7 @@ void main() {
     );
     openai.ResponsesProtocolModel model(List<openai.OpenAIMcpTool> tools) =>
         openai.ResponsesProtocolModel.native(
+          authorityBindingId: 'fixture-authority',
           model: 'm',
           mcpTools: tools,
           transport: (_, _) => const Stream.empty(),
@@ -492,6 +501,7 @@ void main() {
     final token = CancellationToken();
     var dispatched = false;
     final model = openai.ResponsesProtocolModel.native(
+      authorityBindingId: 'fixture-authority',
       model: 'm',
       mcpTools: [tool()],
       transport: (_, _) async* {
@@ -528,6 +538,7 @@ void main() {
     AiAgent<void> agent() => AiAgent<void>(
       store: store,
       model: openai.OpenAIResponsesModel(
+        authorityBindingId: 'fixture-authority',
         client: client,
         model: 'm',
         mcpTools: [tool()],

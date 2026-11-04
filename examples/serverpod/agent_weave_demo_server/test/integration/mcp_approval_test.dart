@@ -24,6 +24,7 @@ void main() {
           AiAgent<void> agent({bool changed = false}) => AiAgent<void>(
             store: ServerpodRunStore(builder.build()),
             model: api.ResponsesProtocolModel.native(
+              authorityBindingId: 'fixture-provider-account',
               model: 'fixture',
               mcpTools: [
                 api.OpenAIMcpTool.fromJson({
@@ -180,6 +181,7 @@ void main() {
         AiAgent<void> agent() => AiAgent<void>(
           store: ServerpodRunStore(builder.build()),
           model: api.ResponsesProtocolModel.native(
+            authorityBindingId: 'fixture-provider-account',
             model: 'fixture',
             mcpTools: [
               api.OpenAIMcpTool.fromJson({

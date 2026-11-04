@@ -23,6 +23,7 @@ Future<void> main() async {
   try {
     final agent = AiAgent<void>(
       model: openai.OpenAIResponsesModel.native(
+        authorityBindingId: 'example-authority',
         client: client,
         model: Platform.environment['OPENAI_MODEL'] ?? 'gpt-5.4-nano',
         mcpTools: [
@@ -95,10 +96,18 @@ legacy `connector_id`. The provider and model determine address availability.
 `OpenAIMcpTool` accepts the pinned SDK's `McpTool`; `fromJson` preserves native
 options not represented by that SDK, including allowed-tool filters,
 `require_approval` policies, deferred loading and future JSON fields.
-Configured MCP tools cannot be injected or replaced through `configure`.
-When using MCP, declare other hosted tools through `hostedTools` as well;
-`configure` cannot add extra tools. Pending approvals bind the whole ordered
-MCP configuration and hosted-tool set, including credential identities.
+Declare MCP tools through `mcpTools` and other managed tools through
+`hostedTools`. Supply a stable, nonsecret `authorityBindingId` for the backend
+provider account and transport configuration. Change that ID when the account,
+endpoint or routing authority changes; never use an API key as the ID.
+It is distinct from each MCP server's credential binding.
+
+Models with managed tools use immutable `options` and `toolChoice`, and reject
+`configure` callbacks at construction. Extra native parameters belong in
+`options: {'temperature': 0.2}`. Runtime-owned history, tools, model and bounds
+cannot be supplied there. Pending local approvals and provider continuations
+bind the ordered MCP and hosted-tool sets, model, options and authority. See
+[model continuation contracts](approval-contracts.md#model-continuation-contracts).
 
 Keep credentials separate from the persisted configuration. Construct the model
 for the authenticated owner and resolve that owner's credential on each request:

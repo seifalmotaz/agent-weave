@@ -115,3 +115,23 @@ has occurred, such as a server configured to execute without asking.
 The [OpenAI MCP adapter](openai-mcp.md) demonstrates this contract. Its pinned
 clients use generic approval payloads. Native computer execution remains a
 separate local-driver contract with different denial behavior.
+
+## Bind provider-controlled continuations
+
+Implement `ModelContinuationContract` when an adapter has provider-controlled
+execution configuration. Return a stable, immutable JSON object with integer
+`v: 1`, a nonempty adapter-defined `kind`, and all nonsecret execution authority: provider/model, endpoint or a
+stable transport/account binding, managed tools, policies and effective options.
+Keep live credentials separate. Core saves the original snapshot and compares
+it before resumed local effects or dispatch, including local-only approvals
+that share a turn with remote tools.
+
+Build requests from the same frozen configuration. An arbitrary callback cannot
+safely redefine that configuration after a pause. Reject such combinations or
+provide an immutable options API, as native OpenAI Responses does. Preserve the
+private snapshot in custom storage. Never reconstruct a missing historical
+profile from current settings.
+
+This capability does not validate arbitrary application code or infer identity
+from tokens. An undeclared adapter gets an unbound marker, not a verified
+no-effects contract. See [approval contracts](approval-contracts.md).
