@@ -67,6 +67,42 @@ final modelRequest = ModelRequest(
 );
 
 void main() {
+  test(
+    'computer-use actions fail explicitly instead of silently completing',
+    () async {
+      final client = fixtureClient([
+        responseEvent('response.output_item.done', {
+          'output_index': 0,
+          'item': {
+            'type': 'computer_call',
+            'id': 'cu_1',
+            'call_id': 'call_1',
+            'actions': [
+              {'type': 'screenshot'},
+            ],
+            'pending_safety_checks': <Object?>[],
+            'status': 'completed',
+          },
+        }),
+        responseEvent('response.completed', {'response': responseJson()}),
+      ], (_) {});
+      final model = openai.OpenAIResponsesModel(
+        client: client,
+        model: 'fixture',
+      );
+      await expectLater(
+        model.stream(modelRequest, cancellation: CancellationToken()).toList(),
+        throwsA(
+          isA<UnsupportedError>().having(
+            (e) => e.toString(),
+            'message',
+            contains('native continuation handler'),
+          ),
+        ),
+      );
+    },
+  );
+
   test('local OpenAI-compatible chat works over real loopback HTTP', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     addTearDown(() => server.close(force: true));

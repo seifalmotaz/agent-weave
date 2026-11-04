@@ -9,3 +9,22 @@ See the [workspace guide](https://github.com/seifalmotaz/agent-weave),
 and [Serverpod example](https://github.com/seifalmotaz/agent-weave/tree/main/examples/serverpod).
 
 Independent and unofficial. Not endorsed by TanStack, OpenAI, or Serverpod.
+
+## Restore server history
+
+```dart
+final chat = ChatClient(
+  threadId: conversationId,
+  persistence: const ChatPersistenceOptions.server(),
+  connection: serverpodConnection(
+    send: backend.ai.chat,
+    loadHistory: backend.ai.history,
+  ),
+);
+await chat.attach();
+```
+
+Register matching client tool schemas for typed approval restoration. The full
+[runnable approval flow](https://seifalmotaz.github.io/agent-weave/getting-started/serverpod/#run-an-approval-across-process-restarts)
+uses separate client processes and survives a graceful backend restart. The
+loader decodes full history JSON; supply `hydrate` instead for custom paging.

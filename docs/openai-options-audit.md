@@ -34,3 +34,14 @@ The current raw transport fixtures verify request-specific safe headers, repeate
 queries on binary downloads, raw status/headers/bytes, arbitrary JSON root
 values, authenticated PUT requests, pre-cancellation and mutation retry policy.
 This does not implement SSE, multipart or computer-use orchestration.
+
+## Computer-use SDK contribution
+
+[Upstream PR #430](https://github.com/davidmigloz/ai_clients_dart/pull/430) adds
+typed computer-call input replay and screenshot results, including returned-only
+statuses and redacted screenshots. Local upstream validation passed 25,235 unit
+tests with 3 skips plus package analysis. The PR is submitted, not merged or
+released. AgentWeave still uses its published SDK dependency. Native computer,
+shell/custom/patch calls and MCP approval continuations fail explicitly instead
+of being silently treated as completed function-tool runs. Runtime execution
+and full computer-use orchestration remain unfinished.

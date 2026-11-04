@@ -45,8 +45,13 @@ Use the generated client with your application's `ClientAuthKeyProvider`:
 final backend = Client(serverUrl)..authKeyProvider = yourAuthProvider;
 final chat = ChatClient(
   threadId: conversationId,
-  connection: serverpodConnection(send: backend.ai.chat),
+  persistence: const ChatPersistenceOptions.server(),
+  connection: serverpodConnection(
+    send: backend.ai.chat,
+    loadHistory: backend.ai.history,
+  ),
 );
+await chat.attach();
 ```
 
 Subscribe to `chat.states` in your Flutter state-management layer. Cancel that
@@ -67,3 +72,47 @@ endpoint authentication, a real generated-client WebSocket, HTTP/SSE, history,
 replay, owner isolation, concurrent reservations, and the official JavaScript
 client against the actual Serverpod chat and generation routes. Node.js 22 or
 later is required for that interop check.
+
+## Run an approval across process restarts
+
+Start the offline backend as above. In a separate terminal in
+`examples/serverpod/agent_weave_demo_server`, run:
+
+```sh
+dart run example/approval_workflow.dart start approval-demo-1
+```
+
+The client asks the deterministic demo model to greet Ada. It stops before the
+registered tool executes and exits with `PAUSED`. The database owns the pending
+approval. You may stop the backend and restart it with the same development
+database directory before continuing. Do not delete `.serverpod/development`.
+
+After making an explicit decision, start a fresh client process:
+
+```sh
+dart run example/approval_workflow.dart approve approval-demo-1
+# Or reject instead:
+# dart run example/approval_workflow.dart reject approval-demo-1
+```
+
+Approval completes with `Hello Ada`; rejection completes without invoking the
+greeting. Repeating a decision after completion fails clearly. Use a new thread
+ID for a new demonstration. An optional final argument selects a different
+server URL if your local ports differ.
+
+The complete [CLI source](https://github.com/seifalmotaz/agent-weave/blob/main/examples/serverpod/agent_weave_demo_server/example/approval_workflow.dart)
+registers the matching client-side tool schema, enables
+`ChatPersistenceOptions.server()`, supplies `loadHistory`, and calls `attach()`.
+All four are necessary for typed approval restoration. `canResolve` alone is
+not proof of matching: the example also checks the interrupt kind and tool name.
+The local demo credential is for this explicitly enabled example only.
+
+`loadHistory` returns the whole snapshot. For paging, provide a custom `hydrate`
+callback and a corresponding paged server endpoint; do not configure both.
+Supplying a loader without server persistence leaves a ChatClient ephemeral.
+
+The automated `test/integration/restart_test.dart` runs fresh server and client
+processes against a temporary PostgreSQL data directory and verifies restored
+approval plus repeated-decision rejection. This verifies graceful restart. It
+does not prove recovery at arbitrary crash points or exactly-once effects in
+an unrelated external service. Keep external operations idempotent.

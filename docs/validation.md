@@ -23,10 +23,10 @@ and interoperability with the pinned official JavaScript client.
 
 On Dart 3.12.2 and 3.13.3:
 
-- 131 Dart unit and regression tests: tool validation, approvals, client tools,
+- 147 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 12 Serverpod integration tests with a real isolated PostgreSQL database:
+- 13 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -103,3 +103,13 @@ error and cooperative cancellation contracts. No live Anthropic account, model,
 real cache hit or network-abort behavior was tested. The independent review is
 8.0/10 for the reviewed general SDK journeys and provisionally 7.8/10 for the
 new native provider path; see [the review record](dx-review.md).
+
+## Persisted approval process restart
+
+The isolated PostgreSQL test now starts the actual backend and approval CLI in
+separate processes, exits both, starts a fresh backend against the same database
+files, and restores/resolves the pending approval from a fresh client. A further
+fresh client rejects the already-completed decision. The independent Terra
+reviewer reran the test successfully on Dart 3.12.2 and scored this targeted
+journey 8.5/10. This is graceful restart evidence, not arbitrary-crash recovery
+or proof of exactly-once external effects.

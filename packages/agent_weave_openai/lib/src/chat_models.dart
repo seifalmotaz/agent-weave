@@ -153,6 +153,19 @@ final class OpenAIResponsesModel implements ChatModel {
                 ),
               ),
             );
+          } else if (const {
+            'computer_call',
+            'local_shell_call',
+            'shell_call',
+            'custom_tool_call',
+            'apply_patch_call',
+            'mcp_approval_request',
+            'tool_search_call',
+          }.contains(item['type'])) {
+            throw UnsupportedError(
+              'OpenAI ${item['type']} requires a native continuation handler. '
+              'This agent adapter currently executes registered function tools only.',
+            );
           }
         case 'response.completed' || 'response.incomplete':
           final response = json['response'] as Map;

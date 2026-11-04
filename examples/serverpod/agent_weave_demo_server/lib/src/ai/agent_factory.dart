@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
 import 'package:agent_weave_serverpod_storage_server/agent_weave_serverpod_storage_server.dart';
@@ -22,6 +23,7 @@ AiAgent<Session> createAgent(Session session) => AiAgent(
     Tool<String, String, Session>(
       name: 'greet',
       description: 'Greet a person by name',
+      needsApproval: true,
       inputSchema: const {
         'type': 'object',
         'properties': {
@@ -49,7 +51,22 @@ final class DemoModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
-    yield TextDelta('AgentWeave received: ${request.messages.last.text}');
+    final last = request.messages.last;
+    if (last.role == MessageRole.user &&
+        last.text == 'Greet Ada with approval') {
+      yield ToolCallReady(
+        ToolCall(
+          id: 'greet-${last.id}',
+          name: 'greet',
+          arguments: {'name': 'Ada'},
+        ),
+      );
+    } else if (last.role == MessageRole.tool) {
+      final result = jsonDecode(last.text);
+      yield TextDelta(result is String ? result : 'Greeting was declined.');
+    } else {
+      yield TextDelta('AgentWeave received: ${last.text}');
+    }
     yield const ModelFinished();
   }
 }

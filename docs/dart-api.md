@@ -135,6 +135,20 @@ For UI streaming use the authenticated endpoint in the
 [Serverpod example](../examples/serverpod/README.md). Its dedicated stream
 session remains open until the response closes.
 
+## Restore a client-side conversation
+
+Use `serverpodConnection(send: client.ai.chat, loadHistory: client.ai.history)`
+with `persistence: const ChatPersistenceOptions.server()` on `ChatClient`, then
+`await chat.attach()`. Register matching `ChatClientTool` input/output schemas
+for typed tool approvals. Without server persistence the client does not call
+the loader; without matching schemas a pending tool may be exposed as a generic
+interrupt rather than a typed tool approval.
+
+The [runnable two-command approval example](../examples/serverpod/README.md#run-an-approval-across-process-restarts)
+includes the complete client setup and an automated real process-restart test.
+Native `loadHistory` supports full snapshots. Advanced paging remains available
+through an explicit `hydrate` callback.
+
 ## Handle failures
 
 ```dart

@@ -76,10 +76,15 @@ share names with core types.
 ```dart
 final chat = ChatClient(
   threadId: 'conversation-1',
-  connection: serverpodConnection(send: serverpodClient.ai.chat),
+  persistence: const ChatPersistenceOptions.server(),
+  connection: serverpodConnection(
+    send: serverpodClient.ai.chat,
+    loadHistory: serverpodClient.ai.history,
+  ),
 );
 
 final subscription = chat.states.listen(renderConversation);
+await chat.attach(); // Restore server-owned messages and pending approvals.
 await chat.sendText('Hello');
 
 // At disposal:

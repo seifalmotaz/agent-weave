@@ -78,10 +78,15 @@ share names with core types.
 ```dart
 final chat = ChatClient(
   threadId: 'conversation-1',
-  connection: serverpodConnection(send: serverpodClient.ai.chat),
+  persistence: const ChatPersistenceOptions.server(),
+  connection: serverpodConnection(
+    send: serverpodClient.ai.chat,
+    loadHistory: serverpodClient.ai.history,
+  ),
 );
 
 final subscription = chat.states.listen(renderConversation);
+await chat.attach(); // Restore server-owned messages and pending approvals.
 await chat.sendText('Hello');
 
 // At disposal:
@@ -310,6 +315,20 @@ For UI streaming use the authenticated endpoint in the
 [Serverpod example](../examples/serverpod/README.md). Its dedicated stream
 session remains open until the response closes.
 
+## Restore a client-side conversation
+
+Use `serverpodConnection(send: client.ai.chat, loadHistory: client.ai.history)`
+with `persistence: const ChatPersistenceOptions.server()` on `ChatClient`, then
+`await chat.attach()`. Register matching `ChatClientTool` input/output schemas
+for typed tool approvals. Without server persistence the client does not call
+the loader; without matching schemas a pending tool may be exposed as a generic
+interrupt rather than a typed tool approval.
+
+The [runnable two-command approval example](../examples/serverpod/README.md#run-an-approval-across-process-restarts)
+includes the complete client setup and an automated real process-restart test.
+Native `loadHistory` supports full snapshots. Advanced paging remains available
+through an explicit `hydrate` callback.
+
 ## Handle failures
 
 ```dart
@@ -466,6 +485,46 @@ PATH="$PWD/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart run examples/review_c
 ```
 
 A local real HTTP fixture validated the native Messages path and authentication header, text generation, serialized structured-output schema and decoded object, a two-invocation agent tool loop, signed thinking replay and corresponding tool result. A simulated HTTP 400 surfaced as `AgentRunException` with `MODEL_FAILED` and an `ApiException(400)` cause containing the provider diagnostic. The fake endpoint does not validate actual Anthropic model compatibility, supported schemas or provider-side restrictions. No paid calls were made; no implementation bug was established by these probes.
+
+
+# Round 4 consumer review
+
+Score: **7/10** (discoverability 5, clarity 6, types 7, debugging 7, testing 8). The new native history loader removes a manual JSON conversion, and the typed approval hashes match across backend and client. Recovery still needs explicit client configuration and a complete consumer recipe.
+
+## Tested offline
+
+From the workspace root, run:
+
+```sh
+PATH="$PWD/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart run .dart_tool/dx-review/round4/hydrate.dart
+```
+
+The probe creates a real approval interruption in MemoryRunStore with a scripted provider, serializes the actual `chatHydration` snapshot through JSON, passes it through the new `serverpodConnection(loadHistory: ...)` bridge and attaches a real TanStack ChatClient. It verifies by inspection that a tool with identical `RawJsonSchema` restores `kind=tool-approval`, while omitting the client tool restores `kind=generic` (still resolvable). The input/approval/response schema hashes matched. No provider calls or keys were used.
+
+## Findings
+
+1. The default `ChatClient` persistence is ephemeral. Even if `serverpodConnection` has a working history callback, `await chat.attach()` silently skips it unless configured with `persistence: const ChatPersistenceOptions.server()`. The original README connection recipe omitted both the callback and server persistence. A reader following it cannot restore approvals after an app restart.
+2. To surface a typed tool approval, register a `ChatClientTool` with the same name, `needsApproval: true`, and an identical input schema wrapped in `RawJsonSchema`. Without it, the interrupt is silently downgraded to generic, with `canResolve=true`. Schema drift likewise matters because the client checks hashes. Explain both paths and show the actual Dart imports; a raw map is rejected by `ChatClientTool.inputSchema`.
+3. Existing PostgreSQL approval integration recreates the backend agent but retains the prior in-memory `paused.interrupts`; it does not prove client restart/hydration/resolution. A consumer scenario that restores from authenticated Serverpod history and resumes via the generated client would close this gap.
+
+## Limits
+
+The probe uses the new uncommitted bridge and a memory store, not a running Serverpod database or generated-client WebSocket. It checks hydration and classification, not resumed execution, reconnect during an active stream, mobile UI, or schema drift behavior. The existing PostgreSQL integration source was inspected, but its full suite was not run here.
+
+## Follow-up: runnable process restart journey
+
+Targeted journey score: **8.5/10**. The new `example/approval_workflow.dart` supplies server persistence, the native `loadHistory` callback, matching client tool schema, and `attach()`. The CLI now rejects generic fallback by checking the interrupt kind and tool name as well as resolvability. This addresses the configuration and schema-binding gaps above. Documentation was being updated during this review, so its final discoverability was not assessed.
+
+Independently passed with Dart 3.12.2: from `examples/serverpod/agent_weave_demo_server`, run `PATH="$PWD/../../../.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart test test/integration/restart_test.dart`. Output: `00:17 +1: All tests passed!` The test starts a fresh local Serverpod process and embedded PostgreSQL, starts the actual CLI in a fresh process, gracefully terminates and restarts the server using the same database files, approves from another fresh CLI process, and rejects a subsequent completed decision. No paid calls or keys were used.
+
+This demonstrates the tested graceful restart and completed-decision replay scenario. It does not establish behavior after arbitrary crash timing, exactly-once external effects, or a mobile UI.
+
+
+The round-four hydration behavior is now a checked-in regression suite:
+`dart test packages/agent_weave_serverpod_client/test/history_test.dart`. It
+covers real serialized interruptions with ephemeral/server persistence and
+registered/unregistered tool schemas. The process-restart command above runs
+the complete CLI directly, rather than a private review-only script.
 
 
 # Source: docs/architecture.md
@@ -823,6 +882,17 @@ queries on binary downloads, raw status/headers/bytes, arbitrary JSON root
 values, authenticated PUT requests, pre-cancellation and mutation retry policy.
 This does not implement SSE, multipart or computer-use orchestration.
 
+## Computer-use SDK contribution
+
+[Upstream PR #430](https://github.com/davidmigloz/ai_clients_dart/pull/430) adds
+typed computer-call input replay and screenshot results, including returned-only
+statuses and redacted screenshots. Local upstream validation passed 25,235 unit
+tests with 3 skips plus package analysis. The PR is submitted, not merged or
+released. AgentWeave still uses its published SDK dependency. Native computer,
+shell/custom/patch calls and MCP approval continuations fail explicitly instead
+of being silently treated as completed function-tool runs. Runtime execution
+and full computer-use orchestration remain unfinished.
+
 
 # Source: docs/provider-coverage.md
 
@@ -990,10 +1060,10 @@ and interoperability with the pinned official JavaScript client.
 
 On Dart 3.12.2 and 3.13.3:
 
-- 131 Dart unit and regression tests: tool validation, approvals, client tools,
+- 147 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 12 Serverpod integration tests with a real isolated PostgreSQL database:
+- 13 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -1070,6 +1140,16 @@ error and cooperative cancellation contracts. No live Anthropic account, model,
 real cache hit or network-abort behavior was tested. The independent review is
 8.0/10 for the reviewed general SDK journeys and provisionally 7.8/10 for the
 new native provider path; see [the review record](dx-review.md).
+
+## Persisted approval process restart
+
+The isolated PostgreSQL test now starts the actual backend and approval CLI in
+separate processes, exits both, starts a fresh backend against the same database
+files, and restores/resolves the pending approval from a fresh client. A further
+fresh client rejects the already-completed decision. The independent Terra
+reviewer reran the test successfully on Dart 3.12.2 and scored this targeted
+journey 8.5/10. This is graceful restart evidence, not arbitrary-crash recovery
+or proof of exactly-once external effects.
 
 
 # Source: CONTRIBUTING.md
