@@ -730,3 +730,36 @@ finishes without provider dispatch or an indeterminate marker, permits an
 in-memory reservation to be reacquired before the resolver finishes, and
 consumes late resolver errors. It does not cancel the underlying OAuth work.
 The guide's live example compiled without execution and matches its code block.
+
+## Round 28: dedicated OpenRouter images
+
+An independent developer wrote and ran public-API consumer scripts for image
+model/endpoint discovery, all native request parameters, PNG/SVG/missing MIME,
+usage/cost preservation, direct and wrapped SSE, multiple completed outputs,
+unknown phases/capabilities, same-request JSON fallback, malformed/partial-only
+streams, errors and cancellation at preparation, headers and body boundaries.
+The scoped score is **8/10**, not an overall SDK or live-provider score.
+
+The consumer reproduced a late response-body leak after cancellation while
+waiting for headers. The shared transport now cancels that body. Its probe also
+checks safe malformed-fallback status and redacted request ID. The reviewer
+checked the runnable guide and compiled live demo without calling the provider.
+Run the tracked recipe with
+`dart --enable-asserts run examples/review_cases/openrouter_image_api.dart`.
+Ignored adversarial review scripts are additional local evidence, not artifacts
+available in a fresh clone; focused package tests preserve the regressions.
+
+Remaining friction includes model-specific parameter acceptance, native error
+events requiring explicit handling, no built-in preview synchronization with UI
+clients and application-owned reference authorization, output storage and size
+limits. The provider supplies no output index connecting previews to final
+images. The API preserves this ambiguity rather than inventing a correlation.
+No live discovery, rendering, provider billing or Flutter device was reviewed.
+Serverpod/PostgreSQL verification is a separate coordinating-suite result.
+
+A final malformed UTF-8 consumer verified the shared decoder correction through
+`OpenRouterImageModel.stream`: safe `JsonHttpException`, preserved HTTP status,
+redacted request ID, no attached decoder source and one request. The documented
+Serverpod factory was independently reviewed for session authentication,
+server-owned model/count, native results and cancellation. The scoped score
+remains 8/10. Coordinating tests separately verify its real PostgreSQL/HTTP flow.

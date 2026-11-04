@@ -115,6 +115,7 @@ Future<void> main() async {
     'anthropic_citations',
     'citations_client',
     'openrouter_images',
+    'openrouter_image_api',
     'cloudflare_streaming',
     'openai_hosted',
     'openai_references',
@@ -189,6 +190,13 @@ Future<void> main() async {
   await run('dart', [
     'compile',
     'kernel',
+    'examples/openrouter_image_api_demo.dart',
+    '-o',
+    '.dart_tool/openrouter_image_api_demo.dill',
+  ]);
+  await run('dart', [
+    'compile',
+    'kernel',
     'examples/anthropic_mcp_demo.dart',
     '-o',
     '.dart_tool/anthropic_mcp_demo.dill',
@@ -199,6 +207,7 @@ Future<void> main() async {
   await run('python3', ['tool/cloudflare_contract.py', '--check']);
   await run('python3', ['tool/test_openrouter_contract.py']);
   await run('python3', ['tool/openrouter_contract.py', '--check']);
+  await run('dart', ['run', 'tool/openrouter_image_contract.dart']);
   await run('python3', ['tool/test_ollama_contract.py']);
   await run('python3', ['tool/ollama_contract.py', '--check']);
   final secret = RegExp(

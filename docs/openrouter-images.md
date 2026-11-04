@@ -7,8 +7,8 @@ it does not implement that output lifecycle.
 
 Select a model and provider that support image output through Chat Completions.
 Availability and accepted configuration vary; this guide does not recommend a
-particular model. The separate OpenRouter `/images` API is not implemented by
-this Chat adapter.
+particular model. Use the [dedicated Image API guide](openrouter-image-api.md) for the separate
+`/images` workflow; its results are independent of Chat history and replay.
 
 ## Generate images from Dart
 

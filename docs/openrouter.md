@@ -101,7 +101,9 @@ Use [Chat image output](openrouter-images.md) with explicit text/image modalitie
 for a completed assistant message. Ordinary text uses SSE; image requests are
 buffered because the pinned Chat stream schema does not define image deltas.
 Images and opaque replay fields survive tool approvals and server-owned history.
-The dedicated `/images` API remains a separate, unimplemented workflow.
+For the dedicated `/images` endpoint, use `OpenRouterImageModel`. It supports
+buffered results, native SSE events, same-request JSON fallback and model/endpoint
+discovery. See the [dedicated Image API guide](openrouter-image-api.md).
 
 ## Responses and private replay
 

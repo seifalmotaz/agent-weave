@@ -7,7 +7,8 @@
         "name": "X-OpenRouter-Categories",
         "schema": {
           "type": "string"
-        }
+        },
+        "x-speakeasy-name-override": "appCategories"
       },
       "AppDisplayName": {
         "description": "The app display name allows you to customize how your app appears in OpenRouter's dashboard.\n",
@@ -15,7 +16,8 @@
         "name": "X-OpenRouter-Title",
         "schema": {
           "type": "string"
-        }
+        },
+        "x-speakeasy-name-override": "appTitle"
       },
       "AppIdentifier": {
         "description": "The app identifier should be your app's URL and is used as the primary identifier for rankings.\nThis is used to track API usage per application.\n",
@@ -6059,6 +6061,7 @@
           "ollama",
           "open-inference",
           "openai",
+          "parallel",
           "parasail",
           "pareto-alpha",
           "particle-ai",
@@ -7274,7 +7277,8 @@
             "type": "integer"
           },
           "error": {
-            "$ref": "#/components/schemas/ResponsesErrorField"
+            "$ref": "#/components/schemas/ResponsesErrorField",
+            "nullable": true
           },
           "frequency_penalty": {
             "format": "double",
@@ -7287,18 +7291,22 @@
             "type": "string"
           },
           "incomplete_details": {
-            "$ref": "#/components/schemas/IncompleteDetails"
+            "$ref": "#/components/schemas/IncompleteDetails",
+            "nullable": true
           },
           "instructions": {
-            "$ref": "#/components/schemas/BaseInputs"
+            "$ref": "#/components/schemas/BaseInputs",
+            "nullable": true
           },
           "max_output_tokens": {
+            "nullable": true,
             "type": [
               "integer",
               "null"
             ]
           },
           "max_tool_calls": {
+            "nullable": true,
             "type": [
               "integer",
               "null"
@@ -7396,7 +7404,8 @@
             "$ref": "#/components/schemas/PromptCacheOptions"
           },
           "reasoning": {
-            "$ref": "#/components/schemas/BaseReasoningConfig"
+            "$ref": "#/components/schemas/BaseReasoningConfig",
+            "nullable": true
           },
           "safety_identifier": {
             "type": [
@@ -7421,7 +7430,8 @@
             ]
           },
           "text": {
-            "$ref": "#/components/schemas/TextConfig"
+            "$ref": "#/components/schemas/TextConfig",
+            "nullable": true
           },
           "tool_choice": {
             "$ref": "#/components/schemas/OpenAIResponsesToolChoice"
@@ -7545,6 +7555,7 @@
             "type": "array"
           },
           "top_logprobs": {
+            "nullable": true,
             "type": "integer"
           },
           "top_p": {
@@ -7555,7 +7566,8 @@
             ]
           },
           "truncation": {
-            "$ref": "#/components/schemas/Truncation"
+            "$ref": "#/components/schemas/Truncation",
+            "nullable": true
           },
           "usage": {
             "$ref": "#/components/schemas/OpenAIResponsesUsage"
@@ -15022,13 +15034,6 @@
               "null"
             ]
           },
-          "max_completion_tokens": {
-            "description": "Cap on completion tokens per request. Requests asking for more skip this endpoint, and the default output length stays within it. When omitted, the cap is copied from the public endpoint for the same model and provider, if there is one.",
-            "example": 131072,
-            "maximum": 2147483647,
-            "minimum": 1,
-            "type": "integer"
-          },
           "model_permaslug": {
             "description": "Permanent slug of the model this endpoint serves.",
             "example": "openai/gpt-4o-2024-08-06",
@@ -16399,6 +16404,7 @@
         "properties": {
           "frequency_penalty": {
             "format": "double",
+            "nullable": true,
             "type": [
               "number",
               "null"
@@ -16406,6 +16412,7 @@
           },
           "presence_penalty": {
             "format": "double",
+            "nullable": true,
             "type": [
               "number",
               "null"
@@ -16413,6 +16420,7 @@
           },
           "repetition_penalty": {
             "format": "double",
+            "nullable": true,
             "type": [
               "number",
               "null"
@@ -16420,6 +16428,7 @@
           },
           "temperature": {
             "format": "double",
+            "nullable": true,
             "type": [
               "number",
               "null"
@@ -16433,6 +16442,7 @@
           },
           "top_p": {
             "format": "double",
+            "nullable": true,
             "type": [
               "number",
               "null"
@@ -20647,6 +20657,7 @@
                   "tts",
                   "stt",
                   "image",
+                  "tools_invoke",
                   null
                 ],
                 "type": [
@@ -27875,6 +27886,7 @@
                   "Ollama",
                   "OpenAI",
                   "OpenInference",
+                  "Parallel",
                   "Parasail",
                   "ParetoAlpha",
                   "Particle AI",
@@ -39606,6 +39618,7 @@
           "Ollama",
           "OpenAI",
           "OpenInference",
+          "Parallel",
           "Parasail",
           "ParetoAlpha",
           "Particle AI",
@@ -40062,6 +40075,10 @@
             "type": "object"
           },
           "openai": {
+            "additionalProperties": {},
+            "type": "object"
+          },
+          "parallel": {
             "additionalProperties": {},
             "type": "object"
           },
@@ -40662,6 +40679,7 @@
               "Ollama",
               "OpenAI",
               "OpenInference",
+              "Parallel",
               "Parasail",
               "ParetoAlpha",
               "Particle AI",
@@ -41211,9 +41229,11 @@
         },
         "properties": {
           "max": {
+            "format": "double",
             "type": "number"
           },
           "min": {
+            "format": "double",
             "type": "number"
           },
           "type": {
@@ -46894,6 +46914,7 @@
           "context_length": {
             "description": "Context length from the top provider",
             "example": 8192,
+            "nullable": true,
             "type": [
               "integer",
               "null"
@@ -46907,6 +46928,7 @@
           "max_completion_tokens": {
             "description": "Maximum completion tokens from the top provider. Input and output tokens share the context window, so the effective maximum output for a request is further limited by the context remaining after input tokens.",
             "example": 4096,
+            "nullable": true,
             "type": [
               "integer",
               "null"
@@ -48366,37 +48388,6 @@
         },
         "required": [
           "is_filtered_model_catalog_enabled"
-        ],
-        "type": "object"
-      },
-      "UpdatePrivateEndpointParametersRequest": {
-        "properties": {
-          "declared_parameters": {
-            "description": "Parameters the upstream supports beyond the tested ones. Replaces the earlier declaration; tested parameters stay. Order and repeated names are ignored, but the list holds at most as many entries as there are declarable parameters, repeats included. `tool_choice` requires `tools` to be tested or declared.",
-            "example": [
-              "temperature",
-              "seed"
-            ],
-            "items": {
-              "$ref": "#/components/schemas/PrivateEndpointDeclaredParameter"
-            },
-            "maxItems": 25,
-            "type": "array"
-          }
-        },
-        "required": [
-          "declared_parameters"
-        ],
-        "type": "object"
-      },
-      "UpdatePrivateEndpointPricingRequest": {
-        "properties": {
-          "pricing": {
-            "$ref": "#/components/schemas/PrivateEndpointPricing"
-          }
-        },
-        "required": [
-          "pricing"
         ],
         "type": "object"
       },
@@ -54997,7 +54988,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -55117,6 +55107,7 @@
                 "ollama",
                 "open-inference",
                 "openai",
+                "parallel",
                 "parasail",
                 "pareto-alpha",
                 "particle-ai",
@@ -57399,7 +57390,6 @@
               "example": 0,
               "maximum": 100,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -57857,7 +57847,6 @@
               "example": 0,
               "maximum": 5000,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -58639,7 +58628,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -58992,7 +58980,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -59145,9 +59132,9 @@
         },
         "summary": "List registered external users",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "list",
         "x-speakeasy-pagination": {
           "inputs": [
@@ -59297,9 +59284,9 @@
         },
         "summary": "Register an external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "create"
       }
     },
@@ -59394,9 +59381,9 @@
         },
         "summary": "Deactivate a registered external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "delete"
       },
       "get": {
@@ -59520,9 +59507,9 @@
         },
         "summary": "Get a registered external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "get"
       },
       "parameters": [
@@ -59654,9 +59641,9 @@
         },
         "summary": "Update a registered external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "update"
       }
     },
@@ -61377,7 +61364,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -61707,7 +61693,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -61886,7 +61871,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -62484,7 +62468,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -62938,7 +62921,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -64356,7 +64338,6 @@
               "description": "Number of API keys to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -66734,7 +66715,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -67525,7 +67505,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -68187,7 +68166,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -68938,7 +68916,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -69402,7 +69379,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -70366,7 +70342,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -70833,12 +70808,12 @@
         "operationId": "createPrivateEndpoint",
         "parameters": [
           {
-            "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `max_completion_tokens` are not compared, and later edits to the endpoint do not affect the comparison.",
+            "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `settings` are not compared, and later edits to the endpoint do not affect the comparison. `settings` is still validated before the replay, so a retry with invalid settings returns 400 `settings_invalid` instead of the endpoint.",
             "in": "header",
             "name": "idempotency-key",
             "required": false,
             "schema": {
-              "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `max_completion_tokens` are not compared, and later edits to the endpoint do not affect the comparison.",
+              "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `settings` are not compared, and later edits to the endpoint do not affect the comparison. `settings` is still validated before the replay, so a retry with invalid settings returns 400 `settings_invalid` instead of the endpoint.",
               "example": "wayfair-gpt-4o-eastus-2026-09",
               "maxLength": 255,
               "minLength": 1,
@@ -72111,412 +72086,6 @@
         "x-speakeasy-name-override": "enable"
       }
     },
-    "/private-endpoints/{id}/parameters": {
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/AppIdentifier"
-        },
-        {
-          "$ref": "#/components/parameters/AppDisplayName"
-        },
-        {
-          "$ref": "#/components/parameters/AppCategories"
-        }
-      ],
-      "put": {
-        "deprecated": true,
-        "description": "Deprecated: send `declared_parameters` to `PATCH /private-endpoints/{id}` instead; this route behaves exactly like that call and will be removed. The body replaces the earlier declaration and is read as a set; `tested_parameters` stay. Returns 400 `parameters_invalid` when `tool_choice` is declared without `tools` being tested or declared. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
-        "operationId": "updatePrivateEndpointParameters",
-        "parameters": [
-          {
-            "description": "Stable identifier of the private endpoint.",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "Stable identifier of the private endpoint.",
-              "example": "5b1c4c4e-7d0a-4a8e-9f3a-2d6c1b0e8a11",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePrivateEndpointParametersRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PrivateEndpointResponse"
-                }
-              }
-            },
-            "description": "The endpoint with its new declared parameters"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 400,
-                    "message": "Invalid request parameters"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestResponse"
-                }
-              }
-            },
-            "description": "Bad Request - Invalid request parameters or malformed input"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 401,
-                    "message": "Missing Authentication header"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedResponse"
-                }
-              }
-            },
-            "description": "Unauthorized - Authentication required or invalid credentials"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 403,
-                    "message": "Only management keys can perform this operation"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ForbiddenResponse"
-                }
-              }
-            },
-            "description": "Forbidden - Authentication successful but insufficient permissions"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 404,
-                    "message": "Resource not found"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundResponse"
-                }
-              }
-            },
-            "description": "Not Found - Resource does not exist"
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 408,
-                    "message": "Operation timed out. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/RequestTimeoutResponse"
-                }
-              }
-            },
-            "description": "Request Timeout - Operation exceeded time limit"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 409,
-                    "message": "Resource conflict. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ConflictResponse"
-                }
-              }
-            },
-            "description": "Conflict - Resource conflict or concurrent modification"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 422,
-                    "message": "Invalid argument"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnprocessableEntityResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity - Semantic validation failure"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 500,
-                    "message": "Internal Server Error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error - Unexpected server error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 502,
-                    "message": "Provider returned error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadGatewayResponse"
-                }
-              }
-            },
-            "description": "Bad Gateway - Provider/upstream API failure"
-          }
-        },
-        "summary": "Set private endpoint supported parameters (deprecated)",
-        "tags": [
-          "Private Endpoints"
-        ],
-        "x-speakeasy-name-override": "updateParameters"
-      }
-    },
-    "/private-endpoints/{id}/pricing": {
-      "parameters": [
-        {
-          "$ref": "#/components/parameters/AppIdentifier"
-        },
-        {
-          "$ref": "#/components/parameters/AppDisplayName"
-        },
-        {
-          "$ref": "#/components/parameters/AppCategories"
-        }
-      ],
-      "put": {
-        "deprecated": true,
-        "description": "Deprecated: send `pricing` to `PATCH /private-endpoints/{id}` instead; this route behaves exactly like that call and will be removed. The body replaces the whole pricing object: omitting `cache_read` or `cache_write` reverts that rate to the provider pricing strategy default. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
-        "operationId": "updatePrivateEndpointPricing",
-        "parameters": [
-          {
-            "description": "Stable identifier of the private endpoint.",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "Stable identifier of the private endpoint.",
-              "example": "5b1c4c4e-7d0a-4a8e-9f3a-2d6c1b0e8a11",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePrivateEndpointPricingRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PrivateEndpointResponse"
-                }
-              }
-            },
-            "description": "The endpoint with its new pricing"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 400,
-                    "message": "Invalid request parameters"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestResponse"
-                }
-              }
-            },
-            "description": "Bad Request - Invalid request parameters or malformed input"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 401,
-                    "message": "Missing Authentication header"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedResponse"
-                }
-              }
-            },
-            "description": "Unauthorized - Authentication required or invalid credentials"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 403,
-                    "message": "Only management keys can perform this operation"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ForbiddenResponse"
-                }
-              }
-            },
-            "description": "Forbidden - Authentication successful but insufficient permissions"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 404,
-                    "message": "Resource not found"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundResponse"
-                }
-              }
-            },
-            "description": "Not Found - Resource does not exist"
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 408,
-                    "message": "Operation timed out. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/RequestTimeoutResponse"
-                }
-              }
-            },
-            "description": "Request Timeout - Operation exceeded time limit"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 409,
-                    "message": "Resource conflict. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ConflictResponse"
-                }
-              }
-            },
-            "description": "Conflict - Resource conflict or concurrent modification"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 422,
-                    "message": "Invalid argument"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnprocessableEntityResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity - Semantic validation failure"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 500,
-                    "message": "Internal Server Error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error - Unexpected server error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 502,
-                    "message": "Provider returned error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadGatewayResponse"
-                }
-              }
-            },
-            "description": "Bad Gateway - Provider/upstream API failure"
-          }
-        },
-        "summary": "Set private endpoint pricing (deprecated)",
-        "tags": [
-          "Private Endpoints"
-        ],
-        "x-speakeasy-name-override": "updatePricing"
-      }
-    },
     "/private-endpoints/{id}/validate": {
       "parameters": [
         {
@@ -72812,7 +72381,7 @@
         }
       ],
       "post": {
-        "description": "Create a private, bring-your-own-key provider visible only to your organization. Use its slug as `provider_slug` when creating private endpoints. Requires both the private endpoints and the private providers entitlements. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
+        "description": "Create a private, bring-your-own-key provider visible only to your organization. Use its slug as `provider_slug` when creating private endpoints. Requires the private endpoints entitlement. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
         "operationId": "createPrivateProvider",
         "requestBody": {
           "content": {
@@ -75098,7 +74667,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -75740,7 +75308,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -76440,7 +76007,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -77161,7 +76727,6 @@
               "example": 0,
               "maximum": 10000,
               "minimum": 0,
-              "nullable": false,
               "type": "integer"
             }
           }
@@ -77518,7 +77083,6 @@
               "example": 0,
               "maximum": 10000,
               "minimum": 0,
-              "nullable": false,
               "type": "integer"
             }
           }
@@ -78911,7 +78475,6 @@
               "example": 0,
               "maximum": 10000,
               "minimum": 0,
-              "nullable": false,
               "type": "integer"
             }
           }
@@ -80524,7 +80087,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -81239,7 +80801,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -82410,9 +81971,12 @@
       "name": "alpha.extractions"
     },
     {
-      "deprecated": true,
-      "description": "Deprecated alias for responses endpoints. Use responses instead. Scheduled for removal (sunset date TBD).",
+      "description": "Deprecated alias of responses. Use responses instead; scheduled for removal (sunset date TBD).",
       "name": "beta.responses"
+    },
+    {
+      "description": "Deprecated alias of externalUsers. Use externalUsers instead; scheduled for removal (sunset date TBD).",
+      "name": "End Users"
     }
   ],
   "x-retry-strategy": {

@@ -86,6 +86,7 @@ nav:
       - OpenAI MCP approvals: openai-mcp.md
       - OpenRouter: openrouter.md
       - OpenRouter Chat images: openrouter-images.md
+      - OpenRouter dedicated Image API: openrouter-image-api.md
       - Cloudflare Workers AI and AI Gateway: cloudflare.md
       - Together: together.md
       - Vercel AI Gateway: vercel-gateway.md

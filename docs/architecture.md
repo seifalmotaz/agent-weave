@@ -259,3 +259,14 @@ dispatch so core can checkpoint an uncertain effect. Remote use/results and
 A mixed local turn can defer remote execution until local results are returned.
 The same model profile, beta and server authority survive that approval or a
 provider-only pause. See [MCP](anthropic-mcp.md).
+
+## Dedicated image generation
+
+OpenRouter's dedicated Image API implements the typed `ImageModel` capability
+separately from Chat. Native generation responses do not contain provider IDs or
+a model field; the adapter preserves that shape. Its stream emits typed native
+partial, text, completed and error events, with an explicit buffered fallback.
+The shared transport selects JSON or SSE from one response's content type and
+never submits a second generation POST. Applications can wrap the operation in
+`GenerationTask` for durable Serverpod results without changing the native DTO.
+See [dedicated images](openrouter-image-api.md).

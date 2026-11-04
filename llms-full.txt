@@ -25,7 +25,7 @@ using it in production.
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
 | [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
-| [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter native Chat/Responses, routing, replay and metadata |
+| [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter native Chat/Responses, dedicated images, discovery, routing and replay |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
 | [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
 | [`agent_weave_serverpod_client`](packages/agent_weave_serverpod_client) | Connect the existing TanStack Dart client to generated Serverpod streaming methods |
@@ -133,6 +133,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
 - [OpenRouter Chat images](docs/openrouter-images.md)
+- [OpenRouter dedicated Image API](docs/openrouter-image-api.md)
 - [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)
 - [Together Chat Completions](docs/together.md)
 - [Vercel AI Gateway](docs/vercel-gateway.md)
@@ -184,8 +185,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   browser tools, live MCP/citation behavior and full nested semantics remain
   open. Constructor coverage is not workflow certification.
 - OpenRouter Chat now handles selected completed text/image output, with private
-  replay across approvals; its dedicated Image API, streamed Chat image extensions
-  and audio remain open. Native Cloudflare text now streams documented response
+  replay across approvals. Its dedicated Image API now has typed discovery, native
+  SSE, same-request JSON fallback and durable Serverpod generation fixtures.
+  Live provider behavior, streamed Chat image extensions and audio remain open.
+  Native Cloudflare text now streams documented response
   chunks; schema and traditional tools stay buffered. Model support and live
   behavior remain unverified.
 - Anthropic now normalizes all five pinned citation variants into typed text
@@ -1478,6 +1481,39 @@ in-memory reservation to be reacquired before the resolver finishes, and
 consumes late resolver errors. It does not cancel the underlying OAuth work.
 The guide's live example compiled without execution and matches its code block.
 
+## Round 28: dedicated OpenRouter images
+
+An independent developer wrote and ran public-API consumer scripts for image
+model/endpoint discovery, all native request parameters, PNG/SVG/missing MIME,
+usage/cost preservation, direct and wrapped SSE, multiple completed outputs,
+unknown phases/capabilities, same-request JSON fallback, malformed/partial-only
+streams, errors and cancellation at preparation, headers and body boundaries.
+The scoped score is **8/10**, not an overall SDK or live-provider score.
+
+The consumer reproduced a late response-body leak after cancellation while
+waiting for headers. The shared transport now cancels that body. Its probe also
+checks safe malformed-fallback status and redacted request ID. The reviewer
+checked the runnable guide and compiled live demo without calling the provider.
+Run the tracked recipe with
+`dart --enable-asserts run examples/review_cases/openrouter_image_api.dart`.
+Ignored adversarial review scripts are additional local evidence, not artifacts
+available in a fresh clone; focused package tests preserve the regressions.
+
+Remaining friction includes model-specific parameter acceptance, native error
+events requiring explicit handling, no built-in preview synchronization with UI
+clients and application-owned reference authorization, output storage and size
+limits. The provider supplies no output index connecting previews to final
+images. The API preserves this ambiguity rather than inventing a correlation.
+No live discovery, rendering, provider billing or Flutter device was reviewed.
+Serverpod/PostgreSQL verification is a separate coordinating-suite result.
+
+A final malformed UTF-8 consumer verified the shared decoder correction through
+`OpenRouterImageModel.stream`: safe `JsonHttpException`, preserved HTTP status,
+redacted request ID, no attached decoder source and one request. The documented
+Serverpod factory was independently reviewed for session authentication,
+server-owned model/count, native results and cancellation. The scoped score
+remains 8/10. Coordinating tests separately verify its real PostgreSQL/HTTP flow.
+
 
 # Source: docs/architecture.md
 
@@ -1742,6 +1778,17 @@ dispatch so core can checkpoint an uncertain effect. Remote use/results and
 A mixed local turn can defer remote execution until local results are returned.
 The same model profile, beta and server authority survive that approval or a
 provider-only pause. See [MCP](anthropic-mcp.md).
+
+## Dedicated image generation
+
+OpenRouter's dedicated Image API implements the typed `ImageModel` capability
+separately from Chat. Native generation responses do not contain provider IDs or
+a model field; the adapter preserves that shape. Its stream emits typed native
+partial, text, completed and error events, with an explicit buffered fallback.
+The shared transport selects JSON or SSE from one response's content type and
+never submits a second generation POST. Applications can wrap the operation in
+`GenerationTask` for durable Serverpod results without changing the native DTO.
+See [dedicated images](openrouter-image-api.md).
 
 
 # Source: docs/tools.md
@@ -3250,8 +3297,9 @@ the map cannot replace its schema, description or executor.
 With `openai_dart 11.0.1`, image-generation masks,
 moderation and compression have incorrect SDK types; native JSON accepts an
 object mask, `auto` or `low` moderation, and integer compression from 0 to 100.
-The type correction is proposed in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);
-this workspace continues to use the released SDK pin.
+The type correction was merged on 2026-11-04 in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);
+the fix is not in the published 11.0.1 release. This workspace keeps that released
+SDK pin.
 
 Function tools may use strict schemas and deferred loading. Their names and
 schemas must still match registered executors. Asynchronous and programmatic
@@ -4466,7 +4514,9 @@ Use [Chat image output](openrouter-images.md) with explicit text/image modalitie
 for a completed assistant message. Ordinary text uses SSE; image requests are
 buffered because the pinned Chat stream schema does not define image deltas.
 Images and opaque replay fields survive tool approvals and server-owned history.
-The dedicated `/images` API remains a separate, unimplemented workflow.
+For the dedicated `/images` endpoint, use `OpenRouterImageModel`. It supports
+buffered results, native SSE events, same-request JSON fallback and model/endpoint
+discovery. See the [dedicated Image API guide](openrouter-image-api.md).
 
 ## Responses and private replay
 
@@ -4549,8 +4599,8 @@ it does not implement that output lifecycle.
 
 Select a model and provider that support image output through Chat Completions.
 Availability and accepted configuration vary; this guide does not recommend a
-particular model. The separate OpenRouter `/images` API is not implemented by
-this Chat adapter.
+particular model. Use the [dedicated Image API guide](openrouter-image-api.md) for the separate
+`/images` workflow; its results are independent of Chat history and replay.
 
 ## Generate images from Dart
 
@@ -4667,19 +4717,181 @@ this selected path 8/10. No live model, billing or device rendering was tested.
 See [validation](validation.md) for the exact evidence and open work.
 
 
+# Source: docs/openrouter-image-api.md
+
+# OpenRouter dedicated Image API
+
+Use `OpenRouterImageModel` for OpenRouter's dedicated `/images` endpoint. It accepts an image model and a prompt, and returns generated image bytes. `OpenRouterChatModel` uses the separate Chat Completions image workflow; its messages and replay are not interchangeable with this API.
+
+The example below defaults to a buffered response. Set `OPENROUTER_IMAGE_STREAM=1` to request streaming. Each invocation can incur provider charges. Choose a model and options from discovery before running it.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave_openrouter/agent_weave_openrouter.dart';
+
+Future<void> main() async {
+  final key = Platform.environment['OPENROUTER_API_KEY'];
+  final modelId = Platform.environment['OPENROUTER_IMAGE_MODEL'];
+  final prompt = Platform.environment['OPENROUTER_IMAGE_PROMPT'];
+  if (key == null || modelId == null || prompt == null) {
+    throw StateError(
+      'Set OPENROUTER_API_KEY, OPENROUTER_IMAGE_MODEL, and OPENROUTER_IMAGE_PROMPT.',
+    );
+  }
+
+  final client = OpenRouterClient.withApiKey(apiKey: key);
+  final model = OpenRouterImageModel(client: client);
+  final request = OpenRouterImageRequest(model: modelId, prompt: prompt);
+  try {
+    if (Platform.environment['OPENROUTER_IMAGE_STREAM'] == '1') {
+      await for (final event in model.stream(request)) {
+        switch (event) {
+          case OpenRouterImagePartial():
+            print(
+              'Partial image ${event.index}: ${event.image.bytes.length} bytes',
+            );
+          case OpenRouterImageText():
+            print('Text chunk phase: ${event.phase}');
+          case OpenRouterImageCompleted():
+            print(
+              'Final image: ${event.image.bytes.length} bytes; '
+              'media type: ${event.image.mediaType ?? 'unknown'}',
+            );
+          case OpenRouterImageBuffered():
+            for (final image in event.response.data) {
+              print(
+                'Final image: ${image.bytes.length} bytes; '
+                'media type: ${image.mediaType ?? 'unknown'}',
+              );
+            }
+          case OpenRouterImageError():
+            throw StateError(
+              'Image generation failed; inspect the error event safely.',
+            );
+        }
+      }
+    } else {
+      final response = await model.generate(request);
+      for (final image in response.data) {
+        print(
+          'Final image: ${image.bytes.length} bytes; '
+          'media type: ${image.mediaType ?? 'unknown'}',
+        );
+      }
+    }
+  } finally {
+    client.close();
+  }
+}
+```
+
+Run from the workspace root with `OPENROUTER_API_KEY`, `OPENROUTER_IMAGE_MODEL`, and `OPENROUTER_IMAGE_PROMPT` set in your environment:
+
+```sh
+dart run examples/openrouter_image_api_demo.dart
+```
+
+The example reports sizes and does not write or render images. The separate offline fixture needs no key or network access: `dart run examples/review_cases/openrouter_image_api.dart`.
+
+## Requests and discovery
+
+`OpenRouterImageRequest` exposes `n`, reference images, resolution, aspect ratio, size, quality, background, output format and compression, seed, provider preferences, session ID, user, trace, and streaming. `extra` retains additional native request fields; `fromJson` and `toJson` support native JSON. Reference images use native `image_url` content parts. The request type checks their shape and nonempty URL string. Apply your own scheme, host and authorization policy before accepting untrusted reference URLs; the provider may fetch them. Model and provider capabilities vary: unsupported parameters can be ignored or rejected by the provider, and requesting multiple images does not guarantee a particular count.
+
+Call `model.listModels()` for image models and `model.listModelEndpoints(author, slug)` for per-endpoint capabilities and pricing. The typed results expose capability descriptors, endpoint details and pricing, and preserve unknown fields in `raw`. Pass the author and slug as separate path segments; the client uses its configured API origin and does not follow URLs returned by discovery. The raw client also offers `listImageModels`, `listImageModelEndpoints`, and `createImages` for native JSON access. See [OpenRouter's Image API guide](https://openrouter.ai/docs/guides/overview/multimodal/image-generation) for model-specific availability and routing.
+
+## Serve generation through Serverpod
+
+Register `createOpenRouterImageRoute(client: client, model: yourImageModel)` on
+`pod.webServer` at `/api/images`. Use your existing Serverpod authentication
+handler. The example factory below accepts a prompt from `forwardedProps`, fixes
+the model and count on the server, and saves the exact native result through
+`ServerpodRunStore`. It rejects unauthenticated requests. The application owns
+the provider client and closes it at shutdown.
+
+```dart
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openrouter/agent_weave_openrouter.dart' as router;
+import 'package:agent_weave_serverpod/agent_weave_serverpod.dart';
+import 'package:agent_weave_serverpod_storage_server/agent_weave_serverpod_storage_server.dart';
+
+/// Register with pod.webServer.addRoute(route, '/api/images').
+/// The application owns the client and closes it at shutdown.
+AgentGenerationRoute<
+  router.OpenRouterImageRequest,
+  router.OpenRouterImageResponse
+>
+createOpenRouterImageRoute({
+  required router.OpenRouterClient client,
+  required String model,
+}) {
+  final image = router.OpenRouterImageModel(client: client);
+  return AgentGenerationRoute(
+    authenticate: (session) => session.authenticated?.userIdentifier,
+    // Keep model, count and routing policy on the server.
+    decode: (input) => router.OpenRouterImageRequest(
+      model: model,
+      prompt: input['prompt'] as String,
+      n: 1,
+    ),
+    createTask: (session) => GenerationTask(
+      store: ServerpodRunStore(session),
+      execute: (request, context) => image.generate(
+        request,
+        cancellation: context.cancellation,
+      ),
+      encodeResult: (response) => response.raw,
+    ),
+  );
+}
+```
+
+This source lives at
+[`examples/serverpod/agent_weave_demo_server/lib/src/ai/openrouter_image_route.dart`](https://github.com/seifalmotaz/agent-weave/blob/main/examples/serverpod/agent_weave_demo_server/lib/src/ai/openrouter_image_route.dart).
+The route emits AgentWeave generation events while the provider call is buffered;
+it does not stream preview bytes. Use a generic generation client to receive the
+native JSON result. Add your application's quota, output storage and retention
+policy before exposing a billable endpoint.
+
+The real PostgreSQL/network fixture in
+`test/integration/openrouter_image_api_test.dart` also demonstrates an application
+task consuming native partial events and retaining every completed event in
+provider order. Its progress value stays at zero while receiving previews, since
+the provider gives no completion percentage. Preview bytes are not stored as
+final output. The task treats a native error event as failure and waits for stream
+completion before saving its result. This is an application recipe, not automatic
+Chat history or preview synchronization in either client.
+
+## Streaming and results
+
+`stream` emits events in provider order. `OpenRouterImagePartial` is a preview, with a partial sequence index; it is not a final image. `OpenRouterImageText` has a `phase`: `content` is renderable output, while `draft` and `reasoning` are intermediate; unknown phase strings are preserved. `OpenRouterImageCompleted` carries a final image. There may be multiple completed events, and the API does not supply an output index that associates them with previews. Handle each event without inventing that association.
+
+Some providers return buffered JSON even when streaming is requested. The client detects the response content type from the **same HTTP request** and emits `OpenRouterImageBuffered` with the response; it does not repeat the generation request. The client accepts both the direct event shape in OpenRouter's guide and the `data` wrapper in its pinned OpenAPI schema. The native `streamImages` method exposes the underlying JSON/SSE events. A typed `OpenRouterImageError` is a failure event: callers must handle it explicitly. Invalid events, an incomplete stream, or an absent completion sentinel fail the stream. Bytes after the `[DONE]` sentinel are not read.
+
+Images provide `bytes`, `b64Json`, and a nullable `mediaType`. The API may omit the media type; the client does not infer one or fabricate image IDs or a model ID. Usage and cost are available when reported by the provider. Treat output as untrusted: in particular, an SVG is data and should not be executed as HTML. The examples do not fetch returned URLs or render SVG.
+
+## Cancellation and resource limits
+
+Pass a `CancellationToken` to `generate`, `stream`, or discovery. The client also accepts a credential resolver for token refresh; cancellation can stop waiting for a pending resolver. Cancellation or a transport error after dispatch does not prove that the provider stopped processing, so check provider records before retrying an uncertain, billable request. The client does not automatically repeat the image POST for a fallback.
+
+Base64 and decoded image bytes consume memory. Set application-appropriate request, response, storage, and retention limits, particularly when requesting multiple or large images; the typed adapter does not impose an image-size cap. Store credentials and generated content according to your application's privacy requirements. Dispose the client with `close()` when finished; a client constructed with a borrowed transport leaves that transport open.
+
+
 # Source: docs/openrouter-api-reference.md
 
 # OpenRouter API inventory
 
-Source: [OpenRouter OpenAPI](https://openrouter.ai/openapi.json), reviewed 2026-11-04, SHA-256 `07b8b1ac91ba9e522540417420cd74004db5246d5341e5c86d68443e4438af82`. The source declares the MIT license.
+Source: [OpenRouter OpenAPI](https://openrouter.ai/openapi.json), reviewed 2026-11-04, SHA-256 `08855d8f74f3f44be3b3007576d79aee13faa6ecf6fd5cd790fcd78b51e6a4fb`. The source declares the MIT license.
 
-The pinned schema describes 146 operations across 108 paths. Chat completions and Responses have selected integrations; all other operations are inventoried and not integrated.
+The pinned schema describes 144 operations across 106 paths. Chat completions, Responses and the three dedicated Image API operations have selected integrations; other operations are inventoried and not integrated.
 
 The [machine-readable inventory](openrouter-api-inventory.json) records each operation, request, response, parameter and header contract, and each component field, union and constraint. Credential-shaped example values are redacted. Original-source and sanitized-snapshot hashes are separate. References point to the schema snapshot in `tool/contracts/openrouter/openapi.json`. A schema entry or native field forwarding does not establish supported runtime orchestration or model behavior.
 
 Run `python3 tool/openrouter_contract.py --check` offline to verify the snapshot and generated outputs. `--upstream` compares the current official document without updating any files. See `tool/contracts/openrouter/README.md` for attribution and source provenance.
 
-Chat `modalities` has selected normalized text/image support via typed options; image output uses completed JSON assistant messages, not undocumented streaming deltas. `image_config` is preserved as model-specific JSON. Audio output, the dedicated Images API, and Responses modalities remain outside this integration. See [OpenRouter images](openrouter-images.md).
+Chat `modalities` has selected normalized text/image support via typed options; image output uses completed JSON assistant messages, not undocumented streaming deltas. `image_config` is preserved as model-specific JSON. Audio output, streamed Chat images, and Responses modalities remain outside this integration. The dedicated Image API has separate typed request, discovery, SSE and buffered-fallback handling; endpoint paths use encoded model segments rather than following returned URLs. See [OpenRouter images](openrouter-images.md).
+
+The pinned OpenAPI wraps image SSE events in `data`; the [official image guide](https://openrouter.ai/docs/guides/overview/multimodal/image-generation) shows direct events. Both forms are handled, with a separate buffered JSON fallback. Offline fixtures do not establish live provider or model behavior.
 
 | Method | Path | Status |
 | --- | --- | --- |
@@ -4742,9 +4954,9 @@ Chat `modalities` has selected normalized text/image support via typed options; 
 | GET | `/guardrails/{id}/assignments/members` | not-integrated |
 | POST | `/guardrails/{id}/assignments/members` | not-integrated |
 | POST | `/guardrails/{id}/assignments/members/remove` | not-integrated |
-| POST | `/images` | not-integrated |
-| GET | `/images/models` | not-integrated |
-| GET | `/images/models/{author}/{slug}/endpoints` | not-integrated |
+| POST | `/images` | integrated-selected-behavior |
+| GET | `/images/models` | integrated-selected-behavior |
+| GET | `/images/models/{author}/{slug}/endpoints` | integrated-selected-behavior |
 | GET | `/key` | not-integrated |
 | GET | `/keys` | not-integrated |
 | POST | `/keys` | not-integrated |
@@ -4782,8 +4994,6 @@ Chat `modalities` has selected normalized text/image support via typed options; 
 | POST | `/private-endpoints/{id}/activate` | not-integrated |
 | POST | `/private-endpoints/{id}/disable` | not-integrated |
 | POST | `/private-endpoints/{id}/enable` | not-integrated |
-| PUT | `/private-endpoints/{id}/parameters` | not-integrated |
-| PUT | `/private-endpoints/{id}/pricing` | not-integrated |
 | POST | `/private-endpoints/{id}/validate` | not-integrated |
 | GET | `/private-providers` | not-integrated |
 | POST | `/private-providers` | not-integrated |
@@ -6909,7 +7119,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. Remote MCP approval/denial and private replay have offline coverage; see [MCP approvals](openai-mcp.md). | See [OpenAI audit](openai-options-audit.md): shell/custom/patch continuations, precise public highlights, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
 | Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Native MCP use/result/listing replay, three explicit beta modes, mixed local approvals and indeterminate recovery have offline fixtures; see [MCP](anthropic-mcp.md). Complete nested semantics, browser tools, inline tool-change messages, other endpoint workflows and live behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
-| OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Selected completed Chat image output, private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, hosted tools, dedicated Images API, other media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
+| OpenRouter Chat, Responses and dedicated images | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected routing/reasoning/cache options and private replay. Dedicated Image API has typed requests/results, discovery capabilities/pricing, four native SSE events and same-request buffered fallback. | The [inventory](openrouter-api-reference.md) records all 144 pinned operations; five have selected integrations. Management, background jobs, hosted tools, streamed Chat images, audio and exhaustive fragment/model behavior remain incomplete. Fixtures do not establish live billing, routing or model acceptance. See [OpenRouter](openrouter.md) and [dedicated images](openrouter-image-api.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
 | Cloudflare Workers AI / AI Gateway | Native run, model discovery, streamed text and selected embedding, transcription, image and traditional chat adapters; Gateway run and compatible Chat and Responses. | Model-specific schemas, availability, live acceptance, caching, binary audio and billing remain unverified. Native traditional tool continuation covers the documented Hermes single-call format only. See [Cloudflare](cloudflare.md). |
@@ -7028,7 +7238,10 @@ and retain the old history. Public client bindings remain unchanged. See
   routing, plugin and cache options, ordered private reasoning replay and compact
   provider/cost metadata have offline fixtures. Selected Chat image output uses
   completed messages with private replay across approvals. Complete management,
-  background, hosted tools, dedicated Image API and other media remain unfinished. See [OpenRouter](openrouter.md).
+  background, hosted tools and other media remain unfinished. The dedicated Image
+  API has separate typed requests, discovery, native SSE and same-request JSON
+  fallback; see [dedicated images](openrouter-image-api.md). These are offline
+  fixtures, not live model or billing certification. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
   Pinned hosted blocks, bounded paused turns and container reuse are integrated
@@ -7207,12 +7420,14 @@ with a stated MIT license. Credential-shaped example values are redacted in the
 retained snapshot, which has a separate hash. The updater verifies both hashes
 and the deterministic transformation. Its inventory retains references and records component
 fields once, avoiding repeated expansion of recursive schemas. All operations
-receive an explicit status; only selected Chat/Responses behavior is integrated.
+receive an explicit status. Selected Chat/Responses behavior and the three
+dedicated Image API operations are integrated.
 
 ```sh
 python3 tool/openrouter_contract.py --upstream --check
 python3 tool/test_openrouter_contract.py
 python3 tool/openrouter_contract.py --check
+dart run tool/openrouter_image_contract.dart
 ```
 
 Review source drift, the field statuses, implementation and fixture behavior
@@ -7220,6 +7435,12 @@ together before changing the hash. New and removed request fields both require
 a disposition update; stale classifications fail the check. New fields forwarded through native JSON
 still need a disposition and tests for any claimed orchestration. See
 `tool/contracts/openrouter/README.md` for provenance and retained license.
+
+The Image API inventory separately checks request, response, usage, discovery and
+capability fields and known stream unions. The executable fixture checks all 17
+request fields and both documented event envelopes. Review the difference between
+the guide's direct SSE events and the OpenAPI `data` wrapper; do not silently
+remove either shape or issue a second POST for a buffered fallback.
 
 ## OpenAI computer contract
 
@@ -8271,6 +8492,62 @@ exception. RFC 1123 date parsing and custom JSONL error factories are outside
 this fix. With credentials unset, 1,872 SDK unit tests pass with three skipped,
 and package analysis is clean. Independent public-client and adversarial
 retry-header probes pass. This PR is not a published dependency update.
+
+## Dedicated OpenRouter Image API
+
+The typed native capability covers all 17 pinned request fields, provider
+preferences, generated bytes, nullable MIME, reported usage/cost, model discovery,
+endpoint pricing and enum/range/boolean capabilities. Unknown capability variants
+and fields retain native JSON. The inventory classifies raw usage details
+separately from typed projections. The executable
+`tool/openrouter_image_contract.dart` asserts actual requests and both direct
+and wrapped event envelopes; constructor coverage alone is not certification.
+
+Transport fixtures check Content-Type negotiation from one POST, JSON fallback,
+fragmented UTF-8 SSE, completion sentinels, malformed responses, no resend after
+503 and cancellation before/after dispatch. A late-header response-body leak was
+reproduced before the shared transport fix. Buffered format errors now preserve
+HTTP status and request IDs without copying response bodies into messages.
+Provider adapters still own credential redaction and native completion policy.
+Native SSE errors are typed events; application tasks must turn them into failure.
+
+The Serverpod integration uses actual PostgreSQL and loopback provider/backend
+HTTP. It persists exact buffered JSON, both native completed events in order,
+failed generation and one-request fallback. The official JavaScript generic
+`GenerationClient` receives the native fallback result. The documented route
+factory uses real authentication, server-owned model/count policy and an
+owner-scoped durable result. Unauthenticated calls send no provider request;
+client-supplied model, count, routing and owner do not replace server policy.
+
+The upstream-review workflow detected a changed official source. After reviewing
+the transitive selected schemas and operation differences, the source pin now
+accounts for 144 operations across 106 paths. Two removed private-endpoint PUT
+operations were never integrated. New regressions verify Parallel options on the
+actual request wire, all nine newly nullable Responses result fields through the
+public text API and fractional image capability ranges. This updates the prior
+146-operation snapshot; it does not claim full OpenRouter API coverage.
+
+The independent consumer scored the selected offline journeys 8/10. The live
+example and documented Serverpod factory are source-matched in documentation
+checks. No paid provider call, actual reference download, image rendering,
+provider cancellation/billing, model option acceptance or device UI was tested.
+Applications still own quotas, source authorization, SVG handling, storage and
+retention; the adapter does not cap image response size or infer missing MIME.
+
+Verification for this increment: `dart run tool/check.dart` passed with 636 unit
+and regression tests, 32 PostgreSQL/network cases, the standalone official
+JavaScript client and Dart Frog suites, executable contracts and offline
+consumers. After the final decoder fix, all 636 unit/regression tests were run
+again and passed. A malformed SSE UTF-8 probe had exposed decoder source bytes;
+the shared transport now returns safe HTTP metadata, and an independent public
+image-stream probe verifies redaction. Package analysis is clean, all three docs
+checks pass, strict MkDocs build succeeds, and OpenRouter Dartdoc reports zero
+warnings/errors. The current upstream hash check passes after the reviewed pin
+update. No paid call was added to the cumulative testing ledger.
+
+Upstream image-option PR #436 was also verified merged on 2026-11-04.
+The pub.dev API still reports `openai_dart 11.0.1` and
+`anthropic_sdk_dart 9.0.1`; no dependency upgrade is implied by these merges.
 
 
 # Source: CONTRIBUTING.md

@@ -134,8 +134,26 @@ class JsonHttpException implements Exception {
       'JsonHttpException: $message${statusCode == null ? '' : ' (HTTP $statusCode)'}';
 }
 
-sealed class JsonSseEvent {
+/// A JSON response or an event from a negotiated JSON/SSE response.
+sealed class JsonHttpEvent {
+  const JsonHttpEvent();
+}
+
+sealed class JsonSseEvent extends JsonHttpEvent {
   const JsonSseEvent();
+}
+
+/// A complete JSON response returned instead of an SSE stream, without retrying.
+final class JsonBufferedData extends JsonHttpEvent {
+  final JsonObject data;
+  final int statusCode;
+  final Map<String, String> responseHeaders;
+  JsonBufferedData(
+    JsonObject data, {
+    required this.statusCode,
+    Map<String, String> responseHeaders = const {},
+  }) : data = snapshotJson(data),
+       responseHeaders = Map.unmodifiable(responseHeaders);
 }
 
 final class JsonSseData extends JsonSseEvent {
@@ -313,8 +331,23 @@ final class JsonHttpClient {
       case EmptyHttpRequest():
         break;
     }
-    final response = await scope.wait(_client.send(request));
-    scope.check();
+    http.StreamedResponse? received;
+    var abandoned = false;
+    final http.StreamedResponse response;
+    try {
+      response = await scope.wait(
+        _client.send(request).then((value) {
+          received = value;
+          if (abandoned) unawaited(_discard(value));
+          return value;
+        }),
+      );
+      scope.check();
+    } catch (_) {
+      abandoned = true;
+      if (received case final value?) await _discard(value);
+      rethrow;
+    }
     if (response.statusCode < 200 || response.statusCode >= 300) {
       final bytes = <int>[];
       var oversized = false;
@@ -346,6 +379,25 @@ final class JsonHttpClient {
     }
     return response;
   }
+
+  Future<void> _discard(http.StreamedResponse response) async {
+    try {
+      await response.stream.listen(null, onError: (Object _) {}).cancel();
+    } catch (_) {
+      // A late cleanup error must not replace the caller's cancellation.
+    }
+  }
+
+  JsonHttpException _responseError(
+    http.StreamedResponse response,
+    String message,
+  ) => JsonHttpException(
+    message,
+    statusCode: response.statusCode,
+    requestId:
+        response.headers['x-request-id'] ?? response.headers['request-id'],
+    responseHeaders: response.headers,
+  );
 
   Stream<List<int>> _bytes(Stream<List<int>> source, _Scope scope) async* {
     final iterator = StreamIterator(source);
@@ -483,10 +535,31 @@ final class JsonHttpClient {
     CancellationToken? cancellation,
     Map<String, List<String>> query = const {},
   }) {
+    return _bind(cancellation, (scope) => _stream(path, prepare, scope, query));
+  }
+
+  /// Send one POST and select JSON buffering or SSE parsing from Content-Type.
+  ///
+  /// A JSON fallback is not a second request. SSE stops at `[DONE]` and cancels
+  /// the remaining response body; protocols own their completion validation.
+  Stream<JsonHttpEvent> streamJsonOrSse(
+    String path, {
+    required FutureOr<HttpRequestData> Function() prepare,
+    CancellationToken? cancellation,
+    Map<String, List<String>> query = const {},
+  }) => _bind(
+    cancellation,
+    (scope) => _negotiatedStream(path, prepare, scope, query),
+  );
+
+  Stream<T> _bind<T>(
+    CancellationToken? cancellation,
+    Stream<T> Function(_Scope scope) create,
+  ) {
     _Scope? scope;
-    StreamSubscription<JsonSseEvent>? source;
-    late final StreamController<JsonSseEvent> controller;
-    controller = StreamController<JsonSseEvent>(
+    StreamSubscription<T>? source;
+    late final StreamController<T> controller;
+    controller = StreamController<T>(
       onListen: () {
         if (_closed) {
           controller.addError(StateError('The HTTP client is closed.'));
@@ -495,7 +568,7 @@ final class JsonHttpClient {
         }
         final active = _start(cancellation);
         scope = active;
-        source = _stream(path, prepare, active, query).listen(
+        source = create(active).listen(
           controller.add,
           onError: controller.addError,
           onDone: controller.close,
@@ -525,61 +598,7 @@ final class JsonHttpClient {
         query,
         HttpMethod.post,
       );
-      final data = <String>[];
-      String? event;
-      String? id;
-      var firstLine = true;
-      await for (var line in _bytes(
-        response.stream,
-        scope,
-      ).transform(utf8.decoder).transform(const LineSplitter())) {
-        scope.check();
-        if (firstLine) {
-          firstLine = false;
-          if (line.startsWith('\uFEFF')) line = line.substring(1);
-        }
-        if (line.isEmpty) {
-          if (data.isNotEmpty) {
-            final payload = data.join('\n');
-            data.clear();
-            if (payload == '[DONE]') {
-              yield JsonSseDone(responseHeaders: response.headers);
-              return;
-            }
-            Object? value;
-            try {
-              value = jsonDecode(payload);
-            } on FormatException {
-              throw JsonHttpException('Invalid SSE JSON');
-            }
-            if (value is! Map<String, dynamic>) {
-              throw JsonHttpException('Expected an SSE JSON object');
-            }
-            yield JsonSseData(
-              value,
-              event: event,
-              id: id,
-              responseHeaders: response.headers,
-            );
-          }
-          event = null;
-        } else if (!line.startsWith(':')) {
-          final colon = line.indexOf(':');
-          final field = colon < 0 ? line : line.substring(0, colon);
-          var value = colon < 0 ? '' : line.substring(colon + 1);
-          if (value.startsWith(' ')) value = value.substring(1);
-          switch (field) {
-            case 'data':
-              data.add(value);
-            case 'event':
-              event = value;
-            case 'id':
-              if (!value.contains('\x00')) id = value;
-          }
-        }
-      }
-      scope.check();
-      if (data.isNotEmpty) throw JsonHttpException('Truncated SSE frame');
+      yield* _sse(response, scope);
     } on RunCancelled {
       if (scope.closed) return;
       rethrow;
@@ -590,5 +609,131 @@ final class JsonHttpClient {
     } finally {
       _release(scope);
     }
+  }
+
+  Stream<JsonHttpEvent> _negotiatedStream(
+    String path,
+    FutureOr<HttpRequestData> Function() prepare,
+    _Scope scope,
+    Map<String, List<String>> query,
+  ) async* {
+    try {
+      final response = await _send(
+        path,
+        prepare,
+        scope,
+        query,
+        HttpMethod.post,
+      );
+      final contentType = response.headers.entries
+          .where((entry) => entry.key.toLowerCase() == 'content-type')
+          .firstOrNull
+          ?.value
+          .split(';')
+          .first
+          .trim()
+          .toLowerCase();
+      if (contentType == 'text/event-stream') {
+        yield* _sse(response, scope);
+      } else if (contentType == 'application/json' ||
+          (contentType != null &&
+              contentType.startsWith('application/') &&
+              contentType.endsWith('+json'))) {
+        final Object? value;
+        try {
+          final body = await utf8.decoder
+              .bind(_bytes(response.stream, scope))
+              .join();
+          value = jsonDecode(body);
+        } on FormatException {
+          throw _responseError(response, 'Invalid JSON response');
+        }
+        scope.check();
+        if (value is! Map<String, Object?>) {
+          throw _responseError(response, 'Expected a JSON object');
+        }
+        yield JsonBufferedData(
+          value,
+          statusCode: response.statusCode,
+          responseHeaders: response.headers,
+        );
+      } else {
+        await _discard(response);
+        throw _responseError(response, 'Expected a JSON or SSE Content-Type');
+      }
+    } on RunCancelled {
+      if (scope.closed) return;
+      rethrow;
+    } on http.RequestAbortedException {
+      if (scope.closed) return;
+      scope.check();
+      rethrow;
+    } finally {
+      _release(scope);
+    }
+  }
+
+  Stream<JsonSseEvent> _sse(
+    http.StreamedResponse response,
+    _Scope scope,
+  ) async* {
+    final data = <String>[];
+    String? event;
+    String? id;
+    var firstLine = true;
+    await for (var line
+        in _bytes(response.stream, scope)
+            .transform(utf8.decoder)
+            .handleError((Object error) {
+              throw _responseError(response, 'Invalid SSE UTF-8');
+            }, test: (error) => error is FormatException)
+            .transform(const LineSplitter())) {
+      scope.check();
+      if (firstLine) {
+        firstLine = false;
+        if (line.startsWith('\uFEFF')) line = line.substring(1);
+      }
+      if (line.isEmpty) {
+        if (data.isNotEmpty) {
+          final payload = data.join('\n');
+          data.clear();
+          if (payload == '[DONE]') {
+            yield JsonSseDone(responseHeaders: response.headers);
+            return;
+          }
+          Object? value;
+          try {
+            value = jsonDecode(payload);
+          } on FormatException {
+            throw _responseError(response, 'Invalid SSE JSON');
+          }
+          if (value is! Map<String, dynamic>) {
+            throw _responseError(response, 'Expected an SSE JSON object');
+          }
+          yield JsonSseData(
+            value,
+            event: event,
+            id: id,
+            responseHeaders: response.headers,
+          );
+        }
+        event = null;
+      } else if (!line.startsWith(':')) {
+        final colon = line.indexOf(':');
+        final field = colon < 0 ? line : line.substring(0, colon);
+        var value = colon < 0 ? '' : line.substring(colon + 1);
+        if (value.startsWith(' ')) value = value.substring(1);
+        switch (field) {
+          case 'data':
+            data.add(value);
+          case 'event':
+            event = value;
+          case 'id':
+            if (!value.contains('\x00')) id = value;
+        }
+      }
+    }
+    scope.check();
+    if (data.isNotEmpty) throw _responseError(response, 'Truncated SSE frame');
   }
 }

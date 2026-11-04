@@ -116,3 +116,19 @@ processes against a temporary PostgreSQL data directory and verifies restored
 approval plus repeated-decision rejection. This verifies graceful restart. It
 does not prove recovery at arbitrary crash points or exactly-once effects in
 an unrelated external service. Keep external operations idempotent.
+
+## Generate OpenRouter images
+
+The optional `createOpenRouterImageRoute` factory in
+`agent_weave_demo_server/lib/src/ai/openrouter_image_route.dart` uses your existing
+authentication, fixes model/count policy on the server and persists native image
+results. Register it explicitly with an application-owned OpenRouter client;
+the default offline backend does not enable paid image generation.
+See the [dedicated Image API guide](https://seifalmotaz.github.io/agent-weave/openrouter-image-api/)
+for the complete factory and streaming/result distinctions.
+
+The integration fixture `test/integration/openrouter_image_api_test.dart` uses
+actual local HTTP, PostgreSQL and the official JavaScript generation client.
+It tests server-owned policy and authentication, multiple final images, a
+single-request JSON fallback and failed generation without successful output.
+The provider is a loopback fixture; it makes no paid request.

@@ -34,8 +34,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   browser tools, live MCP/citation behavior and full nested semantics remain
   open. Constructor coverage is not workflow certification.
 - OpenRouter Chat now handles selected completed text/image output, with private
-  replay across approvals; its dedicated Image API, streamed Chat image extensions
-  and audio remain open. Native Cloudflare text now streams documented response
+  replay across approvals. Its dedicated Image API now has typed discovery, native
+  SSE, same-request JSON fallback and durable Serverpod generation fixtures.
+  Live provider behavior, streamed Chat image extensions and audio remain open.
+  Native Cloudflare text now streams documented response
   chunks; schema and traditional tools stay buffered. Model support and live
   behavior remain unverified.
 - Anthropic now normalizes all five pinned citation variants into typed text

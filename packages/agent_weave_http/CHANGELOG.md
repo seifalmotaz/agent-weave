@@ -1,3 +1,8 @@
+## Unreleased
+
+- Negotiate JSON or SSE from a single POST without resubmitting generation.
+- Cancel late response bodies after header-wait cancellation and retain status/request IDs on malformed buffered responses and SSE UTF-8 without exposing decoder source bytes.
+
 ## 0.1.0-dev.1
 
 - Share cancellable JSON POST and SSE transport across native provider adapters.

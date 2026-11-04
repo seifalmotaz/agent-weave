@@ -41,6 +41,11 @@ multiline data. It rejects malformed JSON and unfinished frames. It does not
 interpret a provider's finish reasons or retry POST requests. Redirects are
 disabled to keep request credentials on the configured endpoint.
 
+`streamJsonOrSse` selects JSON or SSE from the response Content-Type of one
+POST. A buffered JSON response emits `JsonBufferedData`; SSE retains the existing
+`JsonSseData` and `JsonSseDone` events. It never retries to obtain a fallback.
+Provider adapters still decide whether the content represents success.
+
 `JsonHttpException` omits response data from its printable message. Its optional
 immutable details and headers are trusted-backend diagnostics; error bodies
 are bounded to 64 KB. Provider adapters remain responsible for credential

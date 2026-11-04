@@ -7,16 +7,22 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_http/agent_weave_http.dart';
 import 'package:agent_weave_openai/agent_weave_openai.dart' as api;
 import 'package:http/http.dart' as http;
+import 'src/image_types.dart';
+
+export 'src/image_types.dart';
 
 export 'package:agent_weave_http/agent_weave_http.dart'
     show
         JsonSseEvent,
         JsonSseData,
         JsonSseDone,
+        JsonHttpEvent,
+        JsonBufferedData,
         JsonHttpException,
         JsonHttpClient;
 
 part 'src/chat_images.dart';
+part 'src/image_model.dart';
 
 enum OpenRouterOutputModality { text, image, audio }
 
@@ -434,6 +440,198 @@ final class OpenRouterClient {
     JsonObject body, {
     CancellationToken? cancellation,
   }) => _stream('/responses', body, cancellation);
+
+  /// Calls the dedicated image generation endpoint with native parameters.
+  Future<OpenRouterResponse> createImages(
+    JsonObject body, {
+    CancellationToken? cancellation,
+  }) => _create('/images', body, cancellation);
+
+  /// Streams native image events, or a buffered JSON fallback from the same request.
+  Stream<JsonHttpEvent> streamImages(
+    JsonObject body, {
+    CancellationToken? cancellation,
+  }) {
+    final request = snapshotJson({...body, 'stream': true});
+    return (cancellation ?? CancellationToken()).bindStream(
+      (child) => _streamImages(request, child),
+    );
+  }
+
+  Stream<JsonHttpEvent> _streamImages(
+    JsonObject request,
+    CancellationToken cancellation,
+  ) async* {
+    String? secret;
+    var completed = false;
+    var failed = false;
+    var done = false;
+    try {
+      await for (final event in transport.streamJsonOrSse(
+        '/images',
+        cancellation: cancellation,
+        prepare: () async {
+          try {
+            secret = await credentialResolver();
+          } catch (_) {
+            throw JsonHttpException('Credential resolution failed');
+          }
+          if (secret!.trim().isEmpty ||
+              secret!.contains(RegExp(r'[\r\n\x00]'))) {
+            throw JsonHttpException('Invalid credential');
+          }
+          return JsonHttpRequest(
+            body: request,
+            headers: {...headers, 'Authorization': 'Bearer $secret'},
+          );
+        },
+      )) {
+        if (event is JsonBufferedData) {
+          if (event.data['error'] != null) {
+            throw JsonHttpException(
+              'OpenRouter response failed',
+              statusCode: event.statusCode,
+              requestId:
+                  event.responseHeaders['x-request-id'] ??
+                  event.responseHeaders['request-id'],
+              details: event.data,
+              responseHeaders: event.responseHeaders,
+            );
+          }
+          OpenRouterImageResponse.fromJson(event.data);
+          yield JsonBufferedData(
+            event.data,
+            statusCode: event.statusCode,
+            responseHeaders: _cleanHeaders(event.responseHeaders, secret),
+          );
+          return;
+        }
+        if (event is JsonSseData) {
+          final value = event.data.containsKey('type')
+              ? event.data
+              : event.data['data'];
+          if (value is! Map<String, Object?>) {
+            throw const FormatException('Invalid image event envelope.');
+          }
+          final parsed = OpenRouterImageStreamEvent.fromJson(value);
+          if (failed) {
+            throw const FormatException('Invalid image event after error.');
+          }
+          completed = completed || parsed is OpenRouterImageCompleted;
+          failed = parsed is OpenRouterImageError;
+          final safe = parsed is OpenRouterImageError
+              ? _clean(event.data, secret) as JsonObject
+              : event.data;
+          yield JsonSseData(
+            safe,
+            event: event.event == null ? null : _redact(event.event!, secret),
+            id: event.id == null ? null : _redact(event.id!, secret),
+            responseHeaders: _cleanHeaders(event.responseHeaders, secret),
+          );
+        } else if (event is JsonSseDone) {
+          if (!completed && !failed) {
+            throw const FormatException(
+              'Image stream ended before completion.',
+            );
+          }
+          done = true;
+          yield JsonSseDone(
+            responseHeaders: _cleanHeaders(event.responseHeaders, secret),
+          );
+        }
+      }
+      if (!done) {
+        throw JsonHttpException(
+          'OpenRouter image stream ended before completion',
+        );
+      }
+    } on JsonHttpException catch (error) {
+      throw _safeError(error, secret);
+    } on http.ClientException {
+      throw JsonHttpException('OpenRouter transport failed');
+    }
+  }
+
+  /// Lists image models from the configured OpenRouter API origin.
+  Future<OpenRouterResponse> listImageModels({
+    CancellationToken? cancellation,
+  }) => _get('/images/models', cancellation);
+
+  /// Lists endpoints for one image model; each argument is one path segment.
+  Future<OpenRouterResponse> listImageModelEndpoints(
+    String author,
+    String slug, {
+    CancellationToken? cancellation,
+  }) => _get(
+    '/images/models/${_imagePathSegment(author)}/${_imagePathSegment(slug)}/endpoints',
+    cancellation,
+  );
+
+  Future<OpenRouterResponse> _get(
+    String path,
+    CancellationToken? cancellation,
+  ) async {
+    String? secret;
+    try {
+      final response = await transport.send(
+        path,
+        method: HttpMethod.get,
+        cancellation: cancellation,
+        prepare: () async {
+          try {
+            secret = await credentialResolver();
+          } catch (_) {
+            throw JsonHttpException('Credential resolution failed');
+          }
+          if (secret!.trim().isEmpty ||
+              secret!.contains(RegExp(r'[\r\n\x00]'))) {
+            throw JsonHttpException('Invalid credential');
+          }
+          return HttpRequestData.empty(
+            headers: {...headers, 'Authorization': 'Bearer $secret'},
+          );
+        },
+      );
+      final data = jsonDecode(response.body);
+      if (data is! Map<String, Object?>) {
+        throw JsonHttpException('Expected a JSON object');
+      }
+      if (data['error'] != null) {
+        throw JsonHttpException(
+          'OpenRouter response failed',
+          statusCode: response.statusCode,
+          requestId:
+              response.headers['x-request-id'] ??
+              response.headers['request-id'],
+          details: data,
+          responseHeaders: response.headers,
+        );
+      }
+      return OpenRouterResponse(
+        data: data,
+        statusCode: response.statusCode,
+        headers: _cleanHeaders(response.headers, secret),
+      );
+    } on JsonHttpException catch (error) {
+      throw _safeError(error, secret);
+    } on http.ClientException {
+      throw JsonHttpException('OpenRouter transport failed');
+    } on FormatException {
+      throw JsonHttpException('OpenRouter response format invalid');
+    }
+  }
+}
+
+String _imagePathSegment(String value) {
+  if (value.isEmpty ||
+      value == '.' ||
+      value == '..' ||
+      value.contains('/') ||
+      value.contains('\\') ||
+      value.contains(RegExp(r'[\x00-\x1f\x7f]'))) {
+    throw ArgumentError('Expected a single image model path segment.');
+  }
+  return Uri.encodeComponent(value);
 }
 
 Map<String, String> _headers(

@@ -1,14 +1,16 @@
 # OpenRouter API inventory
 
-Source: [OpenRouter OpenAPI](https://openrouter.ai/openapi.json), reviewed 2026-11-04, SHA-256 `07b8b1ac91ba9e522540417420cd74004db5246d5341e5c86d68443e4438af82`. The source declares the MIT license.
+Source: [OpenRouter OpenAPI](https://openrouter.ai/openapi.json), reviewed 2026-11-04, SHA-256 `08855d8f74f3f44be3b3007576d79aee13faa6ecf6fd5cd790fcd78b51e6a4fb`. The source declares the MIT license.
 
-The pinned schema describes 146 operations across 108 paths. Chat completions and Responses have selected integrations; all other operations are inventoried and not integrated.
+The pinned schema describes 144 operations across 106 paths. Chat completions, Responses and the three dedicated Image API operations have selected integrations; other operations are inventoried and not integrated.
 
 The [machine-readable inventory](openrouter-api-inventory.json) records each operation, request, response, parameter and header contract, and each component field, union and constraint. Credential-shaped example values are redacted. Original-source and sanitized-snapshot hashes are separate. References point to the schema snapshot in `tool/contracts/openrouter/openapi.json`. A schema entry or native field forwarding does not establish supported runtime orchestration or model behavior.
 
 Run `python3 tool/openrouter_contract.py --check` offline to verify the snapshot and generated outputs. `--upstream` compares the current official document without updating any files. See `tool/contracts/openrouter/README.md` for attribution and source provenance.
 
-Chat `modalities` has selected normalized text/image support via typed options; image output uses completed JSON assistant messages, not undocumented streaming deltas. `image_config` is preserved as model-specific JSON. Audio output, the dedicated Images API, and Responses modalities remain outside this integration. See [OpenRouter images](openrouter-images.md).
+Chat `modalities` has selected normalized text/image support via typed options; image output uses completed JSON assistant messages, not undocumented streaming deltas. `image_config` is preserved as model-specific JSON. Audio output, streamed Chat images, and Responses modalities remain outside this integration. The dedicated Image API has separate typed request, discovery, SSE and buffered-fallback handling; endpoint paths use encoded model segments rather than following returned URLs. See [OpenRouter images](openrouter-images.md).
+
+The pinned OpenAPI wraps image SSE events in `data`; the [official image guide](https://openrouter.ai/docs/guides/overview/multimodal/image-generation) shows direct events. Both forms are handled, with a separate buffered JSON fallback. Offline fixtures do not establish live provider or model behavior.
 
 | Method | Path | Status |
 | --- | --- | --- |
@@ -71,9 +73,9 @@ Chat `modalities` has selected normalized text/image support via typed options; 
 | GET | `/guardrails/{id}/assignments/members` | not-integrated |
 | POST | `/guardrails/{id}/assignments/members` | not-integrated |
 | POST | `/guardrails/{id}/assignments/members/remove` | not-integrated |
-| POST | `/images` | not-integrated |
-| GET | `/images/models` | not-integrated |
-| GET | `/images/models/{author}/{slug}/endpoints` | not-integrated |
+| POST | `/images` | integrated-selected-behavior |
+| GET | `/images/models` | integrated-selected-behavior |
+| GET | `/images/models/{author}/{slug}/endpoints` | integrated-selected-behavior |
 | GET | `/key` | not-integrated |
 | GET | `/keys` | not-integrated |
 | POST | `/keys` | not-integrated |
@@ -111,8 +113,6 @@ Chat `modalities` has selected normalized text/image support via typed options; 
 | POST | `/private-endpoints/{id}/activate` | not-integrated |
 | POST | `/private-endpoints/{id}/disable` | not-integrated |
 | POST | `/private-endpoints/{id}/enable` | not-integrated |
-| PUT | `/private-endpoints/{id}/parameters` | not-integrated |
-| PUT | `/private-endpoints/{id}/pricing` | not-integrated |
 | POST | `/private-endpoints/{id}/validate` | not-integrated |
 | GET | `/private-providers` | not-integrated |
 | POST | `/private-providers` | not-integrated |

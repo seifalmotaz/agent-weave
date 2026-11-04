@@ -21,6 +21,7 @@ const documents = [
   'docs/openai-hosted-parameters.md',
   'docs/openrouter.md',
   'docs/openrouter-images.md',
+  'docs/openrouter-image-api.md',
   'docs/openrouter-api-reference.md',
   'docs/together.md',
   'docs/cloudflare.md',

@@ -117,8 +117,9 @@ the map cannot replace its schema, description or executor.
 With `openai_dart 11.0.1`, image-generation masks,
 moderation and compression have incorrect SDK types; native JSON accepts an
 object mask, `auto` or `low` moderation, and integer compression from 0 to 100.
-The type correction is proposed in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);
-this workspace continues to use the released SDK pin.
+The type correction was merged on 2026-11-04 in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);
+the fix is not in the published 11.0.1 release. This workspace keeps that released
+SDK pin.
 
 Function tools may use strict schemas and deferred loading. Their names and
 schemas must still match registered executors. Asynchronous and programmatic

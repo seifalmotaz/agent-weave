@@ -32,7 +32,7 @@ class ContractTest(unittest.TestCase):
         doc['paths']['/new'] = {'get': {'responses': {}}}
         inventory = build_inventory(doc)
         self.assertEqual(next(op for op in inventory['operations'] if op['path'] == '/new')['status'], 'not-integrated')
-        self.assertEqual(inventory['operationCount'], 147)
+        self.assertEqual(inventory['operationCount'], 145)
 
     def test_selected_chat_image_modes_are_distinct_from_raw_fields(self):
         inventory = build_inventory(json.loads(CONTRACT.read_text()))
@@ -52,6 +52,36 @@ class ContractTest(unittest.TestCase):
         doc['components']['schemas']['ChatRequest']['properties']['future_request_mode'] = {'type': 'string'}
         with self.assertRaisesRegex(ValueError, 'Unreviewed ChatRequest fields.*future_request_mode'):
             build_inventory(doc)
+
+    def test_image_operation_and_field_dispositions(self):
+        inventory = build_inventory(json.loads(CONTRACT.read_text()))
+        for method, path in [('POST', '/images'), ('GET', '/images/models'), ('GET', '/images/models/{author}/{slug}/endpoints')]:
+            self.assertEqual(next(op for op in inventory['operations'] if op['method'] == method and op['path'] == path)['status'], 'integrated-selected-behavior')
+        self.assertEqual(len(inventory['imageFieldStatus']['ImageGenerationRequest']), 17)
+        self.assertEqual(inventory['imageFieldStatus']['ImageGenerationRequest']['stream'], 'runtime-owned-stream')
+        self.assertEqual(inventory['requestFieldStatus']['ResponsesRequest']['modalities'], 'not-integrated')
+        self.assertEqual(inventory['imageFieldStatus']['ImageGenerationUsage']['cost_details'], 'raw-preserved-usage')
+
+    def test_image_new_removed_and_nested_fields_require_review(self):
+        for name, change in [('ImageGenerationRequest', 'new'), ('ImageGenerationProviderPreferences', 'removed'), ('ImageEndpoint', 'new')]:
+            doc = json.loads(CONTRACT.read_text())
+            fields = doc['components']['schemas'][name]['properties']
+            if change == 'new': fields['future'] = {'type': 'string'}
+            else: del fields['sort']
+            with self.assertRaisesRegex(ValueError, f'Unreviewed or stale {name} fields'):
+                build_inventory(doc)
+        doc = json.loads(CONTRACT.read_text())
+        doc['components']['schemas']['ImageGenStreamErrorEvent']['properties']['error']['properties']['future'] = {'type': 'string'}
+        with self.assertRaisesRegex(ValueError, 'ImageGenStreamErrorEvent.error'):
+            build_inventory(doc)
+
+    def test_image_stream_and_capability_union_changes_require_review(self):
+        for name in ['ImageStreamingResponse', 'CapabilityDescriptor']:
+            doc = json.loads(CONTRACT.read_text())
+            value = doc['components']['schemas'][name]['properties']['data']['anyOf'] if name == 'ImageStreamingResponse' else doc['components']['schemas'][name]['oneOf']
+            value.pop()
+            with self.assertRaisesRegex(ValueError, f'{name} union'):
+                build_inventory(doc)
 
     def test_example_redaction_preserves_schema_fields(self):
         fake_key = 'sk-or-' + 'v1-' + ('0' * 64)

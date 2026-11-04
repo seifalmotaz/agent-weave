@@ -7,7 +7,8 @@
         "name": "X-OpenRouter-Categories",
         "schema": {
           "type": "string"
-        }
+        },
+        "x-speakeasy-name-override": "appCategories"
       },
       "AppDisplayName": {
         "description": "The app display name allows you to customize how your app appears in OpenRouter's dashboard.\n",
@@ -15,7 +16,8 @@
         "name": "X-OpenRouter-Title",
         "schema": {
           "type": "string"
-        }
+        },
+        "x-speakeasy-name-override": "appTitle"
       },
       "AppIdentifier": {
         "description": "The app identifier should be your app's URL and is used as the primary identifier for rankings.\nThis is used to track API usage per application.\n",
@@ -6165,6 +6167,7 @@
             "ollama",
             "open-inference",
             "openai",
+            "parallel",
             "parasail",
             "pareto-alpha",
             "particle-ai",
@@ -7456,6 +7459,7 @@
         },
         {
           "$ref": "#/components/schemas/ResponsesErrorField",
+          "nullable": true,
           "path": "$/properties/error",
           "requiredByParent": true
         },
@@ -7475,15 +7479,18 @@
         },
         {
           "$ref": "#/components/schemas/IncompleteDetails",
+          "nullable": true,
           "path": "$/properties/incomplete_details",
           "requiredByParent": true
         },
         {
           "$ref": "#/components/schemas/BaseInputs",
+          "nullable": true,
           "path": "$/properties/instructions",
           "requiredByParent": true
         },
         {
+          "nullable": true,
           "path": "$/properties/max_output_tokens",
           "requiredByParent": false,
           "type": [
@@ -7492,6 +7499,7 @@
           ]
         },
         {
+          "nullable": true,
           "path": "$/properties/max_tool_calls",
           "requiredByParent": false,
           "type": [
@@ -7622,6 +7630,7 @@
         },
         {
           "$ref": "#/components/schemas/BaseReasoningConfig",
+          "nullable": true,
           "path": "$/properties/reasoning",
           "requiredByParent": false
         },
@@ -7659,6 +7668,7 @@
         },
         {
           "$ref": "#/components/schemas/TextConfig",
+          "nullable": true,
           "path": "$/properties/text",
           "requiredByParent": false
         },
@@ -7781,6 +7791,7 @@
           "path": "$/properties/tools/items/oneOf/14"
         },
         {
+          "nullable": true,
           "path": "$/properties/top_logprobs",
           "requiredByParent": false,
           "type": "integer"
@@ -7796,6 +7807,7 @@
         },
         {
           "$ref": "#/components/schemas/Truncation",
+          "nullable": true,
           "path": "$/properties/truncation",
           "requiredByParent": false
         },
@@ -15148,13 +15160,6 @@
           ]
         },
         {
-          "maximum": 2147483647,
-          "minimum": 1,
-          "path": "$/properties/max_completion_tokens",
-          "requiredByParent": false,
-          "type": "integer"
-        },
-        {
           "minLength": 1,
           "path": "$/properties/model_permaslug",
           "requiredByParent": true,
@@ -16632,6 +16637,7 @@
         },
         {
           "format": "double",
+          "nullable": true,
           "path": "$/properties/frequency_penalty",
           "requiredByParent": false,
           "type": [
@@ -16641,6 +16647,7 @@
         },
         {
           "format": "double",
+          "nullable": true,
           "path": "$/properties/presence_penalty",
           "requiredByParent": false,
           "type": [
@@ -16650,6 +16657,7 @@
         },
         {
           "format": "double",
+          "nullable": true,
           "path": "$/properties/repetition_penalty",
           "requiredByParent": false,
           "type": [
@@ -16659,6 +16667,7 @@
         },
         {
           "format": "double",
+          "nullable": true,
           "path": "$/properties/temperature",
           "requiredByParent": false,
           "type": [
@@ -16676,6 +16685,7 @@
         },
         {
           "format": "double",
+          "nullable": true,
           "path": "$/properties/top_p",
           "requiredByParent": false,
           "type": [
@@ -21076,6 +21086,7 @@
             "tts",
             "stt",
             "image",
+            "tools_invoke",
             null
           ],
           "path": "$/properties/data/properties/api_type",
@@ -28073,6 +28084,7 @@
             "Ollama",
             "OpenAI",
             "OpenInference",
+            "Parallel",
             "Parasail",
             "ParetoAlpha",
             "Particle AI",
@@ -39666,6 +39678,7 @@
             "Ollama",
             "OpenAI",
             "OpenInference",
+            "Parallel",
             "Parasail",
             "ParetoAlpha",
             "Particle AI",
@@ -40528,6 +40541,14 @@
           "path": "$/properties/openai/additionalProperties"
         },
         {
+          "path": "$/properties/parallel",
+          "requiredByParent": false,
+          "type": "object"
+        },
+        {
+          "path": "$/properties/parallel/additionalProperties"
+        },
+        {
           "path": "$/properties/parasail",
           "requiredByParent": false,
           "type": "object"
@@ -41337,6 +41358,7 @@
             "Ollama",
             "OpenAI",
             "OpenInference",
+            "Parallel",
             "Parasail",
             "ParetoAlpha",
             "Particle AI",
@@ -41819,11 +41841,13 @@
           "type": "object"
         },
         {
+          "format": "double",
           "path": "$/properties/max",
           "requiredByParent": true,
           "type": "number"
         },
         {
+          "format": "double",
           "path": "$/properties/min",
           "requiredByParent": true,
           "type": "number"
@@ -47392,6 +47416,7 @@
           "type": "object"
         },
         {
+          "nullable": true,
           "path": "$/properties/context_length",
           "requiredByParent": false,
           "type": [
@@ -47405,6 +47430,7 @@
           "type": "boolean"
         },
         {
+          "nullable": true,
           "path": "$/properties/max_completion_tokens",
           "requiredByParent": false,
           "type": [
@@ -48738,39 +48764,6 @@
           "path": "$/properties/is_filtered_model_catalog_enabled",
           "requiredByParent": true,
           "type": "boolean"
-        }
-      ],
-      "UpdatePrivateEndpointParametersRequest": [
-        {
-          "path": "$",
-          "required": [
-            "declared_parameters"
-          ],
-          "type": "object"
-        },
-        {
-          "maxItems": 25,
-          "path": "$/properties/declared_parameters",
-          "requiredByParent": true,
-          "type": "array"
-        },
-        {
-          "$ref": "#/components/schemas/PrivateEndpointDeclaredParameter",
-          "path": "$/properties/declared_parameters/items"
-        }
-      ],
-      "UpdatePrivateEndpointPricingRequest": [
-        {
-          "path": "$",
-          "required": [
-            "pricing"
-          ],
-          "type": "object"
-        },
-        {
-          "$ref": "#/components/schemas/PrivateEndpointPricing",
-          "path": "$/properties/pricing",
-          "requiredByParent": true
         }
       ],
       "UpdatePrivateEndpointRequest": [
@@ -51803,7 +51796,158 @@
       }
     }
   },
-  "operationCount": 146,
+  "imageFieldStatus": {
+    "BooleanCapability": {
+      "type": "typed-native-output"
+    },
+    "ContentPartImage": {
+      "image_url": "native-reference",
+      "type": "native-reference"
+    },
+    "EnumCapability": {
+      "type": "typed-native-output",
+      "values": "typed-native-output"
+    },
+    "ImageEndpoint": {
+      "allowed_passthrough_parameters": "typed-native-output",
+      "pricing": "typed-native-output",
+      "provider_name": "typed-native-output",
+      "provider_slug": "typed-native-output",
+      "provider_tag": "typed-native-output",
+      "supported_parameters": "typed-native-output",
+      "supports_streaming": "typed-native-output"
+    },
+    "ImageGenCompletedEvent": {
+      "b64_json": "typed-native-output",
+      "created": "typed-native-output",
+      "media_type": "typed-native-output",
+      "type": "typed-native-output",
+      "usage": "typed-native-output"
+    },
+    "ImageGenPartialImageEvent": {
+      "b64_json": "typed-native-output",
+      "partial_image_index": "typed-native-output",
+      "type": "typed-native-output"
+    },
+    "ImageGenStreamErrorEvent": {
+      "error": "typed-native-output",
+      "type": "typed-native-output"
+    },
+    "ImageGenTextChunkEvent": {
+      "phase": "typed-native-output",
+      "text": "typed-native-output",
+      "type": "typed-native-output"
+    },
+    "ImageGenerationProviderPreferences": {
+      "allow_fallbacks": "typed-provider-construction",
+      "ignore": "typed-provider-construction",
+      "only": "typed-provider-construction",
+      "options": "typed-provider-construction",
+      "order": "typed-provider-construction",
+      "sort": "typed-provider-construction"
+    },
+    "ImageGenerationRequest": {
+      "aspect_ratio": "typed-request",
+      "background": "typed-request",
+      "input_references": "typed-request",
+      "model": "typed-request",
+      "n": "typed-request",
+      "output_compression": "typed-request",
+      "output_format": "typed-request",
+      "prompt": "typed-request",
+      "provider": "typed-request",
+      "quality": "typed-request",
+      "resolution": "typed-request",
+      "seed": "typed-request",
+      "session_id": "typed-request",
+      "size": "typed-request",
+      "stream": "runtime-owned-stream",
+      "trace": "typed-request",
+      "user": "typed-request"
+    },
+    "ImageGenerationResponse": {
+      "created": "typed-native-output",
+      "data": "typed-native-output",
+      "usage": "typed-native-output"
+    },
+    "ImageGenerationUsage": {
+      "cache_creation": "raw-preserved-usage",
+      "completion_tokens": "typed-usage",
+      "completion_tokens_details": "raw-preserved-usage",
+      "cost": "typed-usage",
+      "cost_details": "raw-preserved-usage",
+      "is_byok": "raw-preserved-usage",
+      "iterations": "raw-preserved-usage",
+      "prompt_tokens": "typed-usage",
+      "prompt_tokens_details": "raw-preserved-usage",
+      "server_tool_use": "raw-preserved-usage",
+      "service_tier": "raw-preserved-usage",
+      "speed": "raw-preserved-usage",
+      "total_tokens": "typed-usage"
+    },
+    "ImageModelArchitecture": {
+      "input_modalities": "typed-native-output",
+      "output_modalities": "typed-native-output"
+    },
+    "ImageModelEndpointsResponse": {
+      "endpoints": "typed-native-output",
+      "id": "typed-native-output"
+    },
+    "ImageModelListItem": {
+      "architecture": "typed-native-output",
+      "created": "typed-native-output",
+      "description": "typed-native-output",
+      "endpoints": "typed-native-output",
+      "id": "typed-native-output",
+      "name": "typed-native-output",
+      "supported_parameters": "typed-native-output",
+      "supports_streaming": "typed-native-output"
+    },
+    "ImageModelsListResponse": {
+      "data": "typed-native-output"
+    },
+    "ImagePricingEntry": {
+      "billable": "typed-native-output",
+      "cost_usd": "typed-native-output",
+      "unit": "typed-native-output",
+      "variant": "typed-native-output"
+    },
+    "ImageStreamingResponse": {
+      "data": "typed-native-output"
+    },
+    "RangeCapability": {
+      "max": "typed-native-output",
+      "min": "typed-native-output",
+      "type": "typed-native-output"
+    },
+    "TraceConfig": {
+      "generation_name": "native-trace",
+      "parent_span_id": "native-trace",
+      "span_name": "native-trace",
+      "trace_id": "native-trace",
+      "trace_name": "native-trace"
+    }
+  },
+  "imageNestedFieldStatus": {
+    "ContentPartImage.image_url": {
+      "url": "native-reference"
+    },
+    "ImageGenStreamErrorEvent.error": {
+      "code": "typed-native-output",
+      "message": "typed-native-output",
+      "param": "typed-native-output",
+      "type": "typed-native-output"
+    },
+    "ImageGenerationResponse.data.items": {
+      "b64_json": "typed-native-output",
+      "media_type": "typed-native-output"
+    }
+  },
+  "imageStreamingDocumentation": {
+    "detail": "Official guide shows direct SSE event objects while the pinned OpenAPI describes a data envelope. The dedicated client accepts both, plus actual buffered JSON fallback; this is not Chat image streaming support.",
+    "url": "https://openrouter.ai/docs/guides/overview/multimodal/image-generation"
+  },
+  "operationCount": 144,
   "operations": [
     {
       "contract": {
@@ -55394,7 +55538,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -55514,6 +55657,7 @@
                 "ollama",
                 "open-inference",
                 "openai",
+                "parallel",
                 "parasail",
                 "pareto-alpha",
                 "particle-ai",
@@ -57887,7 +58031,6 @@
               "example": 0,
               "maximum": 100,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -58353,7 +58496,6 @@
               "example": 0,
               "maximum": 5000,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -59143,7 +59285,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -59504,7 +59645,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -59657,9 +59797,9 @@
         },
         "summary": "List registered external users",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "list",
         "x-speakeasy-pagination": {
           "inputs": [
@@ -59815,9 +59955,9 @@
         },
         "summary": "Register an external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "create"
       },
       "method": "POST",
@@ -59927,9 +60067,9 @@
         },
         "summary": "Deactivate a registered external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "delete"
       },
       "method": "DELETE",
@@ -60070,9 +60210,9 @@
         },
         "summary": "Get a registered external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "get"
       },
       "method": "GET",
@@ -60210,9 +60350,9 @@
         },
         "summary": "Update a registered external user",
         "tags": [
-          "External Users"
+          "External Users",
+          "End Users"
         ],
-        "x-speakeasy-group": "externalUsers",
         "x-speakeasy-name-override": "update"
       },
       "method": "PATCH",
@@ -62006,7 +62146,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -62357,7 +62496,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -62540,7 +62678,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -63180,7 +63317,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -63659,7 +63795,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -64365,7 +64500,7 @@
           "$ref": "#/components/parameters/AppCategories"
         }
       ],
-      "status": "not-integrated"
+      "status": "integrated-selected-behavior"
     },
     {
       "contract": {
@@ -64449,7 +64584,7 @@
           "$ref": "#/components/parameters/AppCategories"
         }
       ],
-      "status": "not-integrated"
+      "status": "integrated-selected-behavior"
     },
     {
       "contract": {
@@ -64572,7 +64707,7 @@
           "$ref": "#/components/parameters/AppCategories"
         }
       ],
-      "status": "not-integrated"
+      "status": "integrated-selected-behavior"
     },
     {
       "contract": {
@@ -65118,7 +65253,6 @@
               "description": "Number of API keys to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -67563,7 +67697,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -68362,7 +68495,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -69040,7 +69172,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -69850,7 +69981,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -70339,7 +70469,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -71323,7 +71452,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -71804,12 +71932,12 @@
         "operationId": "createPrivateEndpoint",
         "parameters": [
           {
-            "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `max_completion_tokens` are not compared, and later edits to the endpoint do not affect the comparison.",
+            "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `settings` are not compared, and later edits to the endpoint do not affect the comparison. `settings` is still validated before the replay, so a retry with invalid settings returns 400 `settings_invalid` instead of the endpoint.",
             "in": "header",
             "name": "idempotency-key",
             "required": false,
             "schema": {
-              "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `max_completion_tokens` are not compared, and later edits to the endpoint do not affect the comparison.",
+              "description": "Retry-safe create: a repeated create with the same key from the same organization returns the endpoint the first request created instead of creating another. The endpoint is returned as it is now. Reusing a key with a different request body (model, provider, base URL, upstream model ID, declared ZDR or region, pricing, or declared parameters) is rejected with 422 `idempotency_key_reused`. Declared parameters are compared as a set, so a retry that reorders or repeats a name replays the endpoint. `activate` and `settings` are not compared, and later edits to the endpoint do not affect the comparison. `settings` is still validated before the replay, so a retry with invalid settings returns 400 `settings_invalid` instead of the endpoint.",
               "example": "wayfair-gpt-4o-eastus-2026-09",
               "maxLength": 255,
               "minLength": 1,
@@ -73149,420 +73277,6 @@
     },
     {
       "contract": {
-        "deprecated": true,
-        "description": "Deprecated: send `declared_parameters` to `PATCH /private-endpoints/{id}` instead; this route behaves exactly like that call and will be removed. The body replaces the earlier declaration and is read as a set; `tested_parameters` stay. Returns 400 `parameters_invalid` when `tool_choice` is declared without `tools` being tested or declared. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
-        "operationId": "updatePrivateEndpointParameters",
-        "parameters": [
-          {
-            "description": "Stable identifier of the private endpoint.",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "Stable identifier of the private endpoint.",
-              "example": "5b1c4c4e-7d0a-4a8e-9f3a-2d6c1b0e8a11",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePrivateEndpointParametersRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PrivateEndpointResponse"
-                }
-              }
-            },
-            "description": "The endpoint with its new declared parameters"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 400,
-                    "message": "Invalid request parameters"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestResponse"
-                }
-              }
-            },
-            "description": "Bad Request - Invalid request parameters or malformed input"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 401,
-                    "message": "Missing Authentication header"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedResponse"
-                }
-              }
-            },
-            "description": "Unauthorized - Authentication required or invalid credentials"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 403,
-                    "message": "Only management keys can perform this operation"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ForbiddenResponse"
-                }
-              }
-            },
-            "description": "Forbidden - Authentication successful but insufficient permissions"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 404,
-                    "message": "Resource not found"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundResponse"
-                }
-              }
-            },
-            "description": "Not Found - Resource does not exist"
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 408,
-                    "message": "Operation timed out. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/RequestTimeoutResponse"
-                }
-              }
-            },
-            "description": "Request Timeout - Operation exceeded time limit"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 409,
-                    "message": "Resource conflict. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ConflictResponse"
-                }
-              }
-            },
-            "description": "Conflict - Resource conflict or concurrent modification"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 422,
-                    "message": "Invalid argument"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnprocessableEntityResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity - Semantic validation failure"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 500,
-                    "message": "Internal Server Error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error - Unexpected server error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 502,
-                    "message": "Provider returned error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadGatewayResponse"
-                }
-              }
-            },
-            "description": "Bad Gateway - Provider/upstream API failure"
-          }
-        },
-        "summary": "Set private endpoint supported parameters (deprecated)",
-        "tags": [
-          "Private Endpoints"
-        ],
-        "x-speakeasy-name-override": "updateParameters"
-      },
-      "method": "PUT",
-      "operationId": "updatePrivateEndpointParameters",
-      "path": "/private-endpoints/{id}/parameters",
-      "pathParameters": [
-        {
-          "$ref": "#/components/parameters/AppIdentifier"
-        },
-        {
-          "$ref": "#/components/parameters/AppDisplayName"
-        },
-        {
-          "$ref": "#/components/parameters/AppCategories"
-        }
-      ],
-      "status": "not-integrated"
-    },
-    {
-      "contract": {
-        "deprecated": true,
-        "description": "Deprecated: send `pricing` to `PATCH /private-endpoints/{id}` instead; this route behaves exactly like that call and will be removed. The body replaces the whole pricing object: omitting `cache_read` or `cache_write` reverts that rate to the provider pricing strategy default. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
-        "operationId": "updatePrivateEndpointPricing",
-        "parameters": [
-          {
-            "description": "Stable identifier of the private endpoint.",
-            "in": "path",
-            "name": "id",
-            "required": true,
-            "schema": {
-              "description": "Stable identifier of the private endpoint.",
-              "example": "5b1c4c4e-7d0a-4a8e-9f3a-2d6c1b0e8a11",
-              "format": "uuid",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/UpdatePrivateEndpointPricingRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PrivateEndpointResponse"
-                }
-              }
-            },
-            "description": "The endpoint with its new pricing"
-          },
-          "400": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 400,
-                    "message": "Invalid request parameters"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadRequestResponse"
-                }
-              }
-            },
-            "description": "Bad Request - Invalid request parameters or malformed input"
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 401,
-                    "message": "Missing Authentication header"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnauthorizedResponse"
-                }
-              }
-            },
-            "description": "Unauthorized - Authentication required or invalid credentials"
-          },
-          "403": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 403,
-                    "message": "Only management keys can perform this operation"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ForbiddenResponse"
-                }
-              }
-            },
-            "description": "Forbidden - Authentication successful but insufficient permissions"
-          },
-          "404": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 404,
-                    "message": "Resource not found"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/NotFoundResponse"
-                }
-              }
-            },
-            "description": "Not Found - Resource does not exist"
-          },
-          "408": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 408,
-                    "message": "Operation timed out. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/RequestTimeoutResponse"
-                }
-              }
-            },
-            "description": "Request Timeout - Operation exceeded time limit"
-          },
-          "409": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 409,
-                    "message": "Resource conflict. Please try again later."
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/ConflictResponse"
-                }
-              }
-            },
-            "description": "Conflict - Resource conflict or concurrent modification"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 422,
-                    "message": "Invalid argument"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/UnprocessableEntityResponse"
-                }
-              }
-            },
-            "description": "Unprocessable Entity - Semantic validation failure"
-          },
-          "500": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 500,
-                    "message": "Internal Server Error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/InternalServerResponse"
-                }
-              }
-            },
-            "description": "Internal Server Error - Unexpected server error"
-          },
-          "502": {
-            "content": {
-              "application/json": {
-                "example": {
-                  "error": {
-                    "code": 502,
-                    "message": "Provider returned error"
-                  }
-                },
-                "schema": {
-                  "$ref": "#/components/schemas/BadGatewayResponse"
-                }
-              }
-            },
-            "description": "Bad Gateway - Provider/upstream API failure"
-          }
-        },
-        "summary": "Set private endpoint pricing (deprecated)",
-        "tags": [
-          "Private Endpoints"
-        ],
-        "x-speakeasy-name-override": "updatePricing"
-      },
-      "method": "PUT",
-      "operationId": "updatePrivateEndpointPricing",
-      "path": "/private-endpoints/{id}/pricing",
-      "pathParameters": [
-        {
-          "$ref": "#/components/parameters/AppIdentifier"
-        },
-        {
-          "$ref": "#/components/parameters/AppDisplayName"
-        },
-        {
-          "$ref": "#/components/parameters/AppCategories"
-        }
-      ],
-      "status": "not-integrated"
-    },
-    {
-      "contract": {
         "description": "Send a live test request to the draft endpoint using the given workspace's BYOK credential for its provider. A passing validation is required before activation. Failed checks return 200 with `passed: false`. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
         "operationId": "validatePrivateEndpoint",
         "parameters": [
@@ -73866,7 +73580,7 @@
     },
     {
       "contract": {
-        "description": "Create a private, bring-your-own-key provider visible only to your organization. Use its slug as `provider_slug` when creating private endpoints. Requires both the private endpoints and the private providers entitlements. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
+        "description": "Create a private, bring-your-own-key provider visible only to your organization. Use its slug as `provider_slug` when creating private endpoints. Requires the private endpoints entitlement. [Management key](/docs/guides/overview/auth/management-api-keys) required.",
         "operationId": "createPrivateProvider",
         "requestBody": {
           "content": {
@@ -76217,7 +75931,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -76918,7 +76631,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -77634,7 +77346,6 @@
               "description": "Number of records to skip for pagination. When both offset and limit are omitted, the full list is returned",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -78367,7 +78078,6 @@
               "example": 0,
               "maximum": 10000,
               "minimum": 0,
-              "nullable": false,
               "type": "integer"
             }
           }
@@ -78728,7 +78438,6 @@
               "example": 0,
               "maximum": 10000,
               "minimum": 0,
-              "nullable": false,
               "type": "integer"
             }
           }
@@ -80150,7 +79859,6 @@
               "example": 0,
               "maximum": 10000,
               "minimum": 0,
-              "nullable": false,
               "type": "integer"
             }
           }
@@ -81804,7 +81512,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -82578,7 +82285,6 @@
               "description": "Number of records to skip for pagination",
               "example": 0,
               "minimum": 0,
-              "nullable": false,
               "type": [
                 "integer",
                 "null"
@@ -83634,7 +83340,7 @@
       "status": "not-integrated"
     }
   ],
-  "pathCount": 108,
+  "pathCount": 106,
   "requestFieldStatus": {
     "ChatRequest": {
       "cache_control": "native-forward-preserved",
@@ -83731,11 +83437,11 @@
   "source": {
     "license": "MIT",
     "reviewed": "2026-11-04",
-    "sha256": "07b8b1ac91ba9e522540417420cd74004db5246d5341e5c86d68443e4438af82",
+    "sha256": "08855d8f74f3f44be3b3007576d79aee13faa6ecf6fd5cd790fcd78b51e6a4fb",
     "snapshot": "tool/contracts/openrouter/openapi.json",
-    "snapshotSha256": "f98a4d86ca65ca36796b67dc693d62c15609e98bf1fd45bdfba8a04901e7ea2d",
+    "snapshotSha256": "1ad4d41351fb6342c8ff6270d457006f7cde7dc99fe93f0f3ad99c5534b73af9",
     "transformation": "Credential-shaped example strings redacted; schema fields and constraints retained.",
     "url": "https://openrouter.ai/openapi.json"
   },
-  "verification": "Offline schema inventory, not proof of upstream model support or live API behavior. Canonical fields are runtime owned with supported shapes and history bounds; native-forward-preserved fields pass through native options without claiming full orchestration or validation. Chat modalities use typed text/image selection with buffered completed image output and private replay; normalized audio and Responses modalities remain unsupported. Stateful Responses store:true and non-null previous_response_id are rejected."
+  "verification": "Offline schema inventory, not proof of upstream model support or live API behavior. Canonical fields are runtime owned with supported shapes and history bounds; native-forward-preserved fields pass through native options without claiming full orchestration or validation. Chat modalities use typed text/image selection with buffered completed image output and private replay; normalized audio and Responses modalities remain unsupported. Stateful Responses store:true and non-null previous_response_id are rejected. Dedicated Image API generation, native SSE and buffered fallback plus model/endpoint discovery are separate selected integrations; unknown capability variants remain opaque."
 }

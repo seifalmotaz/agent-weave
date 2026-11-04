@@ -93,7 +93,10 @@ and retain the old history. Public client bindings remain unchanged. See
   routing, plugin and cache options, ordered private reasoning replay and compact
   provider/cost metadata have offline fixtures. Selected Chat image output uses
   completed messages with private replay across approvals. Complete management,
-  background, hosted tools, dedicated Image API and other media remain unfinished. See [OpenRouter](openrouter.md).
+  background, hosted tools and other media remain unfinished. The dedicated Image
+  API has separate typed requests, discovery, native SSE and same-request JSON
+  fallback; see [dedicated images](openrouter-image-api.md). These are offline
+  fixtures, not live model or billing certification. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
   Pinned hosted blocks, bounded paused turns and container reuse are integrated
