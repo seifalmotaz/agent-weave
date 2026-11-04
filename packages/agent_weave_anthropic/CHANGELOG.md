@@ -1,5 +1,7 @@
 # Unreleased
 
+- Reject unsupported legacy MCP server configuration before agent transport; keep explicit raw native API access available.
+
 - Enable document citations and publish typed citation spans while preserving private replay.
 
 - Use shared lossless typed JSON patches and exact numeric ownership/replay comparisons.

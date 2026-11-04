@@ -324,6 +324,12 @@ final class AnthropicProtocolModel implements ChatModel {
         throw ArgumentError('configure cannot replace runtime-owned $field.');
       }
     }
+    final mcpServers = configured['mcp_servers'];
+    if (mcpServers != null && (mcpServers is! List || mcpServers.isNotEmpty)) {
+      throw UnsupportedError(
+        'Anthropic MCP is not integrated; use the raw native API.',
+      );
+    }
     if (configured['stream'] != null && configured['stream'] != true) {
       throw ArgumentError('configure cannot disable streaming.');
     }

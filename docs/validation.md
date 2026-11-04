@@ -24,7 +24,7 @@ and interoperability with the pinned official JavaScript client.
 The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
 SDK and the stable channel; inspect the run for the commit you use.
 
-- 543 Dart unit and regression tests: tool validation, approvals, client tools,
+- 548 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 25 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -462,7 +462,6 @@ No live search, fetch, code execution, tool search, container, files or billing
 was exercised. Browser/MCP tools, public citation rendering and full nested
 semantics remain unfinished. No paid calls or package publications were made.
 
-
 ## OpenAI hosted tools and provider guards increment
 
 Selected hosted Responses tool definitions preserve native and unknown options
@@ -503,7 +502,6 @@ containers, complete native provider semantics and device image rendering remain
 unverified. Public citations, hosted progress and partial images are not
 normalized. Packages remain unpublished.
 
-
 ## OpenRouter images and Cloudflare streaming increment
 
 With Dart 3.12.2, the full local check passes 437 unit/regression tests, 18 real
@@ -534,7 +532,6 @@ selected path 8/10. The OpenRouter guide byte-matches its example, which analyze
 and compiles without execution. `result.images` includes images produced during
 current-run tool steps and excludes prior runs. No paid calls were made; live
 provider/model acceptance, billing and device rendering remain unverified.
-
 
 ## Exact approval contracts and checkpoint recovery
 
@@ -567,7 +564,6 @@ streamed errors while retaining private diagnostic causes.
 The independent developer reran the approval consumer and checkpoint regression
 and scores this scoped path 9/10. No paid calls were made. This is not evidence
 of complete native provider coverage or arbitrary-crash recovery.
-
 
 ## Typed Anthropic citations increment
 
@@ -614,7 +610,6 @@ message and index retains two identical citations after replay without creating
 four. This is completed-log replay evidence, not automatic reconnection during
 a live provider call.
 
-
 ## Upstream SDK citation file IDs
 
 The isolated upstream correction in
@@ -659,7 +654,6 @@ acceptance, actual authenticated file download, production rendering and other
 providers' reference normalization remain unverified. These checks preserve
 reported positions; they do not establish precise inline highlighting.
 
-
 ## Schema diagnostics and offline onboarding
 
 Dart 3.12.2 passes 491 unit/regression tests and 22 real PostgreSQL/Serverpod
@@ -689,7 +683,6 @@ file retrieval and client-side local-reference approvals were not newly tested.
 Issue details may contain private schema/input data; original conversation
 content is intentionally retained rather than redacted.
 
-
 ## Local-reference edited approvals through real clients
 
 The Dart client suite passes six tests, including two new local `$defs`/`$ref`
@@ -710,7 +703,6 @@ The independent scoped score remains 8.5/10.
 The new cases reuse existing fixture harnesses and add no runtime API changes.
 They do not cover other reference shapes, retry after an invalid submission,
 new durable scenarios, live providers or rendering. No paid calls were made.
-
 
 ## Native OpenAI Responses MCP approvals
 
@@ -757,7 +749,6 @@ are approved and merged upstream. The live pub.dev API still reported
 AgentWeave keeps that published dependency pin; a merged PR does not establish
 a published SDK release or an upgraded consumer dependency.
 
-
 ## Typed provider approvals and client restoration
 
 The full Dart 3.12.2 check passes 543 unit/regression tests, 25 real
@@ -798,3 +789,20 @@ response using the existing `ResponseInput.fromOutputItems` factory. Generic
 conversation-resource models are separate known gaps, not covered by this output
 fix. AgentWeave's SDK dependency pin remains unchanged. No live or paid call,
 upstream merge or package publication is implied by this submitted PR.
+
+## Anthropic MCP execution guard
+
+A separate consumer review found that native `configure` could send legacy
+`mcp_servers` despite unsupported MCP output normalization. Its local synthetic
+provider recorded two simulated effects across two explicitly initiated runs;
+this did not establish live legacy beta acceptance or real remote execution.
+The implemented interim guard now rejects nonempty or malformed MCP server
+configuration before transport. Modern unsupported toolsets remain blocked.
+
+Five new tests verify repeated attempts with zero transport invocations,
+null/empty lists, unrelated options, modern toolset rejection, typed SDK field
+loss and preserved explicit raw-native API access. The full Anthropic package
+suite passes 70 tests with Dart 3.12.2. This does not implement the native MCP
+connector lifecycle or claim higher functional coverage for that provider.
+The broader goal still includes owned configuration, beta/credential handling,
+private MCP replay and model contracts checked before resumed local effects.

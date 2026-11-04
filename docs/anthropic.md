@@ -135,10 +135,23 @@ public stream wrappers while retaining shared-client ownership. The contribution
 is submitted, not merged or released. AgentWeave's native client already uses
 its own shared transport and does not require this unreleased SDK change.
 
-
 ## Upstream citation file identifiers
 
 The pinned SDK 9.0.1 drops `file_id` on known document citation response types.
 AgentWeave preserves raw native blocks independently. The typed SDK correction
-was submitted as [upstream PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441);
-this does not update the AgentWeave dependency or publish a release.
+was merged in [upstream PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441).
+The dependency remains pinned to 9.0.1 until an upstream release includes the fix.
+
+## MCP connector boundary
+
+The agent model does not yet normalize Anthropic MCP server calls and results.
+Nonempty `mcp_servers` configuration is rejected before HTTP dispatch, as is
+unsupported `mcp_toolset` injection. Null or empty server lists and unrelated
+request options remain available. This is an interim execution guard, not MCP
+integration; the complete owned lifecycle remains planned work.
+
+Use explicit raw `AnthropicNativeClient.createMessage` or `streamMessages` for
+advanced API access when your application owns the full provider contract.
+Raw access does not add agent normalization, checkpointing or effect recovery.
+The pinned typed SDK cannot represent `mcp_servers`; a typed JSON reconstruction
+can discard that field and send an ordinary request. It does not enable MCP.

@@ -119,7 +119,6 @@ covers real serialized interruptions with ephemeral/server persistence and
 registered/unregistered tool schemas. The process-restart command above runs
 the complete CLI directly, rather than a private review-only script.
 
-
 ## Round 5: document and OpenRouter consumers
 
 Tested with pinned Dart 3.12.2, no API keys or paid calls. Scores reflect these specific journeys, not complete provider coverage.
@@ -150,7 +149,6 @@ The OpenRouter text/routing journey scores **7.8/10** (discoverability 8, clarit
 
 The polished, reusable cases are `examples/review_cases/documents.dart` and `examples/review_cases/openrouter.dart`. Run with assertions enabled using the commands in the file headers. They pass on Dart 3.12.2 and strict `dart analyze` reports no issues. Document checks now assert canonical `source.value` for URL, inline bytes and scoped ID in hydration, and verify Anthropic PDF/base64 and text request serialization alongside Responses. The OpenRouter case verifies both the successful loopback and an inline error reaching the high-level exception's trusted backend `cause`. No actual provider calls, persistent store restart, billing, cancellation, or complete format support were tested.
 
-
 ## Round 6: native Together consumer
 
 Initial score: 8/10. Updated offline developer experience score: 8/10.
@@ -168,7 +166,6 @@ The initial review exposed dropped usage after a finish event; the fix passed th
 Commands passed: `dart test packages/agent_weave_together/test/consumer_test.dart`; `dart --enable-asserts run examples/review_cases/together.dart`.
 
 All checks used offline loopback responses with synthetic data. No paid calls, live Together model acceptance, billing, real network interruption, or exhaustive native fields were tested.
-
 
 ## Round 7: Gateway consumer review
 
@@ -192,7 +189,6 @@ Both complete code blocks in `docs/vercel-gateway.md` were copied unchanged into
 
 Revised targeted DX score: 7.6/10 — discoverability 8, clarity 8, type safety 7, debugging 7, testing 8. The complete runnable guide and typed routing materially improve setup and diagnosis; provider-specific configuration and BYOK still require JSON, and live provider behavior remains unverified. Earlier 5.8 and 6.4 assessments remain above as the initial and first-retest records.
 
-
 ## Round 8: Cloudflare consumer review
 
 
@@ -214,7 +210,6 @@ No defect was reproduced in those scenarios. Fixtures do not establish live Clou
 
 The first `docs/cloudflare.md` Dart block was extracted unchanged, verified identical to `examples/cloudflare_demo.dart`, analyzed, and compiled with Dart 3.12.2. It was not executed; no live or paid calls were made. The API inventory classifies operations rather than claiming parity.
 
-
 ## Round 9: native OpenRouter consumer
 
 
@@ -232,7 +227,6 @@ The original delegated adapter documented missing metadata and continuation. The
 
 The updated guide describes the tested scenarios and separates fixture evidence from live behavior. Its first complete Dart block was copied unchanged, compared byte-for-byte with `examples/openrouter_demo.dart`, analyzed, and compiled with Dart 3.12.2 without executing it. Other behaviors beyond the scenarios listed remain outside this independent fixture.
 
-
 ## Round 10: independent computer-tool consumer
 
 Initial assessment before exercising it: discoverability 5/10 (new type and safety contract needed a guide); type ergonomics 7/10 (typed context and SDK actions, but protocol and replay details are not obvious); correctness confidence 4/10 (no independent run yet); testing 5/10 (provider fixtures existed, no consumer loopback evidence yet). These are qualitative judgments for this feature, not scores for the whole SDK.
@@ -244,7 +238,6 @@ Run `.dart_tool/dart-3.12.2/dart-sdk/bin/dart run examples/review_cases/computer
 Final guide and transport review: discoverability 8/10 (the complete sample, driver contract, policy choices, and continuation limits are now together); type safety 8/10 (typed executor and actions are useful, though consumers must inspect upstream action classes and serialize them to understand the full union); debugging 7/10 (local failures are observable but provider protocol failures still require investigation); testing 8/10 (a self-contained loopback exercises real HTTP without spending money); overall 7.8/10 for this feature, not the SDK as a whole. The full CLI guide block exactly matches `examples/computer_demo.dart`; both that sample and this consumer analyze cleanly. The sample was compiled to a native executable and analyzed, not run against a driver or provider. Final checks were rerun after the transport freeze.
 
 Additional consumer cases send unknown top-level computer item data and verify it is in the private stored snapshot and replayed on continuation, but absent from UI hydration. Unknown action fields, click modifiers, and unknown drag point fields fail without executor invocation. This is limited to the specific malformed shapes tested; the fixture does not prove all future provider changes are safe. The legacy preview example in the consumer needed its environment updated from the old string to the current enum; the guide already uses the enum. Review commands use the pinned `.dart_tool/dart-3.12.2/dart-sdk/bin/dart`: `analyze examples/computer_demo.dart examples/review_cases/computer.dart` , `run examples/review_cases/computer.dart`, and `compile exe examples/computer_demo.dart -o /tmp/agentweave-computer-guide-review`.
-
 
 ## Round 11: Anthropic native consumer
 
@@ -261,7 +254,6 @@ Score: 8.4/10. The native client is discoverable from the guide and makes raw an
 Using the pinned Dart 3.12.2 SDK, `dart analyze examples/anthropic_demo.dart examples/review_cases/anthropic_native.dart` passed. The guide's first Dart block matches the demo byte-for-byte, and `dart compile exe examples/anthropic_demo.dart` passed. `dart run examples/review_cases/anthropic_native.dart` passed against loopback HTTP: text, JSON schema, approved tool call resumed by a recreated agent, signature and unknown fields on thinking replay, hidden hydration, request cache control and unknown options, final cumulative cache input and thinking-token usage, model, private metadata, citation replay and hydration privacy, key rotation, credential redaction in HTTP errors, raw create/count requests with query and header, pending-header and stream cancellation, sibling stream isolation, borrowed client ownership, malformed SSE rejection, and unknown block raw access with normalized failure.
 
 The first run exposed two native client compile errors; implementation owner corrected them before the passing run. Provider error details are retained after credential scrubbing, so callers should treat error details as sensitive; other private response text is not generally redacted. The guide's executable demo was analyzed, not run, because it makes a billable request. No live provider, operating system, or browser behavior was tested. Unknown block types and deltas remain unsupported by the normalized agent loop. The fixture validates a selected cache-control request shape, not a provider cache hit or exhaustive native options.
-
 
 
 
@@ -287,7 +279,6 @@ A subsequent safety fix stops all later executors in the same mixed turn after a
 
 Final guide review: the mixed-turn failure wording now matches the verified halt behavior, and its Dart block still matches the executable example exactly. The scoped 7.8/10 assessment remains unchanged.
 
-
 ## Round 13: Local model and Dart Frog consumer review
 
 Baseline: **0/10 runnable integration for each new path**. At the start of the review, the Ollama package and both review cases were absent; the Dart Frog package contained only its pubspec. No consumer integration could be compiled or run. These are path-specific baseline scores, not an SDK-wide assessment.
@@ -303,7 +294,6 @@ Dart 3.12.2 with assertions enabled passed loopback tests for schema output, typ
 Final guide and API check: the first Dart block in `docs/ollama.md` matches `examples/ollama_demo.dart` byte-for-byte and compiles unchanged to a Dart kernel artifact. The guide's SDK option and embedding signatures match the current API; no live server or model was used. After the Dart Frog generation decoder gained trusted application context, the loopback fixture was updated to derive an execution parameter from that context and passed again. Analysis of both review scripts and both demo examples reports no issues. Scores remain unchanged.
 
 Additional official JavaScript integration: the pinned TanStack client passed text, schema and stored approval/resume over a real Dart Frog SSE handler backed by `OllamaNativeClient` and a local fake NDJSON server. The fake verified thinking, unknown field, original native call ID/index and tool name/result on continuation; counters confirmed no tool effect before approval and one afterward. Owner isolation, private data absent from history, authenticated typed generation and redacted generation failure also passed. Dart analysis is clean. This is a local protocol fixture, not a live model, durable restart or proxy test; scores remain unchanged.
-
 
 ## Round 13: provider option review
 
@@ -326,7 +316,6 @@ Existing Together test `dart test packages/agent_weave_together/test/together_te
 
 Extracted the first Dart block from each Ollama and Dart Frog guide and analyzed both without executing them: no issues found with Dart 3.12.2. The Ollama and Dart Frog offline consumer programs passed. `node tool/interop/dart-frog.mjs` passed all four official JavaScript client scenarios using the pinned Dart SDK and local fixture server. These checks are offline, not live provider evidence.
 
-
 ## Round 14: Anthropic hosted tools consumer review
 
 Scope: independent Dart consumer over a local HTTP Messages fixture. No provider key, paid calls, downloads, or live provider were used. Run with `.dart_tool/dart-3.12.2/dart-sdk/bin/dart run examples/review_cases/anthropic_hosted.dart`.
@@ -346,7 +335,6 @@ Final frozen-code rerun: all eight consumer cases pass and the consumer analyzes
 Additional Dart client review: `examples/review_cases/structured_continuation_client.dart` runs the pinned `tanstack_ai_dart` ChatClient against a local SSE server and scripted model. Across two runs, including a structured-output pause and `MESSAGES_SNAPSHOT`, it observes exactly two completed outputs with the expected data; a newly attached client hydrates the same two completed outputs. The script runs successfully and analyzes without issues. This is local protocol interop, not Flutter device or live provider evidence.
 
 Final programmatic fixture correction: the earlier fixture omitted the container needed for a pending programmatic call. After the runtime enforced that requirement, the fixture was updated to return a container and assert its replay after approval. Both the direct `20260120` caller and configured `20260521` alias with the `20260120` wire caller pass, as do all other loopback cases. Analyzer reports no issues. The earlier pass did not verify the required programmatic container.
-
 
 ## Round 15: OpenAI hosted tools and cross-provider guards
 
@@ -421,7 +409,6 @@ The fixture is now a complete 1x1 RGBA PNG; the offline check verifies CRCs,
 chunk completion and decompressed pixel data in all four consumer sources.
 Client transport/order checks do not constitute image-rendering evidence.
 
-
 ## Round 16: native provider media and streaming
 
 # Round 16 independent consumer review
@@ -444,7 +431,6 @@ Chat image contract is completed messages, not assumed streaming fragments.
 
 Final guide review: the first Dart block in `docs/openrouter-images.md` byte-matches `examples/openrouter_images_demo.dart`. The demo and both consumer files analyze cleanly, and the demo compiles to a Dart kernel without executing a billable request. The guide matches the inspected API and explains the buffered boundary, model support, ordering, privacy and `result.images` scope. The consumer verifies that `result.images` includes the interrupted tool step's two images and excludes those images from the resumed run. Both independent loopback consumers passed again after the guide/API changes. No paid call, image rendering, or live provider verification was performed.
 
-
 ## Round 17: exact persisted approval contracts
 
 # Round 17 independent approval contract review
@@ -456,7 +442,6 @@ The consumer confirms public `run()` error events for both changed and legacy co
 Future-only consumers can now use `AgentRunException.message` to present the same safe changed-contract recovery instruction as the stream; `toString()` includes it. The independent consumer also confirms a provider exception's private marker is absent from both public message and `toString()` while remaining in the explicitly private cause. Legacy approvals need a new conversation, not automatic migration. The consumer tests native definition changes, but not each native sequential policy variant; broader database persistence and external client behavior were not checked here.
 
 Final round 17 verification also passes the malformed native-continuation checkpoint regression: a decode failure preserves the snapshot, does not invoke the model, and releases the reservation. The independent reviewer reran the consumer and regression; the scoped score remains 9/10.
-
 
 ## Round 18: typed citations
 
@@ -473,7 +458,6 @@ Guide review: the first Dart code block of `docs/citations.md` byte-matches `exa
 Final capability verification: with `citations: true`, the native model advertises `structuredOutput: false`; constructing an output-schema agent throws the expected public `ArgumentError` without HTTP. A direct model request containing an enabled document and output schema also throws `ArgumentError` before HTTP. The updated consumer and analyzer pass. The scoped native-path score remains 8/10.
 
 After adding `citationIndex`, the independent native consumer passes with explicit indexes 0 through 4 matching citation order and analyzes cleanly. The guide directs renderers to upsert by message ID and index, preserving equal distinct citations during replay. The scoped score remains 8/10. This consumer did not independently run an end-to-end JS rejoin.
-
 
 ## Round 19: upstream SDK file identifiers
 
@@ -500,7 +484,6 @@ DX: the typed source/position variants make the file-list versus insertion disti
 For applications that need citations, choosing buffered Chat sacrifices token-by-token delivery; the typed flag and explicit error make the boundary discoverable, but callers must deliberately render reference metadata. This review did not establish native Unicode index semantics or test a live model, rendering, file resolution, durable storage or streamed annotation support.
 
 Final guide review: the first Dart block of `docs/output-references.md` byte-matches `examples/openai_references_demo.dart`. The demo and both independent consumer files analyze cleanly; the demo compiles to a kernel without making a billable request, and both loopback consumers pass again. The guide clearly distinguishes enclosing UTF-16 context from unspecified provider coordinates, covers 0/0, buffered Chat, replay, metadata and authenticated file resolution. No additional concrete DX issue was found. The independently scoped scores remain 8/10 for each native path; this review did not independently rerun JS or PostgreSQL.
-
 
 ## Round 21: backend diagnostics and offline onboarding
 
@@ -544,7 +527,6 @@ Not independently checked: live providers, PostgreSQL/Serverpod restart, real fi
 
 Root verification: both consumer scripts are now checked in and wired into `tool/check.dart`. Formatting the copied scripts exposed a flow-control braces lint that the ignored `.dart_tool` review folder did not enable; adding braces corrected it without changing behavior. The tracked scripts run successfully and pass fatal-infos analysis.
 
-
 ## Round 22: edited approvals through both real clients
 
 ### Independent local-reference consumer review
@@ -581,7 +563,6 @@ and effect counts; Dart also checks schema and approval hashes. These harnesses
 avoid adding another standalone test server. Retry after an invalid submitted
 resume is outside this round's coverage. The tools guide now shows the differing
 Dart and JavaScript edited-approval calls side by side.
-
 
 ## Round 23: provider-owned MCP approvals
 
@@ -632,7 +613,6 @@ cancellation, step limits, live OAuth/MCP, mobile rendering or real remote
 execution. The main verification suite separately exercises durable storage and
 synthetic failure boundaries. The score remains 7.5/10 for the reviewed scope.
 
-
 ## Round 24: restored provider approvals and typed client access
 
 The independent developer initially scored the restored MCP flow **8/10**. Both
@@ -672,3 +652,19 @@ These are scoped offline scores, not package-wide acceptance. No live provider,
 actual remote effect, backend process restart, PostgreSQL or mobile UI was tested
 by this consumer review. The native request fixture checks serialization and
 request counts; it cannot establish live exactly-once remote execution.
+
+## Round 25: Anthropic MCP baseline and interim guard
+
+The independent native Anthropic consumer scored the attempted MCP journey
+**1.5/10**. Unlike OpenAI's approval path, the documented connector uses
+provider-executed `mcp_tool_use` and `mcp_tool_result` blocks. Modern toolset
+injection was rejected, but legacy `mcp_servers` could reach transport before
+the unsupported returned block failed normalization. Repeating an explicit run
+sent another request to the simulated provider. Effects were synthetic and live
+acceptance of the legacy beta configuration was not verified.
+
+The interim fix rejects that unsupported configuration before dispatch while
+leaving explicit raw APIs available. Native Anthropic MCP functionality remains
+unimplemented; passing a safety regression is not a functional score increase.
+Run `dart test packages/agent_weave_anthropic/test/mcp_guard_test.dart` to
+reproduce the tracked boundary checks. Full integration remains in scope.
