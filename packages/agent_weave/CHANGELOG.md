@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add `AiAgent.stream`, `streamText` and sealed native `AgentUpdate` events with the typed result from the same execution, explicit run errors and cancellation cleanup. Preserve existing wire event clients.
+- Freeze nested JSON maps regardless of their Dart generic type, preserving exact Dart integers in tool result and other ownership snapshots.
+
 - Add cancellation-aware waiting for already-started Futures, releasing cancelled MCP credential waits without cancelling underlying OAuth work.
 
 - Bind unfinished model continuations to a versioned private provider profile before resumed effects; reject legacy pending state without its original snapshot.

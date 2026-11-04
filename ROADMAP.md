@@ -80,6 +80,17 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Verify package publication, compatibility across supported Dart SDKs, security,
   performance/backpressure, and operational failure cases before a stable claim.
 
+## Native Dart streaming
+
+`AiAgent.stream` and `streamText` now emit sealed Dart updates with the typed
+result from the same execution. Native callers no longer parse TanStack maps or
+run the model twice to obtain a result. Existing clients keep `AiAgent.run`.
+Cancellation, backpressure, errors, approvals and PostgreSQL recreation have
+local checks. Independent native streaming review improved from 4/10 to 8.5/10;
+this is a scoped score, not overall acceptance. Protocol journals still live in
+core, so optional package extraction and broader operational validation remain
+open.
+
 ## Current reliability/DX increment
 
 Implemented: typed `generateText`, `generateObject`, and `AiAgent.generate`;

@@ -270,3 +270,20 @@ The shared transport selects JSON or SSE from one response's content type and
 never submits a second generation POST. Applications can wrap the operation in
 `GenerationTask` for durable Serverpod results without changing the native DTO.
 See [dedicated images](openrouter-image-api.md).
+
+## Native streaming and protocol projections
+
+The runtime emits a private sealed execution-event family. One variant carries
+native `AgentUpdate` values from validated model and tool values; the other
+carries the existing journaled `AgentEvent`. `AiAgent.stream` projects native
+updates and finishes with the same run's typed result after committed completion
+or interruption. `AiAgent.run` projects protocol events for existing clients.
+Neither projection reconstructs the other or invokes the model again.
+
+Standard Dart stream transforms forward pause and cancellation to the existing
+request-scoped stream. An async-generator filter initially delayed subscription
+cancellation while awaiting the provider; regression tests reproduce that
+failure and verify the transform-based correction. `generate` shares final
+result/error classification. Pre-terminal updates are provisional, and final
+results retain backend-only state. This is a public API separation; extracting
+protocol journals into an optional package remains separate roadmap work.

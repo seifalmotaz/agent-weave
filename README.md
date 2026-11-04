@@ -68,7 +68,7 @@ final agent = AiAgent<void>(
 );
 
 // Derive ownerId from backend authentication, never from the request body.
-final events = agent.run(
+final updates = agent.stream(
   ChatRequest(
     threadId: 'conversation-1',
     runId: 'run-1',
@@ -77,6 +77,16 @@ final events = agent.run(
   ownerId: authenticatedUserId,
   context: null,
 );
+await for (final update in updates) {
+  switch (update) {
+    case AgentTextDelta(:final text):
+      print(text);
+    case AgentRunFinished(:final result):
+      print(result.status.name); // The typed result belongs to this same run.
+    default:
+      break;
+  }
+}
 ```
 
 Close the provider client when your application shuts down. Keep OpenAI keys
@@ -115,6 +125,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 
 - [Acceptance roadmap and open work](ROADMAP.md)
 - [Dart API, typed results, and application recipes](docs/dart-api.md)
+- [Typed native streaming](docs/native-streaming.md)
 - [Dart Frog backend](docs/dart-frog.md)
 - [Ollama local models](docs/ollama.md)
 - [Architecture and ownership](docs/architecture.md)

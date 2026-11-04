@@ -73,6 +73,7 @@ nav:
       - Flutter and other frameworks: getting-started/frameworks.md
   - Guides:
       - Dart API and recipes: dart-api.md
+      - Typed native streaming: native-streaming.md
       - Offline support application: offline-support.md
       - Tools and approvals: tools.md
       - Persisted approval contracts: approval-contracts.md

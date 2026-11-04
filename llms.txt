@@ -7,6 +7,7 @@ Development version. Read compatibility and validation before making support cla
 - [README.md](https://github.com/seifalmotaz/agent-weave/blob/main/README.md)
 - [ROADMAP.md](https://github.com/seifalmotaz/agent-weave/blob/main/ROADMAP.md)
 - [docs/dart-api.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/dart-api.md)
+- [docs/native-streaming.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/native-streaming.md)
 - [docs/offline-support.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/offline-support.md)
 - [docs/dx-review.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/dx-review.md)
 - [docs/architecture.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/architecture.md)

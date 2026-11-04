@@ -10,6 +10,7 @@ import 'model.dart';
 import 'protocol.dart';
 import 'storage.dart';
 import 'result.dart';
+import 'updates.dart';
 import 'tool.dart';
 import 'history.dart';
 
@@ -81,12 +82,65 @@ final class AiAgent<C> {
     required String ownerId,
     required C context,
     CancellationToken? cancellation,
-  }) => _run(
-    request,
-    ownerId: ownerId,
-    context: context,
-    cancellation: cancellation,
-  );
+  }) =>
+      _run(
+            request,
+            ownerId: ownerId,
+            context: context,
+            cancellation: cancellation,
+          )
+          .where((update) => update is _ProtocolEvent)
+          .map((update) => (update as _ProtocolEvent).event);
+
+  /// Stream typed backend updates and the result of this same execution.
+  ///
+  /// Updates are provisional. [AgentRunFinished] follows committed completion or
+  /// interruption. Runtime failures throw [AgentRunException], and cancellation
+  /// via the caller's token throws [RunCancelled] after cleanup. Cancelling the
+  /// subscription stops delivery and awaits cleanup, without cancelling siblings.
+  /// Results can contain private provider state; use chatHydration for a UI.
+  Stream<AgentUpdate> stream(
+    ChatRequest request, {
+    required String ownerId,
+    required C context,
+    CancellationToken? cancellation,
+  }) {
+    AgentResult? result;
+    _RunFailure? failure;
+    var sourceFailed = false;
+    return _run(
+      request,
+      ownerId: ownerId,
+      context: context,
+      cancellation: cancellation,
+      onResult: (value, error) {
+        result = value;
+        failure = error;
+      },
+    ).transform(
+      StreamTransformer.fromHandlers(
+        handleData: (update, sink) {
+          if (update is _NativeEvent) sink.add(update.update);
+        },
+        handleError: (Object error, StackTrace stack, sink) {
+          sourceFailed = true;
+          sink.addError(error, stack);
+        },
+        handleDone: (sink) {
+          if (!sourceFailed) {
+            try {
+              sink.add(
+                AgentRunFinished(result: _resultOrThrow(result!, failure)),
+              );
+            } catch (error, stack) {
+              sink.addError(error, stack);
+            }
+          }
+          sink.close();
+        },
+      ),
+    );
+  }
 
   /// Return a typed result without parsing UI protocol events.
   /// Failures throw [AgentRunException]; interruptions return a paused result.
@@ -108,24 +162,10 @@ final class AiAgent<C> {
         failure = error;
       },
     ).drain<void>();
-    final value = result!;
-    if (value.status == RunStatus.cancelled) throw const RunCancelled();
-    if (failure case final error?) {
-      Error.throwWithStackTrace(
-        AgentRunException(
-          code: error.code,
-          message: error.message,
-          result: value,
-          cause: error.cause,
-          causeStackTrace: error.stack,
-        ),
-        error.stack,
-      );
-    }
-    return value;
+    return _resultOrThrow(result!, failure);
   }
 
-  Stream<AgentEvent> _run(
+  Stream<_ExecutionEvent> _run(
     ChatRequest request, {
     required String ownerId,
     required C context,
@@ -135,7 +175,7 @@ final class AiAgent<C> {
     (token) => _execute(request, ownerId, context, token, onResult),
   );
 
-  Stream<AgentEvent> _execute(
+  Stream<_ExecutionEvent> _execute(
     ChatRequest request,
     String ownerId,
     C context,
@@ -299,7 +339,7 @@ final class AiAgent<C> {
       if (stagedContracts.isNotEmpty)
         'providerApprovalStagedCalls': stagedContracts,
     };
-    Future<AgentEvent> event(
+    Future<_ExecutionEvent> event(
       String type, [
       JsonObject fields = const {},
     ]) async {
@@ -336,7 +376,7 @@ final class AiAgent<C> {
         journal.removeLast();
         rethrow;
       }
-      return AgentEvent(json);
+      return _ProtocolEvent(AgentEvent(json));
     }
 
     try {
@@ -722,8 +762,13 @@ final class AiAgent<C> {
             result = {'error': 'Tool execution was declined.'};
           }
         }
-        messages.add(_result(call, result));
-        yield await event('TOOL_CALL_RESULT', _resultFields(call, result));
+        final outcome = AgentToolResult(call: call, result: result);
+        messages.add(_result(call, outcome.result));
+        yield await event(
+          'TOOL_CALL_RESULT',
+          _resultFields(call, outcome.result),
+        );
+        yield _NativeEvent(outcome);
       }
       for (final call in stagedCalls) {
         final tool = _tool(call.name);
@@ -738,8 +783,13 @@ final class AiAgent<C> {
           context,
           token,
         );
-        messages.add(_result(call, result));
-        yield await event('TOOL_CALL_RESULT', _resultFields(call, result));
+        final outcome = AgentToolResult(call: call, result: result);
+        messages.add(_result(call, outcome.result));
+        yield await event(
+          'TOOL_CALL_RESULT',
+          _resultFields(call, outcome.result),
+        );
+        yield _NativeEvent(outcome);
       }
       stagedCalls.clear();
       stagedContracts.clear();
@@ -809,6 +859,9 @@ final class AiAgent<C> {
                 'messageId': messageId,
                 'delta': delta,
               });
+              yield _NativeEvent(
+                AgentTextDelta(messageId: messageId, text: delta),
+              );
             case ReferenceReady(:final reference):
               reference.validateFor(text.toString());
               references.add(reference);
@@ -820,6 +873,13 @@ final class AiAgent<C> {
                   'reference': reference.toJson(),
                 },
               });
+              yield _NativeEvent(
+                AgentReference(
+                  messageId: messageId,
+                  index: references.length - 1,
+                  reference: reference,
+                ),
+              );
             case CitationReady(:final citation):
               citation.validateFor(text.toString());
               citations.add(citation);
@@ -831,6 +891,13 @@ final class AiAgent<C> {
                   'citation': citation.toJson(),
                 },
               });
+              yield _NativeEvent(
+                AgentCitation(
+                  messageId: messageId,
+                  index: citations.length - 1,
+                  citation: citation,
+                ),
+              );
             case ReasoningDelta(:final text):
               if (!reasoningStarted) {
                 reasoningStarted = true;
@@ -844,6 +911,9 @@ final class AiAgent<C> {
                 'messageId': messageId,
                 'delta': text,
               });
+              yield _NativeEvent(
+                AgentReasoningDelta(messageId: messageId, text: text),
+              );
             case ContentPartReady(:final part, :final textOffset):
               final offset = textOffset ?? text.length;
               if (offset > text.length ||
@@ -854,6 +924,13 @@ final class AiAgent<C> {
               }
               media.add((offset: offset, part: part));
               hasMedia = true;
+              yield _NativeEvent(
+                AgentContentPart(
+                  messageId: messageId,
+                  part: part,
+                  textOffset: offset,
+                ),
+              );
             case ProviderApprovalReady() ||
                 ToolCallReady() ||
                 NativeToolCallReady():
@@ -919,6 +996,9 @@ final class AiAgent<C> {
                 'args': jsonEncode(call.arguments),
                 'input': call.arguments,
               });
+              yield _NativeEvent(
+                AgentToolCallReady(messageId: messageId, call: call),
+              );
             case TokenUsage(:final inputTokens, :final outputTokens):
               usage.add(item);
               yield await event('CUSTOM', {
@@ -928,6 +1008,7 @@ final class AiAgent<C> {
                   'outputTokens': outputTokens,
                 },
               });
+              yield _NativeEvent(AgentUsage(usage: item));
             case ModelFinished(:final reason, continueTurn: final continuation):
               finished = true;
               continueTurn = continuation;
@@ -1184,8 +1265,13 @@ final class AiAgent<C> {
               context,
               token,
             );
-            messages.add(_result(call, result));
-            yield await event('TOOL_CALL_RESULT', _resultFields(call, result));
+            final outcome = AgentToolResult(call: call, result: result);
+            messages.add(_result(call, outcome.result));
+            yield await event(
+              'TOOL_CALL_RESULT',
+              _resultFields(call, outcome.result),
+            );
+            yield _NativeEvent(outcome);
           }
         }
         if (interrupts.isNotEmpty) {
@@ -1236,14 +1322,16 @@ final class AiAgent<C> {
             'error':
                 'Tool execution failed or was interrupted. Verify external effects before retrying.',
           };
-          messages.add(_result(call, result));
+          final outcome = AgentToolResult(call: call, result: result);
+          messages.add(_result(call, outcome.result));
           if (!token.isCancelled) {
             yield await event('TOOL_CALL_RESULT', {
-              ..._resultFields(call, result),
+              ..._resultFields(call, outcome.result),
               'metadata': {
                 'tanstack': {'state': 'output-error'},
               },
             });
+            yield _NativeEvent(outcome);
           }
         }
       }
@@ -1265,12 +1353,14 @@ final class AiAgent<C> {
         };
         yield accepted
             ? await event('RUN_ERROR', fields)
-            : AgentEvent({
-                'type': 'RUN_ERROR',
-                'threadId': request.threadId,
-                'runId': request.runId,
-                ...fields,
-              });
+            : _ProtocolEvent(
+                AgentEvent({
+                  'type': 'RUN_ERROR',
+                  'threadId': request.threadId,
+                  'runId': request.runId,
+                  ...fields,
+                }),
+              );
       }
     } finally {
       if (status == RunStatus.running) status = RunStatus.cancelled;
@@ -1497,3 +1587,34 @@ const JsonObject _providerApprovalSchema = {
   'required': ['approved'],
   'additionalProperties': false,
 };
+
+sealed class _ExecutionEvent {
+  const _ExecutionEvent();
+}
+
+final class _ProtocolEvent extends _ExecutionEvent {
+  final AgentEvent event;
+  const _ProtocolEvent(this.event);
+}
+
+final class _NativeEvent extends _ExecutionEvent {
+  final AgentUpdate update;
+  const _NativeEvent(this.update);
+}
+
+AgentResult _resultOrThrow(AgentResult value, _RunFailure? failure) {
+  if (value.status == RunStatus.cancelled) throw const RunCancelled();
+  if (failure case final error?) {
+    Error.throwWithStackTrace(
+      AgentRunException(
+        code: error.code,
+        message: error.message,
+        result: value,
+        cause: error.cause,
+        causeStackTrace: error.stack,
+      ),
+      error.stack,
+    );
+  }
+  return value;
+}

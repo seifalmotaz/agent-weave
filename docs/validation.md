@@ -952,3 +952,52 @@ update. No paid call was added to the cumulative testing ledger.
 Upstream image-option PR #436 was also verified merged on 2026-11-04.
 The pub.dev API still reports `openai_dart 11.0.1` and
 `anthropic_sdk_dart 9.0.1`; no dependency upgrade is implied by these merges.
+
+## Typed native streaming
+
+`AiAgent.stream` and `streamText` expose sealed native updates and a typed final
+result from the same execution. Tests exercise text/reasoning, media, typed
+citations/references, usage, private replay retention, tool proposals/results,
+approval/resume, structured success/failure and committed final results. Existing
+wire clients continue using `AiAgent.run`; native values come from runtime types,
+not a parse of wire JSON. The runtime still stores its existing wire journal.
+
+A subscription-cancellation test initially timed out because an async-generator
+projection waited for the provider before forwarding cancellation. Standard Dart
+stream transforms now forward cancellation/pause to the existing scoped stream.
+Tests cover early `.first`, shared-parent sibling isolation, caller cancellation,
+pre-cancellation, pause/resume, reservation release and failed terminal checkpoints
+without a successful final update. Storage/setup exceptions retain their original
+semantics; classified run failures carry a typed partial backend snapshot.
+
+The actual PostgreSQL test recreates the agent and store across a typed approval,
+executes one effect, checks two model invocations and retains owner isolation.
+Its provider is a deterministic fixture. The independent developer's scoped score
+rose from 4/10 to 8.5/10 after writing and running native consumers; these results
+are not production or package-wide acceptance.
+
+A further public tool probe reproduced mutable nested generic Dart maps in a
+snapshot. The shared JSON freezer now copies maps with string keys regardless of
+their generic declaration. Direct/runtime regression tests verify nested ownership,
+large Dart integers and invalid key rejection. The original independent probe
+passes after the fix. The guide's code block is checked against its runnable
+source. No paid model call, external tool effect or Flutter device was tested.
+
+A storage-time ownership probe also mutated a tool's source map during journal
+append. The stored tool message and wire event retained the original value,
+but the new native event initially copied the later mutation. The runtime now
+snapshots the outcome before the first storage await and reuses that value for
+history, the journal and the native update. The original regression passes.
+
+OpenRouter adapter fixtures additionally run the native stream through actual
+HTTP request serialization and SSE normalization. They verify reported usage,
+private cost/provider/reasoning metadata and a typed approval with two requests,
+one effect and exact assistant/tool replay. These are mocked HTTP responses,
+not live OpenRouter execution or billing evidence.
+
+Final increment verification: `dart run tool/check.dart` passes 653 unit/regression
+tests, 33 actual PostgreSQL/Serverpod integration tests, both existing client
+interop suites, all contract checks and offline recipes. All three documentation
+checks and strict MkDocs build pass. Core Dartdoc reports zero warnings/errors.
+The earlier OpenRouter increment's GitHub minimum/stable CI and Pages deployment
+also finished successfully. No paid test was added for native streaming.

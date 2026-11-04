@@ -2,8 +2,10 @@
 
 Use `generateText` for a single backend operation, `generateObject<T>` for a
 schema-validated Dart value, and `AiAgent<C>.generate` for a conversation with
-trusted application context and storage. `AiAgent.run` remains the streaming
-transport API. They share the same validation and tool loop.
+trusted application context and storage. Use `streamText` or `AiAgent.stream` for typed incremental updates and the final
+result from one execution; see [native streaming](native-streaming.md).
+`AiAgent.run` remains the JSON transport API for existing clients. All of these
+share the same validation, storage and tool loop.
 
 Runnable offline examples: [consumer scenarios](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/consumer.dart)
 and [failure diagnostics](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/failures.dart).
@@ -313,7 +315,7 @@ state with a sanitized message snapshot before continuing.
 
 ## Safe failure messages
 
-`AgentRunException.code` classifies a failed Future-based run. Its `message` is
+`AgentRunException.code` classifies a failed agent run. Its `message` is
 the same sanitized explanation sent in a `RUN_ERROR` event and can be displayed
 to the user. Its `cause` and `causeStackTrace` are private backend diagnostics.
 For example, changed or legacy pending tool contracts provide a recovery

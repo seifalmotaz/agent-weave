@@ -70,7 +70,7 @@ final agent = AiAgent<void>(
 );
 
 // Derive ownerId from backend authentication, never from the request body.
-final events = agent.run(
+final updates = agent.stream(
   ChatRequest(
     threadId: 'conversation-1',
     runId: 'run-1',
@@ -79,6 +79,16 @@ final events = agent.run(
   ownerId: authenticatedUserId,
   context: null,
 );
+await for (final update in updates) {
+  switch (update) {
+    case AgentTextDelta(:final text):
+      print(text);
+    case AgentRunFinished(:final result):
+      print(result.status.name); // The typed result belongs to this same run.
+    default:
+      break;
+  }
+}
 ```
 
 Close the provider client when your application shuts down. Keep OpenAI keys
@@ -117,6 +127,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 
 - [Acceptance roadmap and open work](ROADMAP.md)
 - [Dart API, typed results, and application recipes](docs/dart-api.md)
+- [Typed native streaming](docs/native-streaming.md)
 - [Dart Frog backend](docs/dart-frog.md)
 - [Ollama local models](docs/ollama.md)
 - [Architecture and ownership](docs/architecture.md)
@@ -231,6 +242,17 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Verify package publication, compatibility across supported Dart SDKs, security,
   performance/backpressure, and operational failure cases before a stable claim.
 
+## Native Dart streaming
+
+`AiAgent.stream` and `streamText` now emit sealed Dart updates with the typed
+result from the same execution. Native callers no longer parse TanStack maps or
+run the model twice to obtain a result. Existing clients keep `AiAgent.run`.
+Cancellation, backpressure, errors, approvals and PostgreSQL recreation have
+local checks. Independent native streaming review improved from 4/10 to 8.5/10;
+this is a scoped score, not overall acceptance. Protocol journals still live in
+core, so optional package extraction and broader operational validation remain
+open.
+
 ## Current reliability/DX increment
 
 Implemented: typed `generateText`, `generateObject`, and `AiAgent.generate`;
@@ -252,8 +274,10 @@ These improvements do not complete the requirements above.
 
 Use `generateText` for a single backend operation, `generateObject<T>` for a
 schema-validated Dart value, and `AiAgent<C>.generate` for a conversation with
-trusted application context and storage. `AiAgent.run` remains the streaming
-transport API. They share the same validation and tool loop.
+trusted application context and storage. Use `streamText` or `AiAgent.stream` for typed incremental updates and the final
+result from one execution; see [native streaming](native-streaming.md).
+`AiAgent.run` remains the JSON transport API for existing clients. All of these
+share the same validation, storage and tool loop.
 
 Runnable offline examples: [consumer scenarios](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/consumer.dart)
 and [failure diagnostics](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/failures.dart).
@@ -563,12 +587,73 @@ state with a sanitized message snapshot before continuing.
 
 ## Safe failure messages
 
-`AgentRunException.code` classifies a failed Future-based run. Its `message` is
+`AgentRunException.code` classifies a failed agent run. Its `message` is
 the same sanitized explanation sent in a `RUN_ERROR` event and can be displayed
 to the user. Its `cause` and `causeStackTrace` are private backend diagnostics.
 For example, changed or legacy pending tool contracts provide a recovery
 instruction without exposing schemas or native configuration. See
 [approval contract migration](approval-contracts.md).
+
+
+# Source: docs/native-streaming.md
+
+# Typed native streaming
+
+Use `streamText` to consume typed Dart updates from a stateless run. The final `AgentRunFinished` carries the result of that same run; it does not start a second generation. This offline example uses `ScriptedChatModel`, so it runs without credentials or network access. Replace it with a configured provider model in an application.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave/testing.dart';
+
+Future<void> main() async {
+  // Replace this deterministic model with a configured provider model.
+  final model = ScriptedChatModel(
+    steps: [
+      [const TextDelta('Hello'), const TextDelta('!'), const ModelFinished()],
+    ],
+  );
+
+  try {
+    await for (final update in streamText(model: model, prompt: 'Say hello')) {
+      switch (update) {
+        case AgentTextDelta(:final text):
+          stdout.write(text);
+        case AgentRunFinished(:final result):
+          print('\nRun status: ${result.status.name}');
+        default:
+          break;
+      }
+    }
+  } on AgentRunException catch (error) {
+    print('Run failed: ${error.message}');
+    // error.result contains the partial backend snapshot for recovery.
+  } on RunCancelled {
+    print('Run cancelled.');
+  }
+}
+```
+
+Run it from the workspace root with `dart run examples/native_streaming.dart`.
+
+## Updates and results
+
+`AgentTextDelta` and `AgentReasoningDelta` carry text and its assistant message ID. `AgentContentPart` carries a non-text part and its offset in the assistant text. `AgentCitation` and `AgentReference` carry typed metadata and their message-local indices. `AgentUsage` reports usage when supplied by the model. Native updates are Dart objects: callers do not parse wire event maps to use this API.
+
+Updates before `AgentRunFinished` are provisional. An `AgentToolCallReady` is a proposed call; it does not prove approval or execution. An `AgentToolResult` identifies a recorded outcome, including executed, denied, skipped and client-resolved calls; its JSON collection values are deeply immutable snapshots. Return JSON values from `Tool.encode`, converting custom Dart objects with your own serializer first. An effect may occur before a later failure or cancellation, so do not infer rollback from a missing final update. The final result follows committed completion or interruption and includes the status, messages, usage and any interrupts.
+
+The updates and `AgentResult` are **backend** data. Tool arguments, results, reasoning and the final result can contain private information; the result can also contain private provider continuation state. Use the existing `chatHydration` projection when serving UI history, and apply your application's authorization and data-handling rules. Native streaming provides typed access independently of wire-map parsing; the runtime still maintains its existing wire event journal, and no optional package extraction is implied.
+
+## Failures and cancellation
+
+A classified runtime failure throws `AgentRunException`. Precondition, setup or storage failures can propagate their original exception, matching `generate`. Its safe `message` and `code` are suitable for reporting; `result` provides the partial backend result, and the private cause is for trusted diagnostics. A caller-provided `CancellationToken` can cancel a run and yields `RunCancelled` after cleanup. Cancelling the stream subscription stops delivery and requests cleanup; the closed subscription does not receive a later cancellation error. Custom models and tools must honor cancellation; underlying application work can continue if it cannot be cancelled. Neither cancellation mechanism proves that a dispatched remote provider effect stopped.
+
+## Stateful agents and approvals
+
+For resumable approvals, persistent threads or typed application context, use `AiAgent<C>.stream` with a `ChatRequest`, trusted `ownerId`, and trusted `context`. Reuse the agent's store when resuming. The stateless `streamText` helper does not expose its internal store for a later resume. A finished update can have `RunStatus.interrupted`; inspect `result.interrupts` and obtain the user's decision before resuming. Each `ToolInterrupt` provides `approve()`, `reject()`, or, for a client-executed tool, `resolve(output)` or `cancel()` as appropriate. Provider approvals may also accept a reason; editing arguments applies only to supported local approvals.
+
+Resume by issuing another `agent.stream` call with the same thread ID and trusted owner/context, a new run ID, the interrupted run's ID as `parentRunId`, and the collected typed answers in `ChatRequest.resume`. Collect the entire approval batch in your application flow and show only authorized details to the user. The runtime validates the batch and stored tool/model contracts before proceeding. A pause is not a tool result and denial is not a local execution.
 
 
 # Source: docs/offline-support.md
@@ -1514,6 +1599,41 @@ Serverpod factory was independently reviewed for session authentication,
 server-owned model/count, native results and cancellation. The scoped score
 remains 8/10. Coordinating tests separately verify its real PostgreSQL/HTTP flow.
 
+## Round 29: native Dart streaming
+
+The independent developer first built a backend consumer using only the existing
+public API. Streaming text, usage and approval details required string event
+names and JSON maps; obtaining `AgentResult` by calling `generate` would execute
+another run. Wire cancellation closed without a typed outcome. Private causes
+were still available through `onError`. The scoped native streaming score was
+**4/10**; this was a DX gap, not a malformed client protocol.
+
+The new `AiAgent.stream` and `streamText` consumers receive typed text, usage,
+tool outcomes and `AgentRunFinished` from one execution. The developer verified
+approval/resume without an extra call, partial-result exceptions, caller-token
+and subscription cancellation, private output exclusion from interim updates and
+content-only delivery before provider completion. It reviewed the source-matched
+guide, ran both examples and scored these journeys **8.5/10**. The tracked
+approval recipe is `examples/review_cases/native_streaming.dart`.
+
+Adversarial follow-up found that nested valid JSON `Map<dynamic, dynamic>` values
+remained mutable in tool-result snapshots. The shared JSON freezer previously
+matched only statically typed string maps. It now freezes all maps with string
+keys; the original direct/runtime probes retain their original values and reject
+nested mutation. Regression tests retain large Dart integers and reject invalid
+non-string keys. The reviewer reran the original probes and normal streaming
+flows successfully; the scoped score remains 8.5/10.
+
+The review did not test real providers, Flutter devices or PostgreSQL. Native
+streaming is a backend/local API, and protocol journals still live in core.
+Persisted Serverpod verification is a separate coordinating-suite result.
+
+A storage-time ownership probe also mutated a tool's source map during journal
+append. The stored tool message and wire event retained the original value,
+but the new native event initially copied the later mutation. The runtime now
+snapshots the outcome before the first storage await and reuses that value for
+history, the journal and the native update. The original regression passes.
+
 
 # Source: docs/architecture.md
 
@@ -1789,6 +1909,23 @@ The shared transport selects JSON or SSE from one response's content type and
 never submits a second generation POST. Applications can wrap the operation in
 `GenerationTask` for durable Serverpod results without changing the native DTO.
 See [dedicated images](openrouter-image-api.md).
+
+## Native streaming and protocol projections
+
+The runtime emits a private sealed execution-event family. One variant carries
+native `AgentUpdate` values from validated model and tool values; the other
+carries the existing journaled `AgentEvent`. `AiAgent.stream` projects native
+updates and finishes with the same run's typed result after committed completion
+or interruption. `AiAgent.run` projects protocol events for existing clients.
+Neither projection reconstructs the other or invokes the model again.
+
+Standard Dart stream transforms forward pause and cancellation to the existing
+request-scoped stream. An async-generator filter initially delayed subscription
+cancellation while awaiting the provider; regression tests reproduce that
+failure and verify the transform-based correction. `generate` shares final
+result/error classification. Pre-terminal updates are provisional, and final
+results retain backend-only state. This is a public API separation; extracting
+protocol journals into an optional package remains separate roadmap work.
 
 
 # Source: docs/tools.md
@@ -7276,6 +7413,16 @@ and retain the old history. Public client bindings remain unchanged. See
 These limits are release work, not hidden fallbacks. See `docs/validation.md`
 and `docs/updating.md` before extending a compatibility claim.
 
+## Native Dart streaming
+
+`streamText` and `AiAgent.stream` expose sealed `AgentUpdate` values, including a
+typed result from the same execution, without parsing client protocol maps.
+Existing clients continue using `AiAgent.run`. The native stream is a backend or
+local-model API: interim updates are provisional and final results can contain
+private provider continuation. Use hydration projections for UI history.
+Protocol journals remain in core; optional adapter-package extraction is not
+complete. See [native streaming](native-streaming.md).
+
 
 # Source: docs/updating.md
 
@@ -8549,6 +8696,55 @@ Upstream image-option PR #436 was also verified merged on 2026-11-04.
 The pub.dev API still reports `openai_dart 11.0.1` and
 `anthropic_sdk_dart 9.0.1`; no dependency upgrade is implied by these merges.
 
+## Typed native streaming
+
+`AiAgent.stream` and `streamText` expose sealed native updates and a typed final
+result from the same execution. Tests exercise text/reasoning, media, typed
+citations/references, usage, private replay retention, tool proposals/results,
+approval/resume, structured success/failure and committed final results. Existing
+wire clients continue using `AiAgent.run`; native values come from runtime types,
+not a parse of wire JSON. The runtime still stores its existing wire journal.
+
+A subscription-cancellation test initially timed out because an async-generator
+projection waited for the provider before forwarding cancellation. Standard Dart
+stream transforms now forward cancellation/pause to the existing scoped stream.
+Tests cover early `.first`, shared-parent sibling isolation, caller cancellation,
+pre-cancellation, pause/resume, reservation release and failed terminal checkpoints
+without a successful final update. Storage/setup exceptions retain their original
+semantics; classified run failures carry a typed partial backend snapshot.
+
+The actual PostgreSQL test recreates the agent and store across a typed approval,
+executes one effect, checks two model invocations and retains owner isolation.
+Its provider is a deterministic fixture. The independent developer's scoped score
+rose from 4/10 to 8.5/10 after writing and running native consumers; these results
+are not production or package-wide acceptance.
+
+A further public tool probe reproduced mutable nested generic Dart maps in a
+snapshot. The shared JSON freezer now copies maps with string keys regardless of
+their generic declaration. Direct/runtime regression tests verify nested ownership,
+large Dart integers and invalid key rejection. The original independent probe
+passes after the fix. The guide's code block is checked against its runnable
+source. No paid model call, external tool effect or Flutter device was tested.
+
+A storage-time ownership probe also mutated a tool's source map during journal
+append. The stored tool message and wire event retained the original value,
+but the new native event initially copied the later mutation. The runtime now
+snapshots the outcome before the first storage await and reuses that value for
+history, the journal and the native update. The original regression passes.
+
+OpenRouter adapter fixtures additionally run the native stream through actual
+HTTP request serialization and SSE normalization. They verify reported usage,
+private cost/provider/reasoning metadata and a typed approval with two requests,
+one effect and exact assistant/tool replay. These are mocked HTTP responses,
+not live OpenRouter execution or billing evidence.
+
+Final increment verification: `dart run tool/check.dart` passes 653 unit/regression
+tests, 33 actual PostgreSQL/Serverpod integration tests, both existing client
+interop suites, all contract checks and offline recipes. All three documentation
+checks and strict MkDocs build pass. Core Dartdoc reports zero warnings/errors.
+The earlier OpenRouter increment's GitHub minimum/stable CI and Pages deployment
+also finished successfully. No paid test was added for native streaming.
+
 
 # Source: CONTRIBUTING.md
 
@@ -8586,6 +8782,10 @@ TypeScript API conventions into the Dart developer API.
 
 - Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
 - Core model contracts and agent execution live in `packages/agent_weave`.
+  Native streaming uses sealed `AgentUpdate` values from `AiAgent.stream`;
+  `AiAgent.run` retains protocol events. Generate both from typed runtime values,
+  never reconstruct native results by parsing the public wire journal or rerunning
+  the model. Final native results follow committed completion and cleanup.
 - Provider-specific types stay in `packages/agent_weave_openai` and
   `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
   `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and

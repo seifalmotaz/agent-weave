@@ -5,6 +5,7 @@ import 'protocol.dart';
 import 'result.dart';
 import 'runtime.dart';
 import 'tool.dart';
+import 'updates.dart';
 
 /// Run a stateless request with the same tool loop and validation as [AiAgent].
 /// For persisted conversations and typed context, use [AiAgent.generate].
@@ -27,6 +28,34 @@ Future<AgentResult> generateText({
   maxOutputTokens: maxOutputTokens,
   cancellation: cancellation,
 );
+
+/// Stream typed backend updates from one stateless agent run.
+Stream<AgentUpdate> streamText({
+  required ChatModel model,
+  String? prompt,
+  Iterable<ChatMessage>? messages,
+  String? instructions,
+  Iterable<AgentTool<void>> tools = const [],
+  int maxSteps = 8,
+  int maxOutputTokens = 1024,
+  CancellationToken? cancellation,
+}) {
+  final run = _statelessRun(
+    model: model,
+    prompt: prompt,
+    messages: messages,
+    instructions: instructions,
+    tools: tools,
+    maxSteps: maxSteps,
+    maxOutputTokens: maxOutputTokens,
+  );
+  return run.agent.stream(
+    run.request,
+    ownerId: 'stateless',
+    context: null,
+    cancellation: cancellation,
+  );
+}
 
 /// Validate provider JSON against [schema] before invoking your Dart decoder.
 Future<ObjectResult<T>> generateObject<T>({
@@ -62,13 +91,41 @@ Future<AgentResult> _generate({
   int maxOutputTokens = 1024,
   CancellationToken? cancellation,
 }) {
+  final run = _statelessRun(
+    model: model,
+    prompt: prompt,
+    messages: messages,
+    instructions: instructions,
+    outputSchema: outputSchema,
+    tools: tools,
+    maxSteps: maxSteps,
+    maxOutputTokens: maxOutputTokens,
+  );
+  return run.agent.generate(
+    run.request,
+    ownerId: 'stateless',
+    context: null,
+    cancellation: cancellation,
+  );
+}
+
+({AiAgent<void> agent, ChatRequest request}) _statelessRun({
+  required ChatModel model,
+  String? prompt,
+  Iterable<ChatMessage>? messages,
+  String? instructions,
+  JsonObject? outputSchema,
+  Iterable<AgentTool<void>> tools = const [],
+  int maxSteps = 8,
+  int maxOutputTokens = 1024,
+}) {
   if ((prompt == null) == (messages == null)) {
     throw ArgumentError('Provide exactly one of prompt or messages.');
   }
   final id = const Uuid().v4;
   final input = messages?.toList() ?? [ChatMessage.user(prompt!, id: id())];
   if (input.isEmpty) throw ArgumentError('Provide at least one message.');
-  return AiAgent<void>(
+  final agent = AiAgent<void>(
     model: model,
     initialMessages: input,
     instructions: instructions,
@@ -76,10 +133,9 @@ Future<AgentResult> _generate({
     outputSchema: outputSchema,
     maxSteps: maxSteps,
     maxOutputTokens: maxOutputTokens,
-  ).generate(
-    ChatRequest(threadId: id(), runId: id(), messages: const []),
-    ownerId: 'stateless',
-    context: null,
-    cancellation: cancellation,
+  );
+  return (
+    agent: agent,
+    request: ChatRequest(threadId: id(), runId: id(), messages: const []),
   );
 }

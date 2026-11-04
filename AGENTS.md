@@ -8,6 +8,10 @@ TypeScript API conventions into the Dart developer API.
 
 - Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
 - Core model contracts and agent execution live in `packages/agent_weave`.
+  Native streaming uses sealed `AgentUpdate` values from `AiAgent.stream`;
+  `AiAgent.run` retains protocol events. Generate both from typed runtime values,
+  never reconstruct native results by parsing the public wire journal or rerunning
+  the model. Final native results follow committed completion and cleanup.
 - Provider-specific types stay in `packages/agent_weave_openai` and
   `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
   `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and

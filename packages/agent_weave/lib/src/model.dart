@@ -8,8 +8,13 @@ typedef JsonObject = Map<String, Object?>;
 /// Snapshot JSON at public ownership boundaries, including nested collections.
 JsonObject immutableJson(JsonObject value) {
   Object? freeze(Object? item) => switch (item) {
-    Map<String, Object?> map => Map<String, Object?>.unmodifiable(
-      map.map((key, value) => MapEntry(key, freeze(value))),
+    Map<Object?, Object?> map => Map<String, Object?>.unmodifiable(
+      map.map((key, value) {
+        if (key is! String) {
+          throw ArgumentError('JSON object keys must be strings.');
+        }
+        return MapEntry(key, freeze(value));
+      }),
     ),
     List<Object?> list => List<Object?>.unmodifiable(list.map(freeze)),
     _ => item,

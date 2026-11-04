@@ -123,7 +123,7 @@ final class ToolInterrupt {
   ResumeAnswer cancel() => ResumeAnswer.cancelled(interruptId: id);
 }
 
-/// A failed Future-based agent run. Never serialize [cause] to a UI client.
+/// A failed agent run. Never serialize [cause] to a UI client.
 final class AgentRunException implements Exception {
   final String code;
 

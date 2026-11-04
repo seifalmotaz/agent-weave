@@ -99,6 +99,7 @@ Future<void> main() async {
     ['examples/offline_support.dart'],
     ['examples/offline_support.dart', '--approve'],
     ['examples/cancellation.dart'],
+    ['examples/native_streaming.dart'],
     ['examples/schema_diagnostics.dart'],
   ]) {
     await run('dart', ['run', ...example]);
@@ -116,6 +117,7 @@ Future<void> main() async {
     'citations_client',
     'openrouter_images',
     'openrouter_image_api',
+    'native_streaming',
     'cloudflare_streaming',
     'openai_hosted',
     'openai_references',

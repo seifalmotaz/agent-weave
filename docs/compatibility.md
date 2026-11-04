@@ -130,3 +130,13 @@ and retain the old history. Public client bindings remain unchanged. See
 
 These limits are release work, not hidden fallbacks. See `docs/validation.md`
 and `docs/updating.md` before extending a compatibility claim.
+
+## Native Dart streaming
+
+`streamText` and `AiAgent.stream` expose sealed `AgentUpdate` values, including a
+typed result from the same execution, without parsing client protocol maps.
+Existing clients continue using `AiAgent.run`. The native stream is a backend or
+local-model API: interim updates are provisional and final results can contain
+private provider continuation. Use hydration projections for UI history.
+Protocol journals remain in core; optional adapter-package extraction is not
+complete. See [native streaming](native-streaming.md).

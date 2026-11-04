@@ -763,3 +763,38 @@ redacted request ID, no attached decoder source and one request. The documented
 Serverpod factory was independently reviewed for session authentication,
 server-owned model/count, native results and cancellation. The scoped score
 remains 8/10. Coordinating tests separately verify its real PostgreSQL/HTTP flow.
+
+## Round 29: native Dart streaming
+
+The independent developer first built a backend consumer using only the existing
+public API. Streaming text, usage and approval details required string event
+names and JSON maps; obtaining `AgentResult` by calling `generate` would execute
+another run. Wire cancellation closed without a typed outcome. Private causes
+were still available through `onError`. The scoped native streaming score was
+**4/10**; this was a DX gap, not a malformed client protocol.
+
+The new `AiAgent.stream` and `streamText` consumers receive typed text, usage,
+tool outcomes and `AgentRunFinished` from one execution. The developer verified
+approval/resume without an extra call, partial-result exceptions, caller-token
+and subscription cancellation, private output exclusion from interim updates and
+content-only delivery before provider completion. It reviewed the source-matched
+guide, ran both examples and scored these journeys **8.5/10**. The tracked
+approval recipe is `examples/review_cases/native_streaming.dart`.
+
+Adversarial follow-up found that nested valid JSON `Map<dynamic, dynamic>` values
+remained mutable in tool-result snapshots. The shared JSON freezer previously
+matched only statically typed string maps. It now freezes all maps with string
+keys; the original direct/runtime probes retain their original values and reject
+nested mutation. Regression tests retain large Dart integers and reject invalid
+non-string keys. The reviewer reran the original probes and normal streaming
+flows successfully; the scoped score remains 8.5/10.
+
+The review did not test real providers, Flutter devices or PostgreSQL. Native
+streaming is a backend/local API, and protocol journals still live in core.
+Persisted Serverpod verification is a separate coordinating-suite result.
+
+A storage-time ownership probe also mutated a tool's source map during journal
+append. The stored tool message and wire event retained the original value,
+but the new native event initially copied the later mutation. The runtime now
+snapshots the outcome before the first storage await and reuses that value for
+history, the journal and the native update. The original regression passes.
