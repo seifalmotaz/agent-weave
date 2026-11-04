@@ -1,9 +1,11 @@
-/// Connect a generated Serverpod streaming method to the TanStack Dart client.
+/// Serverpod connections and provider approvals for the TanStack Dart client.
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'package:tanstack_ai_dart/connections.dart';
+
+export 'src/provider_approval.dart';
 
 /// The callback invokes your generated endpoint with a serialized RunAgentInput.
 /// No provider credential belongs in this callback or the Flutter application.

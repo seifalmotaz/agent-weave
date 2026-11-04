@@ -38,12 +38,14 @@ Future<void> main() async {
         .whereType<Map<dynamic, dynamic>>()
         .where((item) => item['type'] == 'mcp_approval_response')
         .toList();
-    final output = decisions.isEmpty
+    final secondRound = jsonEncode(body['input']).contains('two-round');
+    final pending = decisions.isEmpty || (secondRound && decisions.length == 1);
+    final output = pending
         ? <Object?>[
             {
-              'id': 'PRIVATE-MCP-ID',
+              'id': decisions.isEmpty ? 'PRIVATE-MCP-ID' : 'PRIVATE-MCP-ID-2',
               'type': 'mcp_approval_request',
-              'name': 'escalate',
+              'name': decisions.isEmpty ? 'escalate' : 'notify',
               'server_label': 'support',
               'arguments': '{"ticket":42}',
               'private_future': 'PRIVATE-MCP-REPLAY',
@@ -78,7 +80,7 @@ Future<void> main() async {
         'item': output[i],
       });
     }
-    if (decisions.isNotEmpty) {
+    if (!pending) {
       send({
         'type': 'response.output_text.delta',
         'item_id': 'answer',
@@ -330,6 +332,7 @@ Future<void> main() async {
             '/native-history',
             '/mixed-history',
             '/mcp-history',
+            '/mcp',
           }.contains(request.uri.path)) {
         request.response.headers.contentType = ContentType.json;
         request.response.write(
@@ -337,7 +340,8 @@ Future<void> main() async {
             chatHydration(
               await (request.uri.path == '/media-history'
                       ? mediaAgent
-                      : request.uri.path == '/mcp-history'
+                      : (request.uri.path == '/mcp-history' ||
+                            request.uri.path == '/mcp')
                       ? mcpAgent
                       : request.uri.path == '/citations-history'
                       ? citationsAgent

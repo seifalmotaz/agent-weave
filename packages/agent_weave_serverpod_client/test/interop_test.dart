@@ -48,6 +48,8 @@ final class TestModel implements ChatModel {
 }
 
 final class ProviderModel implements ProviderApprovalModel {
+  final bool twoRounds;
+  ProviderModel({this.twoRounds = false});
   final requests = <ModelRequest>[];
   @override
   ModelCapabilities get capabilities => const ModelCapabilities();
@@ -61,15 +63,17 @@ final class ProviderModel implements ProviderApprovalModel {
     required CancellationToken cancellation,
   }) async* {
     requests.add(request);
-    if (request.providerApprovalDecisions.isEmpty) {
+    if (request.providerApprovalDecisions.isEmpty ||
+        (twoRounds && request.providerApprovalDecisions.length == 1)) {
+      final second = request.providerApprovalDecisions.isNotEmpty;
       yield ProviderApprovalReady(
         ProviderApprovalCall(
-          id: 'public-call',
-          name: 'remote',
+          id: second ? 'public-call-2' : 'public-call',
+          name: second ? 'notify' : 'remote',
           arguments: {'ticket': 42},
           provider: 'fixture',
           serverLabel: 'support',
-          providerRequestId: 'PRIVATE-ID',
+          providerRequestId: second ? 'PRIVATE-ID-2' : 'PRIVATE-ID',
         ),
       );
     } else {
@@ -84,6 +88,9 @@ client.ConnectionAdapter connect(
   AiAgent<void> agent, {
   void Function(AgentEvent)? onEvent,
 }) => serverpodConnection(
+  loadHistory: (threadId) async => jsonEncode(
+    chatHydration(await agent.store.load(ownerId: 'owner', threadId: threadId)),
+  ),
   send: (raw) => agent
       .run(
         ChatRequest.fromJson(Map<String, Object?>.from(jsonDecode(raw) as Map)),
@@ -283,6 +290,68 @@ void main() {
       );
     });
   }
+
+  test('typed provider approval survives reconnect and two rounds', () async {
+    final model = ProviderModel(twoRounds: true);
+    final agent = AiAgent<void>(model: model);
+    client.ChatClient create() => client.ChatClient(
+      connection: connect(agent),
+      threadId: 'provider-reconnect',
+      persistence: const client.ChatPersistenceOptions.server(),
+    );
+    var chat = create();
+    try {
+      await chat.attach();
+      await chat.sendText('Start');
+      expect(chat.error, isNull);
+      expect(chat.getInterrupts(), hasLength(1));
+      await chat.dispose();
+      chat = create();
+      await chat.attach();
+      expect(chat.error, isNull);
+      final first = chat.getInterrupts().single;
+      final approval = first.providerApproval!;
+      expect(approval.provider, 'fixture');
+      expect(approval.serverLabel, 'support');
+      expect(approval.toolName, 'remote');
+      expect(approval.toolCallId, 'public-call');
+      expect(approval.arguments, {'ticket': 42});
+      await approval.approve(reason: 'Reviewed');
+      for (
+        var i = 0;
+        i < 100 &&
+            chat.error == null &&
+            !chat.getInterrupts().any((v) => v.id != first.id);
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(chat.error, isNull);
+      final second = chat.getInterrupts().single.providerApproval!;
+      expect(second.toolName, 'notify');
+      await second.reject(reason: 'Declined');
+      for (
+        var i = 0;
+        i < 100 &&
+            chat.error == null &&
+            !chat.messages.any((m) => m.answer == 'Provider completed');
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(chat.error, isNull);
+      expect(chat.messages.last.answer, 'Provider completed');
+      expect(model.requests, hasLength(3));
+      final decisions = model.requests.last.providerApprovalDecisions;
+      expect(decisions.map((d) => d.providerRequestId), [
+        'PRIVATE-ID',
+        'PRIVATE-ID-2',
+      ]);
+      expect(decisions.map((d) => d.approved), [true, false]);
+    } finally {
+      await chat.dispose();
+    }
+  });
 
   test(
     'real Dart client executes a bound client tool and resumes automatically',

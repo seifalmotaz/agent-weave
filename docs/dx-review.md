@@ -631,3 +631,44 @@ after dispatch. The independent reviewer did not run PostgreSQL, in-flight MCP
 cancellation, step limits, live OAuth/MCP, mobile rendering or real remote
 execution. The main verification suite separately exercises durable storage and
 synthetic failure boundaries. The score remains 7.5/10 for the reviewed scope.
+
+
+## Round 24: restored provider approvals and typed client access
+
+The independent developer initially scored the restored MCP flow **8/10**. Both
+pinned clients could dispose, recreate, attach to server-owned history, approve
+one request with a reason and reject a second request with another reason.
+Provider/server display metadata survived restoration. The fixture received
+three requests with the expected native IDs and one copy of each prior decision
+in stateless replay. Another owner could not read the conversation, and hydrated
+history excluded the provider IDs and private replay marker.
+
+The observed friction was reading `metadata.providerApproval` and building the
+generic response map. After adding the optional companion's `.providerApproval`
+reader and typed actions, the same real Dart client journey scores **8.5/10**.
+The helper exposes provider/server/tool identity and immutable arguments. It
+does not add a TanStack dependency to the core runtime or change the wire format.
+
+Run the tracked regressions from the workspace root:
+
+```sh
+dart test packages/agent_weave_serverpod_client/test
+node tool/interop/test.mjs
+```
+
+The focused client package suite passes 34 tests, including nine client interop
+tests and six new helper tests. The standalone JavaScript suite passes 26
+reported scenarios. The initial independent probes are ignored local review
+artifacts; these tracked commands reproduce the integrated journeys.
+
+Awaiting a helper decision stages it, matching the pinned client's synchronous
+resolution callback. It does not wait for stream completion or surface later
+provider failures; applications observe `chat.states`. The tests separately
+exercise callback error propagation, unresolvable snapshots, malformed declared
+metadata and immutable nested JSON. The independent reviewer verified this
+staging boundary and reran the typed loopback consumer.
+
+These are scoped offline scores, not package-wide acceptance. No live provider,
+actual remote effect, backend process restart, PostgreSQL or mobile UI was tested
+by this consumer review. The native request fixture checks serialization and
+request counts; it cannot establish live exactly-once remote execution.

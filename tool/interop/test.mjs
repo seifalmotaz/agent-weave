@@ -289,6 +289,38 @@ try {
     } finally { chat.dispose(); }
   }
   {
+    const threadId = 'mcp-reconnect';
+    const create = () => new ChatClient({threadId, connection: fetchServerSentEvents(`${base}/mcp`), persistence: true});
+    let chat = create();
+    const wait = async predicate => { for (let i = 0; i < 100 && !predicate(); i++) await new Promise(resolve => setTimeout(resolve, 10)); assert.ok(predicate(), 'Timed out'); };
+    try {
+      const before = (await (await fetch(`${base}/mcp-state`)).json()).length;
+      chat.attach(); await wait(() => !chat.getIsHydrating());
+      await chat.sendMessage('two-round');
+      assert.equal(chat.getError(), undefined);
+      assert.equal(chat.getInterrupts().length, 1);
+      chat.dispose(); chat = create(); chat.attach(); await wait(() => !chat.getIsHydrating());
+      assert.equal(chat.getError(), undefined);
+      const [first] = chat.getInterrupts();
+      assert.equal(first.kind, 'generic'); assert.equal(first.canResolve, true);
+      assert.deepEqual(first.metadata.providerApproval, {provider: 'openai.responses', serverLabel: 'support'});
+      first.resolveInterrupt({approved: true, reason: 'Approved by operator'});
+      await wait(() => chat.getError() || chat.getInterrupts().some(i => i.id !== first.id));
+      assert.equal(chat.getError(), undefined);
+      const [second] = chat.getInterrupts();
+      assert.equal(second.kind, 'generic'); assert.equal(second.canResolve, true);
+      assert.deepEqual(second.metadata.providerApproval, {provider: 'openai.responses', serverLabel: 'support'});
+      second.resolveInterrupt({approved: false, reason: 'Notification declined'});
+      await wait(() => chat.getError() || chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'MCP completed')));
+      assert.equal(chat.getError(), undefined);
+      const requests = await (await fetch(`${base}/mcp-state`)).json();
+      assert.equal(requests.length, before + 3);
+      const responses = requests.slice(before).map(r => r.input.filter(i => i.type === 'mcp_approval_response'));
+      assert.deepEqual(responses, [[], [{type: 'mcp_approval_response', approval_request_id: 'PRIVATE-MCP-ID', approve: true, reason: 'Approved by operator'}], [{type: 'mcp_approval_response', approval_request_id: 'PRIVATE-MCP-ID', approve: true, reason: 'Approved by operator'}, {type: 'mcp_approval_response', approval_request_id: 'PRIVATE-MCP-ID-2', approve: false, reason: 'Notification declined'}]]);
+      console.log('PASS official JS client: MCP reconnect and two approval rounds');
+    } finally { chat.dispose(); }
+  }
+  {
     const threadId = 'mixed-computer';
     const chat = new ChatClient({ threadId, connection: fetchServerSentEvents(`${base}/mixed`) });
     try {

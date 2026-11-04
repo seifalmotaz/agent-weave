@@ -143,7 +143,30 @@ continuation. Cancelling a pending approval before continuation preserves it and
 send denial. Cancellation after dispatch can instead leave the run indeterminate.
 
 Both pinned clients expose these as **generic interrupts** without registering
-a fake local tool. Use the same payload shape in Dart and JavaScript:
+a fake local tool. The optional `agent_weave_serverpod_client` companion provides
+typed access for Dart clients over either native Serverpod streaming or HTTP:
+
+```dart
+import 'package:agent_weave_serverpod_client/agent_weave_serverpod_client.dart';
+
+final approval = chat.getInterrupts().single.providerApproval;
+if (approval != null && approval.canResolve) {
+  print('${approval.serverLabel}: ${approval.toolName}');
+  print(approval.arguments); // Immutable owner-visible JSON snapshot.
+  await approval.approve(reason: 'Reviewed'); // Or reject(reason: ...).
+}
+```
+
+This snippet assumes one pending approval. Render each returned interrupt for
+a batch, and call an action only after its owner makes a decision.
+`providerApproval` returns null for other interrupts. Malformed declared metadata
+throws `FormatException` without echoing its contents. Use a fresh snapshot
+from the current chat state after reconnecting. Awaiting `approve` or `reject`
+stages the decision and propagates callback errors; it does not wait for the
+resumed run. Observe `chat.states` for completion and provider errors.
+The helper stays outside the core runtime, which has no TanStack dependency.
+
+Without this helper, use the same generic payload shape in Dart and JavaScript:
 
 ```dart
 final interrupt = chat.getInterrupts().single;

@@ -1374,6 +1374,47 @@ execution. The main verification suite separately exercises durable storage and
 synthetic failure boundaries. The score remains 7.5/10 for the reviewed scope.
 
 
+## Round 24: restored provider approvals and typed client access
+
+The independent developer initially scored the restored MCP flow **8/10**. Both
+pinned clients could dispose, recreate, attach to server-owned history, approve
+one request with a reason and reject a second request with another reason.
+Provider/server display metadata survived restoration. The fixture received
+three requests with the expected native IDs and one copy of each prior decision
+in stateless replay. Another owner could not read the conversation, and hydrated
+history excluded the provider IDs and private replay marker.
+
+The observed friction was reading `metadata.providerApproval` and building the
+generic response map. After adding the optional companion's `.providerApproval`
+reader and typed actions, the same real Dart client journey scores **8.5/10**.
+The helper exposes provider/server/tool identity and immutable arguments. It
+does not add a TanStack dependency to the core runtime or change the wire format.
+
+Run the tracked regressions from the workspace root:
+
+```sh
+dart test packages/agent_weave_serverpod_client/test
+node tool/interop/test.mjs
+```
+
+The focused client package suite passes 34 tests, including nine client interop
+tests and six new helper tests. The standalone JavaScript suite passes 26
+reported scenarios. The initial independent probes are ignored local review
+artifacts; these tracked commands reproduce the integrated journeys.
+
+Awaiting a helper decision stages it, matching the pinned client's synchronous
+resolution callback. It does not wait for stream completion or surface later
+provider failures; applications observe `chat.states`. The tests separately
+exercise callback error propagation, unresolvable snapshots, malformed declared
+metadata and immutable nested JSON. The independent reviewer verified this
+staging boundary and reran the typed loopback consumer.
+
+These are scoped offline scores, not package-wide acceptance. No live provider,
+actual remote effect, backend process restart, PostgreSQL or mobile UI was tested
+by this consumer review. The native request fixture checks serialization and
+request counts; it cannot establish live exactly-once remote execution.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -3245,7 +3286,30 @@ continuation. Cancelling a pending approval before continuation preserves it and
 send denial. Cancellation after dispatch can instead leave the run indeterminate.
 
 Both pinned clients expose these as **generic interrupts** without registering
-a fake local tool. Use the same payload shape in Dart and JavaScript:
+a fake local tool. The optional `agent_weave_serverpod_client` companion provides
+typed access for Dart clients over either native Serverpod streaming or HTTP:
+
+```dart
+import 'package:agent_weave_serverpod_client/agent_weave_serverpod_client.dart';
+
+final approval = chat.getInterrupts().single.providerApproval;
+if (approval != null && approval.canResolve) {
+  print('${approval.serverLabel}: ${approval.toolName}');
+  print(approval.arguments); // Immutable owner-visible JSON snapshot.
+  await approval.approve(reason: 'Reviewed'); // Or reject(reason: ...).
+}
+```
+
+This snippet assumes one pending approval. Render each returned interrupt for
+a batch, and call an action only after its owner makes a decision.
+`providerApproval` returns null for other interrupts. Malformed declared metadata
+throws `FormatException` without echoing its contents. Use a fresh snapshot
+from the current chat state after reconnecting. Awaiting `approve` or `reject`
+stages the decision and propagates callback errors; it does not wait for the
+resumed run. Observe `chat.states` for completion and provider errors.
+The helper stays outside the core runtime, which has no TanStack dependency.
+
+Without this helper, use the same generic payload shape in Dart and JavaScript:
 
 ```dart
 final interrupt = chat.getInterrupts().single;
@@ -6525,10 +6589,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest schema-diagnostics and offline-onboarding increment was checked on
-Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
+The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
+SDK and the stable channel; inspect the run for the commit you use.
 
-- 536 Dart unit and regression tests: tool validation, approvals, client tools,
+- 543 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 25 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -6536,7 +6600,7 @@ Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 25 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 26 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
   generation, provider-owned MCP approval/denial, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
   replay, and eight media/history cases, including ordered output images. The media cases include document
@@ -7260,6 +7324,48 @@ are approved and merged upstream. The live pub.dev API still reported
 `anthropic_sdk_dart 9.0.1`, published before these fixes, at this check.
 AgentWeave keeps that published dependency pin; a merged PR does not establish
 a published SDK release or an upgraded consumer dependency.
+
+
+## Typed provider approvals and client restoration
+
+The full Dart 3.12.2 check passes 543 unit/regression tests, 25 real
+PostgreSQL/Serverpod integration tests, both existing client suites and all
+contract inventories. The client package contributes six typed-helper tests
+and a reconnect/multiple-round test. Its focused suite passes 34 tests, including
+nine client interop tests. The official standalone JavaScript suite reports 26
+scenarios, including restored MCP approvals and two human decision rounds.
+
+Helper tests verify nested argument snapshots, nonprovider interrupts, malformed
+metadata without payload echo, generic approve/reject reasons, unresolvable
+snapshots and callback failure propagation. The real client tests recreate and
+attach the client before resolving approvals, preserve display metadata, submit
+the native decisions with reasons and assert the completed answer. The helper
+Future stages a resolution; it does not represent completion of the provider run.
+
+Independent review scores this offline path 8.5/10, improved from 8/10 before
+typed access. That reviewer did not run PostgreSQL, live MCP, backend process
+restart or mobile UI. The named fixture's request count does not prove that a
+live remote effect executes exactly once.
+
+## Upstream MCP output contribution
+
+[PR #443](https://github.com/davidmigloz/ai_clients_dart/pull/443) fixes native MCP
+output decoding in `openai_dart`. The installed 11.0.1 and freshly checked
+upstream base `35e2d435` failed four native output examples through both public
+parsers; calls required an undocumented `call_id`, and discovery/approval items
+were unrecognized. The submitted patch adds typed output variants, native error
+and status unions, immutable parsed snapshots and resource-level HTTP tests.
+Its API changes are explicitly marked breaking.
+
+Dart 3.12.2 package analysis and 25,313 offline SDK unit tests pass, with three
+environment-key skips. Nine focused tests include serde, optional clearing,
+equality/hash, mutation, subtype equality and a mocked approval continuation.
+The independent public-client loopback consumer also sends the actual approval
+response using the existing `ResponseInput.fromOutputItems` factory. Generic
+`CreateResponseRequest.fromJson` still rejects that MCP input; typed input and
+conversation-resource models are separate known gaps, not covered by this output
+fix. AgentWeave's SDK dependency pin remains unchanged. No live or paid call,
+upstream merge or package publication is implied by this submitted PR.
 
 
 # Source: CONTRIBUTING.md
