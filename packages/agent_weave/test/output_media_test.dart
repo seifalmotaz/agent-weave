@@ -34,6 +34,8 @@ void main() {
         png.toJson(),
         const TextPart('after').toJson(),
       ]);
+      expect(result.images.single.url, png.url);
+      expect(() => result.images.clear(), throwsUnsupportedError);
       final state = await agent.store.load(ownerId: 'owner', threadId: 't');
       final snapshot =
           (state!['events'] as List).singleWhere(

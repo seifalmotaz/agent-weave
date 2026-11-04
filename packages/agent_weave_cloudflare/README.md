@@ -18,9 +18,10 @@ endpoint. Cache keys can group responses, so choose them with care.
 `CloudflareImageModel` returns decoded image bytes and the full response for supported formats. Responses retain full JSON,
 bytes, status, and headers. Model-specific outputs vary.
 
-`CloudflareChatModel` uses the documented Hermes traditional single-tool
-continuation and non-streamed requests, even through the core `stream` method.
-Its schema mode passes Cloudflare's bare JSON schema. It rejects multi-call
+`CloudflareChatModel` streams native text SSE by default. Set `streamText: false`
+for buffered text. JSON schema, registered tools and tool history use buffered
+requests. The documented Hermes traditional single-tool continuation remains
+separate from streamed text. Its schema mode passes Cloudflare's bare JSON schema. It rejects multi-call
 continuation and non-text parts; native model support and streamed formats vary.
 The Hermes catalog availability has not been verified. Binary Whisper content type and server acceptance have not been verified; JSON audio is documented. The runtime owns tool execution and approvals. No inference, license acceptance,
 or POST retry happens automatically.
@@ -43,7 +44,7 @@ print(embeddings.result); // Full native result, including shape.
 
 final gateway = CloudflareGatewayClient(client: workers);
 final result = await gateway.runJson(
-  '@cf/meta/llama-3.1-8b-instruct',
+  modelId, // Select a model available to your account.
   {'messages': [{'role': 'user', 'content': 'Hello'}]},
   gateway: CloudflareGatewayOptions(gatewayId: 'my-gateway'),
 );

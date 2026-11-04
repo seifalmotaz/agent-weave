@@ -1,3 +1,7 @@
+## Unreleased
+
+- Stream native text SSE by default with `streamText` opt-out. Keep schema and traditional tool requests buffered and count reported usage once at completion.
+
 # 0.1.0-dev.1
 
 Initial development version with distinct Workers AI native, Gateway run and

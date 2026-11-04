@@ -16,6 +16,10 @@ export 'package:agent_weave_http/agent_weave_http.dart'
         JsonHttpException,
         JsonHttpClient;
 
+part 'src/chat_images.dart';
+
+enum OpenRouterOutputModality { text, image, audio }
+
 enum OpenRouterReasoningEffort { max, xhigh, high, medium, low, minimal, none }
 
 enum OpenRouterProviderSort { price, throughput, latency, exacto }
@@ -133,6 +137,8 @@ const _owned = {
 final class OpenRouterChatOptions {
   final JsonObject _json;
   OpenRouterChatOptions({
+    List<OpenRouterOutputModality>? modalities,
+    JsonObject? imageConfig,
     OpenRouterProviderPreferences? provider,
     List<String>? fallbackModels,
     String? route,
@@ -140,15 +146,20 @@ final class OpenRouterChatOptions {
     List<OpenRouterPlugin>? plugins,
     OpenRouterCacheControl? cacheControl,
     JsonObject extra = const {},
-  }) : _json = _options({
-         ...extra,
-         'provider': ?provider?.toJson(),
-         'models': ?fallbackModels,
-         'route': ?route,
-         'reasoning': ?reasoning?.toJson(),
-         if (plugins != null)
-           'plugins': [for (final plugin in plugins) plugin.toJson()],
-         'cache_control': ?cacheControl?.toJson(),
+  }) : _json = snapshotJson({
+         ..._options({
+           ...extra,
+           'provider': ?provider?.toJson(),
+           'image_config': ?imageConfig,
+           'models': ?fallbackModels,
+           'route': ?route,
+           'reasoning': ?reasoning?.toJson(),
+           if (plugins != null)
+             'plugins': [for (final plugin in plugins) plugin.toJson()],
+           'cache_control': ?cacheControl?.toJson(),
+         }),
+         if (modalities != null)
+           'modalities': [for (final modality in modalities) modality.name],
        });
   JsonObject toJson() => _json;
 }
@@ -292,6 +303,17 @@ final class OpenRouterClient {
       }
       if (data is! Map<String, Object?>) {
         throw JsonHttpException('Expected a JSON object');
+      }
+      if (data['error'] != null) {
+        throw JsonHttpException(
+          'OpenRouter response failed',
+          statusCode: response.statusCode,
+          requestId:
+              response.headers['x-request-id'] ??
+              response.headers['request-id'],
+          details: data,
+          responseHeaders: response.headers,
+        );
       }
       return OpenRouterResponse(
         data: data,
@@ -502,6 +524,14 @@ final class OpenRouterChatModel implements ChatModel {
     ModelRequest request, {
     required CancellationToken cancellation,
   }) async* {
+    final nativeOptions = options?.toJson() ?? const <String, Object?>{};
+    final modalities = nativeOptions['modalities'] as List? ?? const [];
+    if (modalities.contains('audio')) {
+      throw UnsupportedError('Audio output needs a separate native handler.');
+    }
+    final imageMode = modalities.contains('image');
+    _ChatImageOutput? imageOutput;
+    final pendingCalls = <ToolCallReady>[];
     final details = <JsonObject>[];
     final reasoningText = StringBuffer();
     final metadata = <String, Object?>{};
@@ -514,6 +544,7 @@ final class OpenRouterChatModel implements ChatModel {
             .cast<Map<String, dynamic>>();
         final offset = request.instructions == null ? 0 : 1;
         for (var i = 0; i < request.messages.length; i++) {
+          _restoreChatImages(request.messages[i], messages[i + offset]);
           final replay =
               request.messages[i].providerData['openrouter.chat.reasoning'];
           if (request.messages[i].role == MessageRole.assistant &&
@@ -529,48 +560,104 @@ final class OpenRouterChatModel implements ChatModel {
             }
           }
         }
-        await for (final event in client.streamChat({
-          ...body,
-          ...?options?.toJson(),
-        }, cancellation: token)) {
-          if (event is JsonSseData) {
-            final json = event.data;
-            for (final choice in json['choices'] as List? ?? []) {
-              if (choice is Map && choice['index'] == 0) {
-                final choiceMetadata = <String, Object?>{
-                  for (final entry in choice.entries)
-                    if (entry.key is String && entry.key != 'delta')
-                      entry.key as String: entry.value,
-                };
-                if (choiceMetadata.isNotEmpty) {
-                  metadata['choice'] = choiceMetadata;
-                }
-                final delta = choice['delta'];
-                if (delta is Map && delta['reasoning'] is String) {
-                  reasoningText.write(delta['reasoning']);
-                }
-                if (delta is Map && delta['reasoning_details'] is List) {
-                  details.addAll(
-                    (delta['reasoning_details'] as List).map(
-                      (e) => Map<String, Object?>.from(e as Map),
-                    ),
-                  );
-                }
+        final wire = <String, Object?>{...body, ...nativeOptions};
+        final Stream<JsonObject> source;
+        if (imageMode) {
+          final response = await client.createChat({
+            ...wire,
+            'stream': false,
+          }, cancellation: token);
+          final choices = response.data['choices'];
+          if (choices is! List ||
+              choices.length != 1 ||
+              choices.single is! Map ||
+              (choices.single as Map)['message'] is! Map<String, Object?>) {
+            throw const FormatException(
+              'Expected one completed image Chat message.',
+            );
+          }
+          imageOutput = _ChatImageOutput.decode(
+            (choices.single as Map)['message'] as JsonObject,
+          );
+          source = Stream.value(
+            _bufferedImageChunk(response.data, imageOutput!),
+          );
+        } else {
+          source = client
+              .streamChat(wire, cancellation: token)
+              .where((event) => event is JsonSseData)
+              .cast<JsonSseData>()
+              .map((event) => event.data);
+        }
+        await for (final json in source) {
+          for (final choice in json['choices'] as List? ?? []) {
+            if (choice is Map && choice['index'] == 0) {
+              final choiceMetadata = <String, Object?>{
+                for (final entry in choice.entries)
+                  if (entry.key is String && entry.key != 'delta')
+                    entry.key as String: entry.value,
+              };
+              if (choiceMetadata.isNotEmpty) {
+                metadata['choice'] = choiceMetadata;
+              }
+              final delta = choice['delta'];
+              if (delta is Map && delta.containsKey('images')) {
+                throw UnsupportedError(
+                  'Use an image modality for completed Chat image output; streamed image deltas are outside the pinned contract.',
+                );
+              }
+              if (delta is Map && delta['reasoning'] is String) {
+                reasoningText.write(delta['reasoning']);
+              }
+              if (delta is Map && delta['reasoning_details'] is List) {
+                details.addAll(
+                  (delta['reasoning_details'] as List).map(
+                    (e) => Map<String, Object?>.from(e as Map),
+                  ),
+                );
               }
             }
-            for (final entry in json.entries) {
-              if (entry.key != 'choices') metadata[entry.key] = entry.value;
-            }
-            yield json;
           }
+          for (final entry in json.entries) {
+            if (entry.key != 'choices') metadata[entry.key] = entry.value;
+          }
+          yield json;
         }
       },
     );
     await for (final event in delegate.stream(
-      request,
+      _textOnlyChatRequest(request),
       cancellation: cancellation,
     )) {
+      if (event is ToolCallReady) {
+        pendingCalls.add(event);
+        continue;
+      }
       if (event is ModelFinished) {
+        if (!{
+              'stop',
+              'length',
+              'tool_calls',
+              'content_filter',
+            }.contains(event.reason) ||
+            (pendingCalls.isNotEmpty && event.reason != 'tool_calls') ||
+            (pendingCalls.isEmpty && event.reason == 'tool_calls')) {
+          throw const FormatException(
+            'Chat finish reason does not permit this output.',
+          );
+        }
+        if (imageOutput case final output? when output.images.isNotEmpty) {
+          for (final image in output.images) {
+            yield ContentPartReady(image.part, textOffset: image.offset);
+          }
+          yield ProviderOutput(
+            provider: 'openrouter.chat.images',
+            items: [output.source],
+          );
+        }
+        for (final call in pendingCalls) {
+          yield call;
+        }
         if (details.isNotEmpty) {
           yield ProviderOutput(
             provider: 'openrouter.chat.reasoning',

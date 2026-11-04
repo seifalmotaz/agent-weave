@@ -8,6 +8,8 @@ The [machine-readable inventory](openrouter-api-inventory.json) records each ope
 
 Run `python3 tool/openrouter_contract.py --check` offline to verify the snapshot and generated outputs. `--upstream` compares the current official document without updating any files. See `tool/contracts/openrouter/README.md` for attribution and source provenance.
 
+Chat `modalities` has selected normalized text/image support via typed options; image output uses completed JSON assistant messages, not undocumented streaming deltas. `image_config` is preserved as model-specific JSON. Audio output, the dedicated Images API, and Responses modalities remain outside this integration. See [OpenRouter images](openrouter-images.md).
+
 | Method | Path | Status |
 | --- | --- | --- |
 | GET | `/activity` | not-integrated |

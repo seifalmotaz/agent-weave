@@ -21,13 +21,13 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest hosted-tools and provider-guard increment was checked on Dart 3.12.2. The prior
+The latest native-provider media and streaming increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 427 Dart unit and regression tests: tool validation, approvals, client tools,
+- 437 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 17 Serverpod integration tests with a real isolated PostgreSQL database:
+- 18 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -501,3 +501,35 @@ No paid calls were made for this increment. Live hosted tools, search quality,
 containers, complete native provider semantics and device image rendering remain
 unverified. Public citations, hosted progress and partial images are not
 normalized. Packages remain unpublished.
+
+
+## OpenRouter images and Cloudflare streaming increment
+
+With Dart 3.12.2, the full local check passes 437 unit/regression tests, 18 real
+PostgreSQL/Serverpod tests, the official JavaScript client scenarios, all native
+Dart consumers and provider contract checks. Three documentation checks and a
+strict site build pass. Image fixture integrity checks now include the new
+OpenRouter consumer and PostgreSQL fixture.
+
+OpenRouter Chat image output uses its pinned completed assistant-message schema,
+with a buffered request. Tests cover remote/data URLs, ordered content arrays,
+multiple images, opaque replay, supplied-schema/tool guards, filtered/error
+finishes, invalid output, redacted JSON error envelopes with request IDs and
+cancellation while waiting for headers. A real PostgreSQL test recreates the
+agent at approval, verifies no early tool effect, and replays the original image
+array alongside the selected function call/result. Public history omits private
+signatures. Streamed Chat image deltas are rejected; the separate Image API is
+not implemented by this adapter.
+
+Cloudflare native text tests verify incremental response chunks before upstream
+completion, `[DONE]`, cancellation and a surviving sibling, Gateway headers,
+option snapshots, schema/tool buffered fallback, explicit opt-out, malformed
+streams and premature EOF. Repeated complete usage frames are treated as
+cumulative snapshots and emitted once at completion; this behavior is bounded
+and has not been live-verified across model variants.
+
+An independent developer wrote and ran both loopback programs and scores each
+selected path 8/10. The OpenRouter guide byte-matches its example, which analyzes
+and compiles without execution. `result.images` includes images produced during
+current-run tool steps and excludes prior runs. No paid calls were made; live
+provider/model acceptance, billing and device rendering remain unverified.

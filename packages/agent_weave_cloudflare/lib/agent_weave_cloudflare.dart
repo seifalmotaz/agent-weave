@@ -714,10 +714,12 @@ final class CloudflareChatModel implements ChatModel {
   final CloudflareClient client;
   final String model;
   final JsonObject options;
+  final bool streamText;
   CloudflareChatModel({
     required this.client,
     required this.model,
     JsonObject options = const {},
+    this.streamText = true,
   }) : options = snapshotJson(options) {
     if (options.keys.any(
       {
@@ -793,7 +795,7 @@ final class CloudflareChatModel implements ChatModel {
         messages.add({'role': m.role.name, 'content': m.text});
       }
     }
-    final response = await client.runJson(model, {
+    final body = <String, Object?>{
       ...options,
       'messages': messages,
       'max_tokens': request.maxOutputTokens,
@@ -811,7 +813,48 @@ final class CloudflareChatModel implements ChatModel {
           'type': 'json_schema',
           'json_schema': request.outputSchema,
         },
-    }, cancellation: cancellation);
+    };
+    final hasToolHistory = request.messages.any(
+      (message) =>
+          message.toolCalls.isNotEmpty || message.role == MessageRole.tool,
+    );
+    if (streamText &&
+        request.outputSchema == null &&
+        request.tools.isEmpty &&
+        !hasToolHistory) {
+      var sawResponse = false;
+      TokenUsage? reportedUsage;
+      await for (final event in client.stream(
+        model,
+        body,
+        cancellation: cancellation,
+      )) {
+        if (event is JsonSseDone) {
+          cancellation.throwIfCancelled();
+          if (!sawResponse) throw CloudflareException('Invalid native stream');
+          if (reportedUsage != null) yield reportedUsage;
+          yield const ModelFinished();
+          return;
+        }
+        final data = (event as JsonSseData).data;
+        if (data.containsKey('tool_calls') ||
+            (data.containsKey('response') && data['response'] is! String) ||
+            (!data.containsKey('response') && !data.containsKey('usage'))) {
+          throw CloudflareException('Unsupported native stream payload');
+        }
+        if (data['response'] case final String content) {
+          sawResponse = true;
+          if (content.isNotEmpty) yield TextDelta(content);
+        }
+        reportedUsage = _nativeUsage(data['usage']) ?? reportedUsage;
+      }
+      throw CloudflareException('Native stream ended before completion');
+    }
+    final response = await client.runJson(
+      model,
+      body,
+      cancellation: cancellation,
+    );
     final result = response.json?['result'];
     if (result is! Map) throw CloudflareException('Invalid native result');
     final content = result['response'];
@@ -853,10 +896,20 @@ final class CloudflareChatModel implements ChatModel {
         );
       }
     }
+    final usage = _nativeUsage(result['usage']);
+    if (usage != null) yield usage;
     yield ModelFinished(
       calls is List && calls.isNotEmpty ? 'tool_calls' : 'stop',
     );
   }
+}
+
+TokenUsage? _nativeUsage(Object? value) {
+  if (value is! Map) return null;
+  final input = value['prompt_tokens'];
+  final output = value['completion_tokens'];
+  if (input is! int || output is! int || input < 0 || output < 0) return null;
+  return TokenUsage(inputTokens: input, outputTokens: output);
 }
 
 /// Token-bound field spelling differs across compatible models.

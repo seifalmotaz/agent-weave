@@ -80,6 +80,7 @@ nav:
       - OpenAI capabilities: openai.md
       - OpenAI hosted tools: openai-hosted.md
       - OpenRouter: openrouter.md
+      - OpenRouter Chat images: openrouter-images.md
       - Cloudflare Workers AI and AI Gateway: cloudflare.md
       - Together: together.md
       - Vercel AI Gateway: vercel-gateway.md

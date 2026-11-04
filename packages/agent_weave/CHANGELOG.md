@@ -1,5 +1,7 @@
 # Unreleased
 
+- Add `AgentResult.images` for assistant images produced during the current run, including intermediate tool steps.
+
 - Add ordered completed media parts, sanitized client snapshots and hydration.
 - Add lossless typed JSON patches and exact numeric JSON comparison for provider ownership guards.
 

@@ -142,10 +142,20 @@ final chat = cf.CloudflareCompatibleChatModel(
 ```
 
 `CloudflareChatModel` requires an explicit model and implements the documented
-Hermes traditional single-tool continuation. It performs non-streamed native
-requests even when used through the core stream API, accepts text parts, and
-rejects multi-call continuation. Its structured-output mode sends a bare JSON
-schema. Availability of the legacy Hermes model has not been verified; do not
+Hermes traditional single-tool continuation. Text-only requests stream native
+SSE responses by default; set `streamText: false` for models that require
+buffered text. Streams must include a text response and the `[DONE]` marker.
+When complete token counts are reported in multiple stream frames, the adapter
+emits the latest complete counts once at `[DONE]`; partial counts are omitted.
+JSON schema requests and requests with registered tools or tool history remain
+buffered. Cloudflare documents that [JSON mode does not support streaming](https://developers.cloudflare.com/workers-ai/features/json-mode/).
+The native `response` chunks and `[DONE]` framing follow
+[Cloudflare's streaming example](https://blog.cloudflare.com/workers-ai-streaming/);
+that older article does not prove current catalog availability. Use the
+[current model catalog](https://developers.cloudflare.com/workers-ai/models/)
+to choose a model; the adapter does not download or select one automatically.
+The adapter accepts text parts and rejects multi-call continuation. Its
+structured-output mode sends a bare JSON schema. Availability of the legacy Hermes model has not been verified; do not
 assume that another native model supports this continuation format. Tool
 execution and approvals remain the runtime's responsibility.
 

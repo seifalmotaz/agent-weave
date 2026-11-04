@@ -123,7 +123,8 @@ python3 tool/openrouter_contract.py --check
 ```
 
 Review source drift, the field statuses, implementation and fixture behavior
-together before changing the hash. New fields forwarded through native JSON
+together before changing the hash. New and removed request fields both require
+a disposition update; stale classifications fail the check. New fields forwarded through native JSON
 still need a disposition and tests for any claimed orchestration. See
 `tool/contracts/openrouter/README.md` for provenance and retained license.
 

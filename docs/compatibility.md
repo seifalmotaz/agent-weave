@@ -63,8 +63,9 @@ not a claim of full TanStack AI core parity.
   implications.
 - OpenRouter has separate native Chat and stateless Responses adapters. Selected
   routing, plugin and cache options, ordered private reasoning replay and compact
-  provider/cost metadata have offline fixtures. Complete management, background,
-  hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
+  provider/cost metadata have offline fixtures. Selected Chat image output uses
+  completed messages with private replay across approvals. Complete management,
+  background, hosted tools, dedicated Image API and other media remain unfinished. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
   Pinned hosted blocks, bounded paused turns and container reuse are integrated

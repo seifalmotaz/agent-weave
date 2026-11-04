@@ -10,8 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 FIXTURES = [
     'tool/interop/server.dart',
     'examples/review_cases/openai_hosted.dart',
+    'examples/review_cases/openrouter_images.dart',
     'examples/review_cases/output_media_client.dart',
     'examples/serverpod/agent_weave_demo_server/test/integration/output_media_test.dart',
+    'examples/serverpod/agent_weave_demo_server/test/integration/openrouter_images_test.dart',
 ]
 
 

@@ -123,6 +123,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
 - [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
+- [OpenRouter Chat images](docs/openrouter-images.md)
 - [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)
 - [Together Chat Completions](docs/together.md)
 - [Vercel AI Gateway](docs/vercel-gateway.md)

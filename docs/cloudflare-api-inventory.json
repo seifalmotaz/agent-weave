@@ -31971,7 +31971,7 @@
       "summary": "Run an AI model with request options"
     },
     {
-      "implementation": "Native JSON/binary input and raw SSE; selected typed model helpers and single-call chat adapter.",
+      "implementation": "Native JSON/binary input and raw SSE; selected typed helpers, normalized native text SSE with buffered schema and single-call tool requests.",
       "method": "POST",
       "operationId": "workers-ai-post-run-model",
       "parameters": [

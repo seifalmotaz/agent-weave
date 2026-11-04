@@ -34,6 +34,19 @@ class ContractTest(unittest.TestCase):
         self.assertEqual(next(op for op in inventory['operations'] if op['path'] == '/new')['status'], 'not-integrated')
         self.assertEqual(inventory['operationCount'], 147)
 
+    def test_selected_chat_image_modes_are_distinct_from_raw_fields(self):
+        inventory = build_inventory(json.loads(CONTRACT.read_text()))
+        status = inventory['requestFieldStatus']
+        self.assertEqual(status['ChatRequest']['modalities'], 'selected-output-mode')
+        self.assertEqual(status['ChatRequest']['image_config'], 'native-forward-preserved')
+        self.assertEqual(status['ResponsesRequest']['modalities'], 'not-integrated')
+
+    def test_removed_request_field_requires_review(self):
+        doc = json.loads(CONTRACT.read_text())
+        del doc['components']['schemas']['ChatRequest']['properties']['modalities']
+        with self.assertRaisesRegex(ValueError, 'Stale ChatRequest dispositions.*modalities'):
+            build_inventory(doc)
+
     def test_new_request_field_requires_review(self):
         doc = json.loads(CONTRACT.read_text())
         doc['components']['schemas']['ChatRequest']['properties']['future_request_mode'] = {'type': 'string'}

@@ -125,6 +125,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
 - [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
+- [OpenRouter Chat images](docs/openrouter-images.md)
 - [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)
 - [Together Chat Completions](docs/together.md)
 - [Vercel AI Gateway](docs/vercel-gateway.md)
@@ -174,6 +175,11 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   local fixture and consumer coverage. Live search/code/container behavior,
   browser/MCP tools, public citation rendering and full nested semantics remain
   open. Constructor coverage is not workflow certification.
+- OpenRouter Chat now handles selected completed text/image output, with private
+  replay across approvals; its dedicated Image API, streamed Chat image extensions
+  and audio remain open. Native Cloudflare text now streams documented response
+  chunks; schema and traditional tools stay buffered. Model support and live
+  behavior remain unverified.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.
@@ -249,7 +255,9 @@ browser history as trusted seed data. HTTP routes accept only user additions
 to server-owned history.
 
 `result.text` contains the final assistant message. `responseMessages` includes
-this run's intermediate assistant/tool messages. `messages` is the complete
+this run's intermediate assistant/tool messages. `images` is an immutable list of
+images produced by assistant messages in this run, including intermediate tool
+steps; it excludes user inputs and previous runs. `messages` is the complete
 server-side conversation snapshot, including private provider continuation
 state. Use `chatHydration` when returning stored history to a UI.
 
@@ -876,6 +884,29 @@ chunk completion and decompressed pixel data in all four consumer sources.
 Client transport/order checks do not constitute image-rendering evidence.
 
 
+## Round 16: native provider media and streaming
+
+# Round 16 independent consumer review
+
+Scope: offline loopback exercises; no provider credentials or paid requests.
+
+Cloudflare native chat: **8/10 for tested text-streaming DX**. `dart run examples/review_cases/cloudflare_streaming.dart` passed. A chunk arrives before the server releases the rest; another request completes while it is held, and canceling the first does not prevent that sibling. The case also checks snapshotted options, request-owned option rejection, typed structured-output and tool fallback, explicit opt-out, malformed payload and premature EOF. `dart analyze examples/review_cases/cloudflare_streaming.dart` passed. Tool execution/replay is covered by the pre-existing `cloudflare.dart` consumer, not this new case. No live provider or network reliability claim.
+
+OpenRouter generated images: **8/10 for the tested buffered Chat path**. `dart run examples/review_cases/openrouter_images.dart` and `dart analyze examples/review_cases/openrouter_images.dart` passed. Two images and their native fields survive in order through an approval pause and a recreated agent; public hydration and a different owner do not expose the private signatures. Options are snapshotted, and malformed JSON, missing choices, invalid image URL and audio output are rejected. The exact native images array is replayed. Typed configure preserves the runtime token limit and rejects changes to supplied instructions, schema, and tools before dispatch. Canceling a buffered request while headers are pending leaves a sibling using the same parent token able to complete and does not cancel the parent. No live provider was exercised.
+
+Usage feedback: `OpenRouterChatOptions(modalities: [OpenRouterOutputModality.text, OpenRouterOutputModality.image], imageConfig: {...})` is discoverable and concise, and the normal `ImagePart` avoids provider-specific rendering. The guide should state near this example that requesting image output uses a buffered request, image support depends on the selected provider/model, Chat text precedes images, and audio output is rejected by the normalized agent. `imageConfig` is a native JSON escape hatch, so its accepted keys and values must come from provider documentation; no compile-time validation is implied. The consumer does not exercise a live model or cancellation after response headers. Adding a response format through configure when no runtime schema was supplied was accepted; the guard test covers replacing an existing runtime schema.
+
+
+The independent contract review found and reproduced image replay metadata
+replacing an assistant role; the replay decoder now permits only its owned
+content/refusal/image keys. It also found missing request IDs on buffered error
+envelopes. Both regressions are retained in the package suite. The selected
+Chat image contract is completed messages, not assumed streaming fragments.
+
+
+Final guide review: the first Dart block in `docs/openrouter-images.md` byte-matches `examples/openrouter_images_demo.dart`. The demo and both consumer files analyze cleanly, and the demo compiles to a Dart kernel without executing a billable request. The guide matches the inspected API and explains the buffered boundary, model support, ordering, privacy and `result.images` scope. The consumer verifies that `result.images` includes the interrupted tool step's two images and excludes those images from the resumed run. Both independent loopback consumers passed again after the guide/API changes. No paid call, image rendering, or live provider verification was performed.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -1185,6 +1216,22 @@ submission, document that limit rather than silently promising cancellation.
 
 The fixture providers in `packages/agent_weave/test` and the offline example
 demonstrate custom implementations without any OpenAI dependency.
+
+## Completed media
+
+Emit `ContentPartReady(ImagePart(url))` for a completed generated image. Text
+continues through `TextDelta`. The optional `textOffset` places media at a UTF-16
+offset in the text accumulated for this invocation; omit it to use the current
+position. Offsets must be nondecreasing and cannot point beyond received text.
+The runtime preserves this order in assistant history and sanitized client
+snapshots. `AgentResult.images` collects assistant images from the current run.
+
+Validate provider URLs and complete payloads before emitting media. Keep opaque
+image signatures and continuation fields in `ProviderOutput`, with a distinct
+provider namespace. Bind replay to its public content before restoring it;
+provider data must not overwrite roles, registered calls, schema or history.
+Partial image previews need a separate progress contract; do not publish them
+as completed content.
 
 ## Native tools
 
@@ -2372,6 +2419,14 @@ belong in `options` or `extra`. Neither path can replace runtime history or
 registered function definitions. Native JSON client methods are separate for
 requests the normalized agent does not implement.
 
+## Generated images
+
+Use [Chat image output](openrouter-images.md) with explicit text/image modalities
+for a completed assistant message. Ordinary text uses SSE; image requests are
+buffered because the pinned Chat stream schema does not define image deltas.
+Images and opaque replay fields survive tool approvals and server-owned history.
+The dedicated `/images` API remains a separate, unimplemented workflow.
+
 ## Responses and private replay
 
 Use `OpenRouterResponsesModel(client: client, model: modelId, options: ...)`
@@ -2409,7 +2464,7 @@ JSON responses expose `data`, `statusCode` and headers. Streaming preserves
 unknown event fields and detects inline errors and premature EOF.
 
 The native client does not implement management APIs or every modality. Hosted
-server tools, background-job handling, output media and all model variants still
+server tools, background-job handling, other output media and all model variants still
 need dedicated runtime behavior. See the [API inventory](openrouter-api-reference.md)
 for all pinned operations and fields, including those not integrated.
 
@@ -2442,6 +2497,135 @@ available for SDK-compatible parameters. See [coverage](provider-coverage.md),
 [validation](validation.md) and [the independent review](dx-review.md).
 
 
+# Source: docs/openrouter-images.md
+
+# Images from OpenRouter Chat
+
+Request image output through `OpenRouterChatOptions.modalities`. The normalized
+agent supports text and image output. Its typed enum also represents audio for
+native requests, but the agent rejects audio before sending a request because
+it does not implement that output lifecycle.
+
+Select a model and provider that support image output through Chat Completions.
+Availability and accepted configuration vary; this guide does not recommend a
+particular model. The separate OpenRouter `/images` API is not implemented by
+this Chat adapter.
+
+## Generate images from Dart
+
+Set `OPENROUTER_API_KEY` and `OPENROUTER_IMAGE_CHAT_MODEL` on the backend. Running
+this example makes a billable request. The repository analyzes and compiles it
+without execution.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openrouter/agent_weave_openrouter.dart' as router;
+
+Future<void> main() async {
+  final key = Platform.environment['OPENROUTER_API_KEY'];
+  final modelId = Platform.environment['OPENROUTER_IMAGE_CHAT_MODEL'];
+  if (key == null || modelId == null) {
+    throw StateError('Set OPENROUTER_API_KEY and OPENROUTER_IMAGE_CHAT_MODEL.');
+  }
+  final client = router.OpenRouterClient.withApiKey(apiKey: key);
+  try {
+    final result = await generateText(
+      model: router.OpenRouterChatModel(
+        client: client,
+        model: modelId,
+        options: router.OpenRouterChatOptions(
+          modalities: [
+            router.OpenRouterOutputModality.text,
+            router.OpenRouterOutputModality.image,
+          ],
+          imageConfig: {'aspect_ratio': '1:1'},
+        ),
+      ),
+      prompt: 'Draw a small red sailboat and describe it briefly.',
+    );
+    print(result.text);
+    print('Generated ${result.images.length} images.');
+    for (final image in result.images) {
+      // Pass image.url to your renderer or application-owned artifact store.
+      print('Image reference has ${image.url.length} characters.');
+    }
+  } finally {
+    client.close();
+  }
+}
+```
+
+The complete program is also in
+[`examples/openrouter_images_demo.dart`](https://github.com/seifalmotaz/agent-weave/blob/main/examples/openrouter_images_demo.dart).
+Use the same model in an `AiAgent` behind an authenticated Serverpod endpoint;
+the runtime owns tools, approvals and history.
+
+`result.images` contains images produced by assistant messages in this run,
+including intermediate tool steps. It excludes user image inputs and previous
+runs. `result.messages` includes the complete stored history and private replay;
+use `chatHydration` to return public history to a client.
+
+## Completed Chat messages, not image stream fragments
+
+Ordinary text Chat requests use SSE. Requesting an image modality sends
+`stream: false` and reads a completed native Chat response. The pinned Chat
+schema defines `assistant.images`; its streaming delta does not define image
+fragments, image IDs or image indexes. The adapter rejects image-bearing SSE
+deltas rather than silently dropping them or guessing how to assemble them.
+
+For a string `content` and separate `images` array, the public result places
+text before the images, retaining image-array order. The schema does not define
+cross-order between these two fields. If `content` itself is an array of text
+and image parts, its explicit order is retained, followed by the separate
+`images` array. No image deduplication or index inference is performed.
+
+Image references may be absolute HTTP(S) URLs without credentials or nonempty
+base64 image data URLs. Other URI forms are rejected by this adapter. Remote
+images are not downloaded; data URLs are checked for valid base64 but are not
+raster-decoded. Your application owns rendering, storage limits, expired URLs
+and any artifact hosting.
+
+## Native configuration and safe continuation
+
+`imageConfig` snapshots model-specific JSON without inventing universal sizes
+or aspect ratios. Native unknown fields remain intact. The provider validates
+its accepted configuration; a JSON map is not compile-time validation of every
+model option. `extra` cannot replace runtime-owned history, tools, schema,
+token bounds, streaming or modality selection.
+
+The existing typed `configure` callback still protects runtime fields. It can
+set provider parameters such as temperature. It cannot replace a supplied
+schema or instructions or advertise an unregistered function.
+
+Image continuation is stored privately under `openrouter.chat.images`. It
+retains the original content, refusal and image payloads, including opaque
+fields on images. Restoring history checks that this payload matches the
+assistant's public content; it cannot replace roles or tool calls. Function
+calls, reasoning and metadata retain their existing separate handling.
+
+Mixed image/function responses pause for normal approvals. Images are stored
+before the pause, and a recreated agent replays them with the selected function
+result after approval. Invalid images, mismatched replay and error or filtered
+tool-call finishes do not release a local call. Buffered JSON error envelopes
+retain redacted diagnostics and request IDs.
+
+## Contract and verification
+
+The [OpenRouter API inventory](openrouter-api-reference.md) follows the pinned
+[official OpenAPI](https://openrouter.ai/openapi.json). The current
+[image-generation guide](https://openrouter.ai/docs/guides/overview/multimodal/image-generation)
+describes the dedicated Image API. Its partial-image event types and parameter
+limits do not establish Chat behavior.
+
+Local tests cover completed messages, content-array ordering, multiple data and
+HTTP(S) image references, exact private replay, ownership guards, configuration,
+errors, cancellation and approval recreation. The independent consumer scores
+this selected path 8/10. No live model, billing or device rendering was tested.
+See [validation](validation.md) for the exact evidence and open work.
+
+
 # Source: docs/openrouter-api-reference.md
 
 # OpenRouter API inventory
@@ -2453,6 +2637,8 @@ The pinned schema describes 146 operations across 108 paths. Chat completions an
 The [machine-readable inventory](openrouter-api-inventory.json) records each operation, request, response, parameter and header contract, and each component field, union and constraint. Credential-shaped example values are redacted. Original-source and sanitized-snapshot hashes are separate. References point to the schema snapshot in `tool/contracts/openrouter/openapi.json`. A schema entry or native field forwarding does not establish supported runtime orchestration or model behavior.
 
 Run `python3 tool/openrouter_contract.py --check` offline to verify the snapshot and generated outputs. `--upstream` compares the current official document without updating any files. See `tool/contracts/openrouter/README.md` for attribution and source provenance.
+
+Chat `modalities` has selected normalized text/image support via typed options; image output uses completed JSON assistant messages, not undocumented streaming deltas. `image_config` is preserved as model-specific JSON. Audio output, the dedicated Images API, and Responses modalities remain outside this integration. See [OpenRouter images](openrouter-images.md).
 
 | Method | Path | Status |
 | --- | --- | --- |
@@ -2871,10 +3057,20 @@ final chat = cf.CloudflareCompatibleChatModel(
 ```
 
 `CloudflareChatModel` requires an explicit model and implements the documented
-Hermes traditional single-tool continuation. It performs non-streamed native
-requests even when used through the core stream API, accepts text parts, and
-rejects multi-call continuation. Its structured-output mode sends a bare JSON
-schema. Availability of the legacy Hermes model has not been verified; do not
+Hermes traditional single-tool continuation. Text-only requests stream native
+SSE responses by default; set `streamText: false` for models that require
+buffered text. Streams must include a text response and the `[DONE]` marker.
+When complete token counts are reported in multiple stream frames, the adapter
+emits the latest complete counts once at `[DONE]`; partial counts are omitted.
+JSON schema requests and requests with registered tools or tool history remain
+buffered. Cloudflare documents that [JSON mode does not support streaming](https://developers.cloudflare.com/workers-ai/features/json-mode/).
+The native `response` chunks and `[DONE]` framing follow
+[Cloudflare's streaming example](https://blog.cloudflare.com/workers-ai-streaming/);
+that older article does not prove current catalog availability. Use the
+[current model catalog](https://developers.cloudflare.com/workers-ai/models/)
+to choose a model; the adapter does not download or select one automatically.
+The adapter accepts text parts and rejects multi-call continuation. Its
+structured-output mode sends a bare JSON schema. Availability of the legacy Hermes model has not been verified; do not
 assume that another native model supports this continuation format. Tool
 execution and approvals remain the runtime's responsibility.
 
@@ -4091,10 +4287,10 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. | See [OpenAI audit](openai-options-audit.md): MCP/shell/custom/patch continuations, public citations, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
 | Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Complete nested semantics, browser/MCP tools, other endpoint workflows and live hosted behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
-| OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, all hosted tools/media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
+| OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Selected completed Chat image output, private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, hosted tools, dedicated Images API, other media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
-| Cloudflare Workers AI / AI Gateway | Native run, model discovery and selected embedding, transcription, image and traditional chat adapters; Gateway run and compatible Chat and Responses. | Model-specific schemas, availability, live acceptance, caching, binary audio and billing remain unverified. Native traditional tool continuation covers the documented Hermes single-call format only. See [Cloudflare](cloudflare.md). |
+| Cloudflare Workers AI / AI Gateway | Native run, model discovery, streamed text and selected embedding, transcription, image and traditional chat adapters; Gateway run and compatible Chat and Responses. | Model-specific schemas, availability, live acceptance, caching, binary audio and billing remain unverified. Native traditional tool continuation covers the documented Hermes single-call format only. See [Cloudflare](cloudflare.md). |
 | Ollama native local API | Native JSON/NDJSON chat and generate transport, agent chat with thinking/tool replay, typed SDK options and embeddings. The [inventory](ollama-parameters.md) covers four selected operations and reviewed Go-only fields. | No real daemon, downloaded model or Flutter device has been tested. Model availability, remote/legacy tool fragment rules, other endpoints and exhaustive option semantics remain unverified. See [Ollama](ollama.md). |
 | Other providers | Custom `ChatModel` can be implemented by users. | No blanket support or parity claim. Add named provider/API/version inventory entries and evidence before advertising them. Model availability, feature support and defaults are not stable constants. |
 
@@ -4180,8 +4376,9 @@ not a claim of full TanStack AI core parity.
   implications.
 - OpenRouter has separate native Chat and stateless Responses adapters. Selected
   routing, plugin and cache options, ordered private reasoning replay and compact
-  provider/cost metadata have offline fixtures. Complete management, background,
-  hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
+  provider/cost metadata have offline fixtures. Selected Chat image output uses
+  completed messages with private replay across approvals. Complete management,
+  background, hosted tools, dedicated Image API and other media remain unfinished. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
   Pinned hosted blocks, bounded paused turns and container reuse are integrated
@@ -4343,7 +4540,8 @@ python3 tool/openrouter_contract.py --check
 ```
 
 Review source drift, the field statuses, implementation and fixture behavior
-together before changing the hash. New fields forwarded through native JSON
+together before changing the hash. New and removed request fields both require
+a disposition update; stale classifications fail the check. New fields forwarded through native JSON
 still need a disposition and tests for any claimed orchestration. See
 `tool/contracts/openrouter/README.md` for provenance and retained license.
 
@@ -4483,13 +4681,13 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest hosted-tools and provider-guard increment was checked on Dart 3.12.2. The prior
+The latest native-provider media and streaming increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 427 Dart unit and regression tests: tool validation, approvals, client tools,
+- 437 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 17 Serverpod integration tests with a real isolated PostgreSQL database:
+- 18 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -4963,6 +5161,38 @@ No paid calls were made for this increment. Live hosted tools, search quality,
 containers, complete native provider semantics and device image rendering remain
 unverified. Public citations, hosted progress and partial images are not
 normalized. Packages remain unpublished.
+
+
+## OpenRouter images and Cloudflare streaming increment
+
+With Dart 3.12.2, the full local check passes 437 unit/regression tests, 18 real
+PostgreSQL/Serverpod tests, the official JavaScript client scenarios, all native
+Dart consumers and provider contract checks. Three documentation checks and a
+strict site build pass. Image fixture integrity checks now include the new
+OpenRouter consumer and PostgreSQL fixture.
+
+OpenRouter Chat image output uses its pinned completed assistant-message schema,
+with a buffered request. Tests cover remote/data URLs, ordered content arrays,
+multiple images, opaque replay, supplied-schema/tool guards, filtered/error
+finishes, invalid output, redacted JSON error envelopes with request IDs and
+cancellation while waiting for headers. A real PostgreSQL test recreates the
+agent at approval, verifies no early tool effect, and replays the original image
+array alongside the selected function call/result. Public history omits private
+signatures. Streamed Chat image deltas are rejected; the separate Image API is
+not implemented by this adapter.
+
+Cloudflare native text tests verify incremental response chunks before upstream
+completion, `[DONE]`, cancellation and a surviving sibling, Gateway headers,
+option snapshots, schema/tool buffered fallback, explicit opt-out, malformed
+streams and premature EOF. Repeated complete usage frames are treated as
+cumulative snapshots and emitted once at completion; this behavior is bounded
+and has not been live-verified across model variants.
+
+An independent developer wrote and ran both loopback programs and scores each
+selected path 8/10. The OpenRouter guide byte-matches its example, which analyzes
+and compiles without execution. `result.images` includes images produced during
+current-run tool steps and excludes prior runs. No paid calls were made; live
+provider/model acceptance, billing and device rendering remain unverified.
 
 
 # Source: CONTRIBUTING.md

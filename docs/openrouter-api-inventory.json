@@ -83649,7 +83649,7 @@
       "messages": "canonical-runtime",
       "metadata": "native-forward-preserved",
       "min_p": "native-forward-preserved",
-      "modalities": "not-integrated",
+      "modalities": "selected-output-mode",
       "model": "canonical-runtime",
       "models": "native-forward-preserved",
       "parallel_tool_calls": "native-forward-preserved",
@@ -83737,5 +83737,5 @@
     "transformation": "Credential-shaped example strings redacted; schema fields and constraints retained.",
     "url": "https://openrouter.ai/openapi.json"
   },
-  "verification": "Offline schema inventory, not proof of upstream model support or live API behavior. Canonical fields are runtime owned with supported shapes and history bounds; native-forward-preserved fields pass through options.extra without claiming orchestration or validation. Stateful Responses store:true and non-null previous_response_id are rejected."
+  "verification": "Offline schema inventory, not proof of upstream model support or live API behavior. Canonical fields are runtime owned with supported shapes and history bounds; native-forward-preserved fields pass through native options without claiming full orchestration or validation. Chat modalities use typed text/image selection with buffered completed image output and private replay; normalized audio and Responses modalities remain unsupported. Stateful Responses store:true and non-null previous_response_id are rejected."
 }

@@ -33,10 +33,10 @@ CANONICAL = {
     'ResponsesRequest': {'model', 'input', 'instructions', 'max_output_tokens', 'tools', 'tool_choice', 'text', 'stream'},
 }
 FORWARDED = {
-    'ChatRequest': {'cache_control', 'debug', 'deferred_tools', 'frequency_penalty', 'image_config', 'logit_bias', 'logprobs', 'metadata', 'min_p', 'models', 'parallel_tool_calls', 'plugins', 'prediction', 'presence_penalty', 'prompt_cache_key', 'prompt_cache_options', 'provider', 'reasoning', 'reasoning_effort', 'repetition_penalty', 'route', 'seed', 'service_tier', 'session_id', 'stop', 'stop_server_tools_when', 'temperature', 'top_a', 'top_k', 'top_logprobs', 'top_p', 'trace', 'user'},
+    'ChatRequest': {'modalities', 'cache_control', 'debug', 'deferred_tools', 'frequency_penalty', 'image_config', 'logit_bias', 'logprobs', 'metadata', 'min_p', 'models', 'parallel_tool_calls', 'plugins', 'prediction', 'presence_penalty', 'prompt_cache_key', 'prompt_cache_options', 'provider', 'reasoning', 'reasoning_effort', 'repetition_penalty', 'route', 'seed', 'service_tier', 'session_id', 'stop', 'stop_server_tools_when', 'temperature', 'top_a', 'top_k', 'top_logprobs', 'top_p', 'trace', 'user'},
     'ResponsesRequest': {'access_programs', 'background', 'cache_control', 'debug', 'deferred_tools', 'frequency_penalty', 'image_config', 'include', 'max_tool_calls', 'metadata', 'models', 'parallel_tool_calls', 'plugins', 'presence_penalty', 'prompt', 'prompt_cache_key', 'prompt_cache_options', 'provider', 'reasoning', 'route', 'safety_identifier', 'service_tier', 'session_id', 'stop', 'stop_server_tools_when', 'temperature', 'top_k', 'top_logprobs', 'top_p', 'trace', 'truncation', 'user'},
 }
-NOT_INTEGRATED = {'ChatRequest': {'modalities'}, 'ResponsesRequest': {'modalities', 'previous_response_id', 'store'}}
+NOT_INTEGRATED = {'ChatRequest': set(), 'ResponsesRequest': {'modalities', 'previous_response_id', 'store'}}
 
 
 def json_text(value):
@@ -67,16 +67,19 @@ def build_inventory(document, source_sha=SHA256):
     field_status = {}
     for schema in ['ChatRequest', 'ResponsesRequest']:
         fields = document['components']['schemas'][schema].get('properties', {})
+        stale = (CANONICAL[schema] | FORWARDED[schema] | NOT_INTEGRATED[schema]) - fields.keys()
+        if stale:
+            raise ValueError(f'Stale {schema} dispositions: {sorted(stale)}')
         unreviewed = fields.keys() - CANONICAL[schema] - FORWARDED[schema] - NOT_INTEGRATED[schema]
         if unreviewed:
             raise ValueError(f'Unreviewed {schema} fields: {sorted(unreviewed)}')
         field_status[schema] = {name: ('canonical-runtime' if name in CANONICAL[schema] else
-                                      'not-integrated' if name in NOT_INTEGRATED[schema] else 'native-forward-preserved')
+                                      'not-integrated' if name in NOT_INTEGRATED[schema] else 'selected-output-mode' if schema == 'ChatRequest' and name == 'modalities' else 'native-forward-preserved')
                                 for name in sorted(fields)}
     return {'source': {'url': SOURCE, 'sha256': source_sha, 'snapshotSha256': SNAPSHOT_SHA256, 'transformation': 'Credential-shaped example strings redacted; schema fields and constraints retained.', 'reviewed': '2026-11-04',
                        'license': 'MIT', 'snapshot': 'tool/contracts/openrouter/openapi.json'},
             'scope': 'All OpenAPI operations and components. Operation contracts and component field inventories retain references; the snapshot is authoritative for complete schemas and descriptions.',
-            'verification': 'Offline schema inventory, not proof of upstream model support or live API behavior. Canonical fields are runtime owned with supported shapes and history bounds; native-forward-preserved fields pass through options.extra without claiming orchestration or validation. Stateful Responses store:true and non-null previous_response_id are rejected.',
+            'verification': 'Offline schema inventory, not proof of upstream model support or live API behavior. Canonical fields are runtime owned with supported shapes and history bounds; native-forward-preserved fields pass through native options without claiming full orchestration or validation. Chat modalities use typed text/image selection with buffered completed image output and private replay; normalized audio and Responses modalities remain unsupported. Stateful Responses store:true and non-null previous_response_id are rejected.',
             'operationCount': len(operations), 'pathCount': len(document['paths']),
             'operations': operations, 'components': components, 'requestFieldStatus': field_status}
 
@@ -87,6 +90,7 @@ def render_reference(inventory):
              f"The pinned schema describes {inventory['operationCount']} operations across {inventory['pathCount']} paths. Chat completions and Responses have selected integrations; all other operations are inventoried and not integrated.", '',
              'The [machine-readable inventory](openrouter-api-inventory.json) records each operation, request, response, parameter and header contract, and each component field, union and constraint. Credential-shaped example values are redacted. Original-source and sanitized-snapshot hashes are separate. References point to the schema snapshot in `tool/contracts/openrouter/openapi.json`. A schema entry or native field forwarding does not establish supported runtime orchestration or model behavior.', '',
              'Run `python3 tool/openrouter_contract.py --check` offline to verify the snapshot and generated outputs. `--upstream` compares the current official document without updating any files. See `tool/contracts/openrouter/README.md` for attribution and source provenance.', '',
+             'Chat `modalities` has selected normalized text/image support via typed options; image output uses completed JSON assistant messages, not undocumented streaming deltas. `image_config` is preserved as model-specific JSON. Audio output, the dedicated Images API, and Responses modalities remain outside this integration. See [OpenRouter images](openrouter-images.md).', '',
              '| Method | Path | Status |', '| --- | --- | --- |']
     lines.extend(f"| {op['method']} | `{op['path']}` | {op['status']} |" for op in inventory['operations'])
     return '\n'.join(lines) + '\n'

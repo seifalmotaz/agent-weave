@@ -39,6 +39,22 @@ submission, document that limit rather than silently promising cancellation.
 The fixture providers in `packages/agent_weave/test` and the offline example
 demonstrate custom implementations without any OpenAI dependency.
 
+## Completed media
+
+Emit `ContentPartReady(ImagePart(url))` for a completed generated image. Text
+continues through `TextDelta`. The optional `textOffset` places media at a UTF-16
+offset in the text accumulated for this invocation; omit it to use the current
+position. Offsets must be nondecreasing and cannot point beyond received text.
+The runtime preserves this order in assistant history and sanitized client
+snapshots. `AgentResult.images` collects assistant images from the current run.
+
+Validate provider URLs and complete payloads before emitting media. Keep opaque
+image signatures and continuation fields in `ProviderOutput`, with a distinct
+provider namespace. Bind replay to its public content before restoring it;
+provider data must not overwrite roles, registered calls, schema or history.
+Partial image previews need a separate progress contract; do not publish them
+as completed content.
+
 ## Native tools
 
 Use `NativeModelTool` and `NativeToolCallReady` for provider-native protocols,

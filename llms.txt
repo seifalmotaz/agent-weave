@@ -18,6 +18,7 @@ Development version. Read compatibility and validation before making support cla
 - [docs/openai-hosted.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai-hosted.md)
 - [docs/openai-hosted-parameters.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai-hosted-parameters.md)
 - [docs/openrouter.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openrouter.md)
+- [docs/openrouter-images.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openrouter-images.md)
 - [docs/openrouter-api-reference.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openrouter-api-reference.md)
 - [docs/together.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/together.md)
 - [docs/cloudflare.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/cloudflare.md)

@@ -35,7 +35,9 @@ browser history as trusted seed data. HTTP routes accept only user additions
 to server-owned history.
 
 `result.text` contains the final assistant message. `responseMessages` includes
-this run's intermediate assistant/tool messages. `messages` is the complete
+this run's intermediate assistant/tool messages. `images` is an immutable list of
+images produced by assistant messages in this run, including intermediate tool
+steps; it excludes user inputs and previous runs. `messages` is the complete
 server-side conversation snapshot, including private provider continuation
 state. Use `chatHydration` when returning stored history to a UI.
 

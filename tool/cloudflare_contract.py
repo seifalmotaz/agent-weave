@@ -17,7 +17,7 @@ REVISION = '193e683baba9c46b675d91c959c3b9a726b2d184'
 SOURCE_URL = f'https://raw.githubusercontent.com/cloudflare/api-schemas/{REVISION}/openapi.json'
 METHODS = {'get', 'put', 'post', 'delete', 'options', 'head', 'patch', 'trace'}
 IMPLEMENTED = {
-    ('post', '/accounts/{account_id}/ai/run/{model_name}'): 'Native JSON/binary input and raw SSE; selected typed model helpers and single-call chat adapter.',
+    ('post', '/accounts/{account_id}/ai/run/{model_name}'): 'Native JSON/binary input and raw SSE; selected typed helpers, normalized native text SSE with buffered schema and single-call tool requests.',
     ('post', '/accounts/{account_id}/ai/run'): 'Gateway JSON wrapper and raw JSON/binary result. Model/options remain provider-specific.',
     ('get', '/accounts/{account_id}/ai/models/schema'): 'Authenticated model-schema lookup with model query parameter.',
     ('get', '/accounts/{account_id}/ai/models/search'): 'Model search with caller-supplied repeated query parameters.',

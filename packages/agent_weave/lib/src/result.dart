@@ -39,6 +39,13 @@ final class AgentResult {
           ?.text ??
       '';
 
+  /// Images produced by assistant messages in this run, including tool steps.
+  List<ImagePart> get images => List.unmodifiable([
+    for (final message in responseMessages)
+      if (message.role == MessageRole.assistant)
+        ...message.content.whereType<ImagePart>(),
+  ]);
+
   /// Null means the provider reported no usage. Missing token details stay null.
   TokenUsage? get usage {
     if (usages.isEmpty) return null;

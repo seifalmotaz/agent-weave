@@ -95,6 +95,14 @@ belong in `options` or `extra`. Neither path can replace runtime history or
 registered function definitions. Native JSON client methods are separate for
 requests the normalized agent does not implement.
 
+## Generated images
+
+Use [Chat image output](openrouter-images.md) with explicit text/image modalities
+for a completed assistant message. Ordinary text uses SSE; image requests are
+buffered because the pinned Chat stream schema does not define image deltas.
+Images and opaque replay fields survive tool approvals and server-owned history.
+The dedicated `/images` API remains a separate, unimplemented workflow.
+
 ## Responses and private replay
 
 Use `OpenRouterResponsesModel(client: client, model: modelId, options: ...)`
@@ -132,7 +140,7 @@ JSON responses expose `data`, `statusCode` and headers. Streaming preserves
 unknown event fields and detects inline errors and premature EOF.
 
 The native client does not implement management APIs or every modality. Hosted
-server tools, background-job handling, output media and all model variants still
+server tools, background-job handling, other output media and all model variants still
 need dedicated runtime behavior. See the [API inventory](openrouter-api-reference.md)
 for all pinned operations and fields, including those not integrated.
 

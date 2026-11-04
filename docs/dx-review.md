@@ -420,3 +420,26 @@ A separate byte-level check found the invalid CRC and truncated chunk sequence.
 The fixture is now a complete 1x1 RGBA PNG; the offline check verifies CRCs,
 chunk completion and decompressed pixel data in all four consumer sources.
 Client transport/order checks do not constitute image-rendering evidence.
+
+
+## Round 16: native provider media and streaming
+
+# Round 16 independent consumer review
+
+Scope: offline loopback exercises; no provider credentials or paid requests.
+
+Cloudflare native chat: **8/10 for tested text-streaming DX**. `dart run examples/review_cases/cloudflare_streaming.dart` passed. A chunk arrives before the server releases the rest; another request completes while it is held, and canceling the first does not prevent that sibling. The case also checks snapshotted options, request-owned option rejection, typed structured-output and tool fallback, explicit opt-out, malformed payload and premature EOF. `dart analyze examples/review_cases/cloudflare_streaming.dart` passed. Tool execution/replay is covered by the pre-existing `cloudflare.dart` consumer, not this new case. No live provider or network reliability claim.
+
+OpenRouter generated images: **8/10 for the tested buffered Chat path**. `dart run examples/review_cases/openrouter_images.dart` and `dart analyze examples/review_cases/openrouter_images.dart` passed. Two images and their native fields survive in order through an approval pause and a recreated agent; public hydration and a different owner do not expose the private signatures. Options are snapshotted, and malformed JSON, missing choices, invalid image URL and audio output are rejected. The exact native images array is replayed. Typed configure preserves the runtime token limit and rejects changes to supplied instructions, schema, and tools before dispatch. Canceling a buffered request while headers are pending leaves a sibling using the same parent token able to complete and does not cancel the parent. No live provider was exercised.
+
+Usage feedback: `OpenRouterChatOptions(modalities: [OpenRouterOutputModality.text, OpenRouterOutputModality.image], imageConfig: {...})` is discoverable and concise, and the normal `ImagePart` avoids provider-specific rendering. The guide should state near this example that requesting image output uses a buffered request, image support depends on the selected provider/model, Chat text precedes images, and audio output is rejected by the normalized agent. `imageConfig` is a native JSON escape hatch, so its accepted keys and values must come from provider documentation; no compile-time validation is implied. The consumer does not exercise a live model or cancellation after response headers. Adding a response format through configure when no runtime schema was supplied was accepted; the guard test covers replacing an existing runtime schema.
+
+
+The independent contract review found and reproduced image replay metadata
+replacing an assistant role; the replay decoder now permits only its owned
+content/refusal/image keys. It also found missing request IDs on buffered error
+envelopes. Both regressions are retained in the package suite. The selected
+Chat image contract is completed messages, not assumed streaming fragments.
+
+
+Final guide review: the first Dart block in `docs/openrouter-images.md` byte-matches `examples/openrouter_images_demo.dart`. The demo and both consumer files analyze cleanly, and the demo compiles to a Dart kernel without executing a billable request. The guide matches the inspected API and explains the buffered boundary, model support, ordering, privacy and `result.images` scope. The consumer verifies that `result.images` includes the interrupted tool step's two images and excludes those images from the resumed run. Both independent loopback consumers passed again after the guide/API changes. No paid call, image rendering, or live provider verification was performed.

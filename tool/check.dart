@@ -94,6 +94,8 @@ Future<void> main() async {
     'ollama',
     'dart_frog',
     'provider_options',
+    'openrouter_images',
+    'cloudflare_streaming',
     'openai_hosted',
     'output_media_client',
   ]) {
