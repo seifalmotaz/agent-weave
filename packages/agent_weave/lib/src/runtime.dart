@@ -9,6 +9,7 @@ import 'protocol.dart';
 import 'storage.dart';
 import 'result.dart';
 import 'tool.dart';
+import 'history.dart';
 
 /// A reusable agent definition. Mutable conversation state belongs to [store].
 final class AiAgent<C> {
@@ -189,6 +190,8 @@ final class AiAgent<C> {
     var status = RunStatus.running;
     var released = false;
     var accepted = false;
+    var providerContinuationPending =
+        previous['providerContinuationPending'] == true;
     String? nativeContinuationClosed =
         previous['nativeContinuationClosed'] as String?;
     String? partialMessageId;
@@ -231,6 +234,7 @@ final class AiAgent<C> {
       'messages': [for (final m in messages) m.toJson()],
       'events': journal,
       'pending': pending,
+      if (providerContinuationPending) 'providerContinuationPending': true,
       'nativeContinuationClosed': ?nativeContinuationClosed,
     };
     Future<AgentEvent> event(
@@ -279,12 +283,13 @@ final class AiAgent<C> {
           'Native continuation closed; start a new thread.',
         );
       }
-      if ((previous['pending'] as List? ?? []).isNotEmpty &&
+      if (((previous['pending'] as List? ?? []).isNotEmpty ||
+              providerContinuationPending) &&
           request.messages.any(
             (message) => !messages.any((saved) => saved.id == message.id),
           )) {
         throw const FormatException(
-          'Resolve pending tools before adding a new user message.',
+          'Resolve pending tools or provider continuation before adding a new user message.',
         );
       }
       if (previous['kind'] != null && previous['kind'] != 'chat') {
@@ -482,6 +487,7 @@ final class AiAgent<C> {
         var textStarted = false;
         var reasoningStarted = false;
         var finished = false;
+        var continueTurn = false;
         var finishReason = 'stop';
         await for (final item in model.stream(
           ModelRequest(
@@ -576,8 +582,9 @@ final class AiAgent<C> {
                   'outputTokens': outputTokens,
                 },
               });
-            case ModelFinished(:final reason):
+            case ModelFinished(:final reason, continueTurn: final continuation):
               finished = true;
+              continueTurn = continuation;
               finishReason = reason;
               lastFinishReason = reason;
             case ProviderOutput(:final provider, :final items):
@@ -587,11 +594,15 @@ final class AiAgent<C> {
         if (!finished) {
           throw StateError('Provider stream ended without a terminal event.');
         }
+        if (continueTurn && calls.isNotEmpty) {
+          throw StateError('A provider continuation cannot await local tools.');
+        }
         if (calls.isNotEmpty && finishReason == 'length') {
           throw StateError(
             'Cannot execute tools from a truncated model invocation.',
           );
         }
+        providerContinuationPending = continueTurn;
         messages.add(
           ChatMessage(
             id: messageId,
@@ -618,12 +629,28 @@ final class AiAgent<C> {
           yield await event('REASONING_MESSAGE_END', {'messageId': messageId});
           yield await event('REASONING_END', {'messageId': messageId});
         }
+        if (continueTurn) {
+          if (outputSchema != null && textStarted) {
+            // A paused invocation is progress text, not a failed JSON answer.
+            yield await event('MESSAGES_SNAPSHOT', {
+              'messages': chatHydration(state())['messages'],
+            });
+          }
+          continue;
+        }
         if (calls.isEmpty) {
           if (outputSchema case final schema?) {
             phase = 'output';
             final object = jsonDecode(text.toString());
             validateSchema(schema, object);
             structuredOutput = object;
+            messages[messages.length - 1] = ChatMessage(
+              id: messageId,
+              role: MessageRole.assistant,
+              content: [TextPart(text.toString())],
+              providerData: providerData,
+              structuredOutput: StructuredMessageOutput(text.toString()),
+            );
             yield await event('CUSTOM', {
               'name': 'structured-output.complete',
               'value': {

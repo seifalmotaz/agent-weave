@@ -27,38 +27,47 @@ JsonObject chatHydration(JsonObject? state) {
             'id': message.id,
             'role': message.role.name,
             'parts': [
+              if (message.structuredOutput case final output?)
+                {
+                  'type': 'structured-output',
+                  'status': 'complete',
+                  'data': output.data,
+                  'partial': output.data,
+                  'raw': output.raw,
+                },
               for (final part in message.content)
-                switch (part) {
-                  TextPart(:final text) => {'type': 'text', 'content': text},
-                  ImagePart(:final url) => {
-                    'type': 'image',
-                    'source': {'type': 'url', 'value': url},
-                  },
-                  DocumentPart part => {
-                    'type': 'document',
-                    'source': part.sourceJson,
-                    if (part.filename != null)
-                      'metadata': {'filename': part.filename},
-                  },
-                  FilePart(:final fileId) => {
-                    'type': 'document',
-                    'source': {'type': 'file', 'value': fileId},
-                  },
-                  AudioPart(:final data, :final format) => {
-                    'type': 'audio',
-                    'source': {
-                      'type': 'data',
-                      'value': data,
-                      'mimeType': format == 'mp3'
-                          ? 'audio/mpeg'
-                          : 'audio/$format',
+                if (message.structuredOutput == null || part is! TextPart)
+                  switch (part) {
+                    TextPart(:final text) => {'type': 'text', 'content': text},
+                    ImagePart(:final url) => {
+                      'type': 'image',
+                      'source': {'type': 'url', 'value': url},
+                    },
+                    DocumentPart part => {
+                      'type': 'document',
+                      'source': part.sourceJson,
+                      if (part.filename != null)
+                        'metadata': {'filename': part.filename},
+                    },
+                    FilePart(:final fileId) => {
+                      'type': 'document',
+                      'source': {'type': 'file', 'value': fileId},
+                    },
+                    AudioPart(:final data, :final format) => {
+                      'type': 'audio',
+                      'source': {
+                        'type': 'data',
+                        'value': data,
+                        'mimeType': format == 'mp3'
+                            ? 'audio/mpeg'
+                            : 'audio/$format',
+                      },
+                    },
+                    VideoPart(:final url) => {
+                      'type': 'video',
+                      'source': {'type': 'url', 'value': url},
                     },
                   },
-                  VideoPart(:final url) => {
-                    'type': 'video',
-                    'source': {'type': 'url', 'value': url},
-                  },
-                },
               for (final call in message.toolCalls)
                 {
                   'type': 'tool-call',

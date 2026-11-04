@@ -1,5 +1,9 @@
 # Unreleased
 
+- Preserve typed structured results in history and replace paused structured placeholders with sanitized snapshots.
+
+- Add checkpointed, step-bounded provider continuations and protect pending turns from new user input.
+
 - Add sequential native batch policies, bind them across approvals, and pause whole mixed turns before execution when required.
 
 - Add provider-namespaced native tool calls and approval-only continuation,

@@ -19,9 +19,9 @@ try {
   assert.ok(base, 'Dart server must start');
   const inputSchema = { type: 'object', properties: { count: { type: 'integer' } },
     required: ['count'], additionalProperties: false };
-  for (const scenario of ['text', 'tool', 'approval', 'client', 'reasoning', 'structured']) {
+  for (const scenario of ['text', 'tool', 'approval', 'client', 'reasoning', 'structured', 'pause', 'structured-pause']) {
     const chat = new ChatClient({
-      threadId: scenario, connection: fetchServerSentEvents(`${base}/${scenario === 'structured' ? 'structured' : 'chat'}`),
+      threadId: scenario, connection: fetchServerSentEvents(`${base}/${scenario.startsWith('structured') ? 'structured' : 'chat'}`),
       tools: [toolDefinition({ name: 'gate', description: 'Double', inputSchema,
         outputSchema: { type: 'integer' }, needsApproval: true }).client(),
         toolDefinition({ name: 'clientDouble', description: 'Double on the client',
@@ -44,13 +44,31 @@ try {
       }
       const text = chat.getMessages().flatMap(m => m.parts)
         .filter(p => p.type === 'text').map(p => p.content).join('|');
-      if (scenario === 'structured') {
-        const part = chat.getMessages().flatMap(m => m.parts).find(p => p.type === 'structured-output');
+      if (scenario.startsWith('structured')) {
+        const part = chat.getMessages().flatMap(m => m.parts).find(p => p.type === 'structured-output' && p.data !== undefined);
         assert.deepEqual(part?.data, { answer: 42 });
+        const structured = chat.getMessages().flatMap(m => m.parts).filter(p => p.type === 'structured-output');
+        assert.equal(structured.length, 1, JSON.stringify(structured));
+        assert.equal(structured[0].status, 'complete');
+        if (scenario === 'structured-pause') {
+          await chat.sendMessage('structured-pause');
+          assert.equal(chat.getError(), undefined);
+          const outputs = chat.getMessages().flatMap(m => m.parts).filter(p => p.type === 'structured-output');
+          assert.equal(outputs.length, 2, JSON.stringify(outputs));
+          assert.ok(outputs.every(p => p.status === 'complete'));
+          const history = await (await fetch(`${base}/structured-history?threadId=${scenario}`)).json();
+          const saved = history.messages.flatMap(m => m.parts).filter(p => p.type === 'structured-output');
+          assert.deepEqual(saved.map(p => p.data), [{ answer:42 }, { answer:42 }]);
+          const restored = new ChatClient({threadId: scenario, connection: fetchServerSentEvents(`${base}/structured`), initialMessages: history.messages});
+          try {
+            assert.deepEqual(restored.getMessages().flatMap(m => m.parts).filter(p => p.type === 'structured-output').map(p => p.data), [{answer:42}, {answer:42}]);
+          } finally { restored.dispose(); }
+        }
       } else {
-        assert.ok(text.includes(['text', 'reasoning'].includes(scenario) ? 'Hello from Dart' : 'Result: 4'), JSON.stringify({text, error: chat.getError()?.message, interrupts: chat.getInterruptState()}));
+        assert.ok(text.includes(['text', 'reasoning', 'pause'].includes(scenario) ? 'Hello from Dart' : 'Result: 4'), JSON.stringify({text, error: chat.getError()?.message, interrupts: chat.getInterruptState()}));
       }
       assert.equal(chat.getError(), undefined);
+      assert.equal(JSON.stringify(chat.getMessages()).includes('PRIVATE-PAUSE'), false);
       console.log(`PASS official JS client: ${scenario}`);
     } finally { chat.dispose(); }
   }

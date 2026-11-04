@@ -706,7 +706,7 @@ packages:
     source: hosted
     version: "2.2.2"
   tanstack_ai_dart:
-    dependency: "direct overridden"
+    dependency: "direct dev"
     description:
       path: "."
       ref: "819ff289e6dabc5f424208b07ea9ac6f399cdccc"

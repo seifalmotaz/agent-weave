@@ -101,6 +101,7 @@ Future<void> main() async {
       if (request.method == 'GET' &&
           {
             '/history',
+            '/structured-history',
             '/native-history',
             '/mixed-history',
           }.contains(request.uri.path)) {
@@ -112,6 +113,8 @@ Future<void> main() async {
                       ? nativeAgent
                       : request.uri.path == '/mixed-history'
                       ? mixedAgent
+                      : request.uri.path == '/structured-history'
+                      ? structuredAgent
                       : agent)
                   .store
                   .load(
@@ -190,6 +193,24 @@ final class InteropModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     final last = request.messages.last;
+    if (last.text == 'pause' || last.text == 'structured-pause') {
+      yield const TextDelta('Working');
+      yield ProviderOutput(
+        provider: 'fixture.pause',
+        items: [
+          {'opaque': 'PRIVATE-PAUSE'},
+        ],
+      );
+      yield const ModelFinished.continuation('provider_pause');
+      return;
+    }
+    if (last.providerData.containsKey('fixture.pause')) {
+      yield TextDelta(
+        request.outputSchema == null ? 'Hello from Dart' : '{"answer":42}',
+      );
+      yield const ModelFinished();
+      return;
+    }
     if (last.content.any((part) => part is! TextPart)) {
       yield TextDelta(
         jsonEncode([

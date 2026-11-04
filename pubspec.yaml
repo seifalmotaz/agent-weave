@@ -20,6 +20,7 @@ workspace:
   - examples/serverpod/agent_weave_demo_server
   - examples/serverpod/agent_weave_demo_client
 dev_dependencies:
+  tanstack_ai_dart: ^0.4.0
   dart_frog: ^1.2.6
   agent_weave: ^0.1.0-dev.1
   agent_weave_openai: ^0.1.0-dev.1

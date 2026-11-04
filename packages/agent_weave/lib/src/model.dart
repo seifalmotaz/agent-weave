@@ -275,12 +275,28 @@ final class VideoPart extends ContentPart {
   JsonObject toJson() => {'type': 'video', 'url': url};
 }
 
+/// Structured output parsed from its original model JSON.
+final class StructuredMessageOutput {
+  final Object? data;
+  final String raw;
+  StructuredMessageOutput(this.raw)
+    : data = immutableJson({'data': jsonDecode(raw)})['data'];
+  JsonObject toJson() => {'raw': raw};
+  factory StructuredMessageOutput.fromJson(JsonObject json) {
+    if (json['raw'] is! String) {
+      throw const FormatException('Invalid structured message output.');
+    }
+    return StructuredMessageOutput(json['raw'] as String);
+  }
+}
+
 final class ChatMessage {
   final String id;
   final MessageRole role;
   final List<ContentPart> content;
   final List<ToolCall> toolCalls;
   final String? toolCallId;
+  final StructuredMessageOutput? structuredOutput;
 
   /// Provider replay state, including encrypted reasoning. Never sent to UI clients.
   final Map<String, List<JsonObject>> providerData;
@@ -290,6 +306,7 @@ final class ChatMessage {
     Iterable<ContentPart> content = const [],
     Iterable<ToolCall> toolCalls = const [],
     this.toolCallId,
+    this.structuredOutput,
     Map<String, List<JsonObject>> providerData = const {},
   }) : content = List.unmodifiable(content),
        toolCalls = List.unmodifiable(toolCalls),
@@ -309,6 +326,11 @@ final class ChatMessage {
     if (role != MessageRole.assistant && this.toolCalls.isNotEmpty) {
       throw ArgumentError('Only assistant messages can contain tool calls.');
     }
+    if (role != MessageRole.assistant && structuredOutput != null) {
+      throw ArgumentError(
+        'Only assistant messages can contain structured output.',
+      );
+    }
   }
 
   factory ChatMessage.user(String text, {required String id}) =>
@@ -322,6 +344,8 @@ final class ChatMessage {
     'toolCalls': [for (final call in toolCalls) call.toJson()],
     if (toolCallId != null) 'toolCallId': toolCallId,
     if (providerData.isNotEmpty) 'providerData': providerData,
+    if (structuredOutput != null)
+      'structuredOutput': structuredOutput!.toJson(),
   };
   factory ChatMessage.fromJson(JsonObject json) => ChatMessage(
     id: json['id'] as String,
@@ -335,6 +359,11 @@ final class ChatMessage {
         ToolCall.fromJson(Map<String, Object?>.from(call as Map)),
     ],
     toolCallId: json['toolCallId'] as String?,
+    structuredOutput: json['structuredOutput'] == null
+        ? null
+        : StructuredMessageOutput.fromJson(
+            Map<String, Object?>.from(json['structuredOutput'] as Map),
+          ),
     providerData: {
       for (final entry in (json['providerData'] as Map? ?? {}).entries)
         entry.key as String: [
@@ -500,7 +529,13 @@ final class TokenUsage extends ModelEvent {
 
 final class ModelFinished extends ModelEvent {
   final String reason;
-  const ModelFinished([this.reason = 'stop']);
+  final bool continueTurn;
+  const ModelFinished([this.reason = 'stop']) : continueTurn = false;
+
+  /// A completed invocation that needs another step without local tool results.
+  /// The agent checkpoints its output and counts it against `maxSteps`.
+  const ModelFinished.continuation([this.reason = 'pause'])
+    : continueTurn = true;
 }
 
 final class ProviderOutput extends ModelEvent {
