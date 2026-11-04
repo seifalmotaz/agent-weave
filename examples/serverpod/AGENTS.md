@@ -40,5 +40,5 @@ Checklist after doing changes, in this order:
 
 This example exercises the local AgentWeave packages. Native streaming and HTTP
 SSE share the same agent factory and optional PostgreSQL store. The deterministic
-model is the default for tests. Set OPENAI_API_KEY only in the server environment
-to use OpenAI. Never add credentials to Flutter code or committed config.
+model is the default. Set AGENT_WEAVE_USE_OPENAI=true and OPENAI_API_KEY only
+in the server environment to use OpenAI. Tests always use the offline model. Never add credentials to Flutter code or committed config.

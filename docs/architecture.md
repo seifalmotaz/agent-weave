@@ -43,7 +43,7 @@ their own storage.
 
 A durable event log permits replay. It does not provide exactly-once execution
 of an external tool after a process crash. Active reservations are deliberately
-not stolen automatically. Reconcile external effects using `toolCallId` before
+not stolen automatically. Reconcile external effects using `ToolContext.idempotencyKey` before
 recovering an abandoned run.
 
 ## Transport
