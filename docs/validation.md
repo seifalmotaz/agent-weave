@@ -21,7 +21,7 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-On Dart 3.13.3:
+On Dart 3.12.2 and 3.13.3:
 
 - 83 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
@@ -74,7 +74,10 @@ system. Keep keys in environment variables only.
 
 ## Package validation
 
-All six package publication dry-runs were exercised. The native client reports
+All six package publication dry-runs passed with zero warnings from a clean
+checkout. Core and OpenAI API documentation generated with zero warnings or
+errors. Serverpod code generation was rerun without changing the checked-in
+outputs. The native client reports
 an override hint because its `tanstack_ai_dart 0.4.0` dependency is Git-pinned
 in this workspace and was not published to pub.dev at validation time. Resolve
 that dependency before publishing the native client. A local dry-run does not

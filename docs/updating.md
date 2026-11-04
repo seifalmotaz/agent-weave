@@ -11,7 +11,10 @@
    its lockfile when changing the interoperability baseline.
 6. Update the Dart client pin independently. Verify its published version before
    replacing the workspace Git override.
-7. Run `dart run tool/check.dart`. Keep fixture and live results separate.
+7. Resolve the lockfile with the minimum supported Dart SDK, then run
+   `dart run tool/check.dart` on both the minimum SDK and stable. New transitive
+   versions can require a newer SDK even when application constraints do not.
+   Keep fixture and live results separate.
 8. Update the compatibility matrix, changelogs, examples, and LLM documentation.
 
 ## Serverpod models
