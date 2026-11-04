@@ -162,6 +162,7 @@ Future<void> main() async {
     'run',
     'examples/review_cases/cloudflare.dart',
   ]);
+  await run('python3', ['tool/test_media_fixtures.py']);
   await run('python3', ['tool/test_audit_openai.py']);
   await run('python3', ['tool/test_cloudflare_contract.py']);
   await run('python3', ['tool/cloudflare_contract.py', '--check']);

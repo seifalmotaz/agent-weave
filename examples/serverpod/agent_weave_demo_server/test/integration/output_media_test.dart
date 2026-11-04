@@ -8,7 +8,7 @@ import 'package:test/test.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
 const png =
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aQAAAABJRU5ErkJggg==';
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
 void main() {
   withServerpod('Output media PostgreSQL recreation', (builder, _) {

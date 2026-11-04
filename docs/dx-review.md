@@ -413,3 +413,10 @@ OpenAI hosted image option `output_compression` validation currently accepts any
 Root fixed mixed int/double comparisons using finite integral validation and exact `BigInt` comparison. Reran all five independently owned regression files with pinned Dart 3.12.2: **20/20 passed**, including all three compatible Chat nested-double cases and compatible Responses tool ownership. Root also tightened hosted image compression to `int`; independent assert-based check `image_compression_check.dart` confirmed 2.5 is rejected. Prior findings are resolved within this offline scope. No paid requests or exhaustive provider/security audit were performed.
 
 Final guide review: the first Dart block in `docs/openai-hosted.md` byte-matches `examples/openai_hosted_demo.dart` (1,112 bytes). Dart analysis and kernel compilation both passed without running the billable example. Inspection of the current hosted API and guide found no actionable mismatch or unsafe instruction; the guide explicitly flags billing and server-side credentials. This is a source-level review, not a live provider test.
+
+
+Final image-fixture correction: transport tests initially used a corrupt PNG.
+A separate byte-level check found the invalid CRC and truncated chunk sequence.
+The fixture is now a complete 1x1 RGBA PNG; the offline check verifies CRCs,
+chunk completion and decompressed pixel data in all four consumer sources.
+Client transport/order checks do not constitute image-rendering evidence.

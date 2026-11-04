@@ -492,6 +492,11 @@ strict library/new-test analysis passed. It used an explicitly remapped existing
 workspace dependency configuration, not a fresh full-monorepo bootstrap. The
 AgentWeave SDK pin remains 11.0.1; native JSON avoids the incorrect image types.
 
+A final byte-level check caught and replaced the original corrupt 1x1 PNG
+fixture. The new offline check verifies complete PNG chunks, CRCs, dimensions
+and decompressed pixel data across the provider, client and storage fixtures.
+This verifies the fixture bytes, not device rendering.
+
 No paid calls were made for this increment. Live hosted tools, search quality,
 containers, complete native provider semantics and device image rendering remain
 unverified. Public citations, hosted progress and partial images are not

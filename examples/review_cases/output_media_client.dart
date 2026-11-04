@@ -6,7 +6,7 @@ import 'package:agent_weave/testing.dart';
 import 'package:tanstack_ai_dart/tanstack_ai_dart.dart' as client;
 
 const png =
-    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aQAAAABJRU5ErkJggg==';
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==';
 
 void check(bool condition, String message) {
   if (!condition) throw StateError(message);
