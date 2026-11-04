@@ -101,6 +101,39 @@ Future<void> main() async {
       ],
     ),
   );
+  final citationsAgent = AiAgent<void>(
+    model: ScriptedChatModel(
+      steps: [
+        [
+          const TextDelta('A 🌿 grows.'),
+          for (var i = 0; i < 2; i++)
+            CitationReady(
+              TextCitation(
+                start: 2,
+                end: 4,
+                citedText: 'A source passage, not the response text.',
+                source: DocumentCitationSource(
+                  index: 0,
+                  title: 'Plant guide',
+                  location: CitationLocation(
+                    unit: CitationUnit.pages,
+                    start: 1,
+                    end: 2,
+                  ),
+                ),
+              ),
+            ),
+          ProviderOutput(
+            provider: 'fixture.private',
+            items: [
+              {'encrypted_index': 'PRIVATE-CITATION'},
+            ],
+          ),
+          const ModelFinished(),
+        ],
+      ],
+    ),
+  );
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   stdout.writeln(jsonEncode({'port': server.port}));
   await for (final request in server) {
@@ -111,6 +144,27 @@ Future<void> main() async {
       break;
     }
     try {
+      if (request.method == 'GET' && request.uri.path == '/citations') {
+        final runId = request.uri.queryParameters['runId']!;
+        final threadId = await citationsAgent.store.threadForRun(
+          ownerId: 'test',
+          runId: runId,
+        );
+        if (threadId == null) throw StateError('Unknown fixture run.');
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+          charset: 'utf-8',
+        );
+        for (final json in await citationsAgent.store.events(
+          ownerId: 'test',
+          threadId: threadId,
+          runId: runId,
+        )) {
+          request.response.write(AgentEvent(json).toSse());
+        }
+        continue;
+      }
       if (request.method == 'GET' && request.uri.path == '/mixed-state') {
         request.response.headers.contentType = ContentType.json;
         request.response.write(
@@ -125,6 +179,7 @@ Future<void> main() async {
           {
             '/history',
             '/media-history',
+            '/citations-history',
             '/structured-history',
             '/native-history',
             '/mixed-history',
@@ -135,6 +190,8 @@ Future<void> main() async {
             chatHydration(
               await (request.uri.path == '/media-history'
                       ? mediaAgent
+                      : request.uri.path == '/citations-history'
+                      ? citationsAgent
                       : request.uri.path == '/native-history'
                       ? nativeAgent
                       : request.uri.path == '/mixed-history'
@@ -158,6 +215,7 @@ Future<void> main() async {
       request.response.headers.contentType = ContentType(
         'text',
         'event-stream',
+        charset: 'utf-8',
       );
       final Stream<AgentEvent> source;
       if (request.uri.path == '/generation') {
@@ -177,6 +235,8 @@ Future<void> main() async {
         source =
             (request.uri.path == '/media'
                     ? mediaAgent
+                    : request.uri.path == '/citations'
+                    ? citationsAgent
                     : request.uri.path == '/mixed'
                     ? mixedAgent
                     : request.uri.path == '/native'

@@ -4,6 +4,7 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_http/agent_weave_http.dart' show snapshotJson;
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as api;
 import 'computer_tool.dart';
+import 'citations.dart';
 import 'hosted_tool.dart';
 
 /// A native Messages stream. The caller owns and closes [client].
@@ -14,6 +15,7 @@ final class AnthropicChatModel implements ChatModel {
   final List<String> betas;
   final String? userProfileId;
   final List<AnthropicHostedTool> hostedTools;
+  final bool citations;
 
   const AnthropicChatModel({
     required this.client,
@@ -22,14 +24,15 @@ final class AnthropicChatModel implements ChatModel {
     this.betas = const [],
     this.userProfileId,
     this.hostedTools = const [],
+    this.citations = false,
   });
 
   @override
-  ModelCapabilities get capabilities => const ModelCapabilities(
+  ModelCapabilities get capabilities => ModelCapabilities(
     tools: true,
     imageInput: true,
     fileInput: true,
-    structuredOutput: true,
+    structuredOutput: !citations,
   );
 
   @override
@@ -39,6 +42,7 @@ final class AnthropicChatModel implements ChatModel {
   }) => AnthropicProtocolModel(
     model: model,
     hostedTools: hostedTools,
+    citations: citations,
     configure: configure == null
         ? null
         : (body) {
@@ -75,19 +79,21 @@ final class AnthropicProtocolModel implements ChatModel {
   final JsonObject Function(JsonObject)? configure;
   final Stream<JsonObject> Function(JsonObject, CancellationToken) transport;
   final List<AnthropicHostedTool> hostedTools;
+  final bool citations;
   const AnthropicProtocolModel({
     required this.model,
     required this.transport,
     this.configure,
     this.hostedTools = const [],
+    this.citations = false,
   });
 
   @override
-  ModelCapabilities get capabilities => const ModelCapabilities(
+  ModelCapabilities get capabilities => ModelCapabilities(
     tools: true,
     imageInput: true,
     fileInput: true,
-    structuredOutput: true,
+    structuredOutput: !citations,
   );
   @override
   Stream<ModelEvent> stream(
@@ -220,13 +226,13 @@ final class AnthropicProtocolModel implements ChatModel {
       } else if (message.role == MessageRole.assistant &&
           replay != null &&
           replay.isNotEmpty) {
-        blocks.addAll(replay.map((e) => Map<String, dynamic>.from(e)));
+        blocks.addAll(replay.map(anthropicReplayBlock));
       } else {
         for (final part in message.content) {
           blocks.add(switch (part) {
             TextPart(:final text) => {'type': 'text', 'text': text},
             DocumentPart part when message.role == MessageRole.user =>
-              _anthropicDocument(part),
+              _anthropicDocument(part, citations: citations),
             ImagePart(:final url) when message.role == MessageRole.user => {
               'type': 'image',
               'source': {'type': 'url', 'url': url},
@@ -356,6 +362,7 @@ final class AnthropicProtocolModel implements ChatModel {
         }
       }
     }
+    _validateDocumentCitations(configured, requireEnabled: citations);
     final pendingServer = _pendingHostedHistory(messages);
     final blocks = <int, Map<String, dynamic>>{};
     final arguments = <int, StringBuffer>{};
@@ -366,6 +373,10 @@ final class AnthropicProtocolModel implements ChatModel {
     final metadata = <String, Object?>{};
     final openBlocks = <int>{};
     final stagedCalls = <int, ToolCall>{};
+    var textLength = 0;
+    int? activeText;
+    var lastTextIndex = -1;
+    final textStarts = <int, int>{};
     try {
       await for (final json in transport({
         ...configured,
@@ -412,6 +423,17 @@ final class AnthropicProtocolModel implements ChatModel {
               );
             }
             blocks[index] = block;
+            if (block['type'] == 'text') {
+              if (activeText != null || index <= lastTextIndex) {
+                throw const FormatException(
+                  'Interleaved or out-of-order text blocks.',
+                );
+              }
+              activeText = index;
+              lastTextIndex = index;
+              textStarts[index] = textLength;
+              textLength += (block['text'] as String).length;
+            }
             if (block['type'] == 'text' &&
                 (block['text'] as String).isNotEmpty) {
               yield TextDelta(block['text'] as String);
@@ -432,6 +454,7 @@ final class AnthropicProtocolModel implements ChatModel {
                 _requireBlock(block, 'text');
                 final text = delta['text'] as String;
                 block['text'] = '${block['text'] ?? ''}$text';
+                textLength += text.length;
                 yield TextDelta(text);
               case 'thinking_delta':
                 _requireBlock(block, 'thinking');
@@ -471,6 +494,27 @@ final class AnthropicProtocolModel implements ChatModel {
             final block = blocks[index];
             if (block == null || !openBlocks.remove(index)) {
               throw const FormatException('Stop without content block.');
+            }
+            if (block['type'] == 'text') {
+              activeText = null;
+              final rawCitations = block['citations'];
+              if (rawCitations != null) {
+                if (rawCitations is! List) {
+                  throw const FormatException('Malformed citations.');
+                }
+                for (final raw in rawCitations) {
+                  if (raw is! Map) {
+                    throw const FormatException('Malformed citation.');
+                  }
+                  yield CitationReady(
+                    anthropicTextCitation(
+                      Map<String, Object?>.from(raw),
+                      start: textStarts[index]!,
+                      end: textLength,
+                    ),
+                  );
+                }
+              }
             }
             if (block['type'] == 'tool_use' ||
                 block['type'] == 'server_tool_use') {
@@ -687,7 +731,15 @@ Object? _ownedValue(String field, Object? value) {
           if (message['role'] == 'user' && message['content'] is List) {
             message['content'] = [
               for (final raw in message['content'] as List)
-                Map<String, dynamic>.from(raw as Map)..remove('cache_control'),
+                () {
+                  final block = Map<String, dynamic>.from(raw as Map)
+                    ..remove('cache_control');
+                  if (block['type'] == 'document') {
+                    block.remove('citations');
+                    block.remove('context');
+                  }
+                  return block;
+                }(),
             ];
           }
           return message;
@@ -697,7 +749,11 @@ Object? _ownedValue(String field, Object? value) {
   return value;
 }
 
-Map<String, dynamic> _anthropicDocument(DocumentPart part) => {
+Map<String, dynamic> _anthropicDocument(
+  DocumentPart part, {
+  required bool citations,
+}) => {
+  if (citations) 'citations': {'enabled': true},
   'type': 'document',
   if (part.filename != null) 'title': part.filename,
   'source': switch (part) {
@@ -896,4 +952,38 @@ Map<String, String> _pendingHostedHistory(List<Map<String, dynamic>> messages) {
     );
   }
   return pending;
+}
+
+void _validateDocumentCitations(
+  JsonObject body, {
+  required bool requireEnabled,
+}) {
+  final enabled = <bool>[];
+  for (final raw in body['messages'] as List) {
+    final message = raw as Map;
+    if (message['role'] != 'user' || message['content'] is! List) continue;
+    for (final rawBlock in message['content'] as List) {
+      final block = rawBlock as Map;
+      if (block['type'] != 'document') continue;
+      final config = block['citations'];
+      if (config != null &&
+          (config is! Map ||
+              (config.containsKey('enabled') && config['enabled'] is! bool))) {
+        throw const FormatException(
+          'Invalid document citations configuration.',
+        );
+      }
+      enabled.add(config is Map && config['enabled'] == true);
+    }
+  }
+  if ((enabled.any((e) => e) && enabled.any((e) => !e)) ||
+      (requireEnabled && enabled.any((e) => !e))) {
+    throw ArgumentError('Citations must be enabled on all documents or none.');
+  }
+  if (enabled.any((e) => e) &&
+      ((body['output_config'] is Map &&
+              (body['output_config'] as Map)['format'] != null) ||
+          body['output_format'] != null)) {
+    throw ArgumentError('Citations cannot be combined with structured output.');
+  }
 }

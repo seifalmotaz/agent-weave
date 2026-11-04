@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:uuid/uuid.dart';
 import 'package:json_schema/json_schema.dart';
 import 'cancellation.dart';
+import 'citations.dart';
 import 'diagnostics.dart';
 import 'model.dart';
 import 'protocol.dart';
@@ -191,6 +192,7 @@ final class AiAgent<C> {
         previous['providerContinuationPending'] == true;
     String? partialMessageId;
     StringBuffer? partialText;
+    List<TextCitation>? partialCitations;
     void preservePartial() {
       final id = partialMessageId;
       final text = partialText;
@@ -203,6 +205,7 @@ final class AiAgent<C> {
             id: id,
             role: MessageRole.assistant,
             content: [TextPart(text.toString())],
+            citations: partialCitations ?? const [],
           ),
         );
       }
@@ -481,6 +484,8 @@ final class AiAgent<C> {
         final messageId = _newId();
         final text = StringBuffer();
         final media = <({int offset, ContentPart part})>[];
+        final citations = <TextCitation>[];
+        partialCitations = citations;
         var hasMedia = false;
         partialMessageId = messageId;
         partialText = text;
@@ -524,6 +529,17 @@ final class AiAgent<C> {
               yield await event('TEXT_MESSAGE_CONTENT', {
                 'messageId': messageId,
                 'delta': delta,
+              });
+            case CitationReady(:final citation):
+              citation.validateFor(text.toString());
+              citations.add(citation);
+              yield await event('CUSTOM', {
+                'name': 'agent_weave:citation',
+                'value': {
+                  'messageId': messageId,
+                  'citationIndex': citations.length - 1,
+                  'citation': citation.toJson(),
+                },
               });
             case ReasoningDelta(:final text):
               if (!reasoningStarted) {
@@ -633,12 +649,14 @@ final class AiAgent<C> {
             id: messageId,
             role: MessageRole.assistant,
             content: content,
+            citations: citations,
             toolCalls: calls,
             providerData: providerData,
           ),
         );
         partialMessageId = null;
         partialText = null;
+        partialCitations = null;
         // Checkpoint before executing tools; event deltas use an append-only log.
         await store.save(
           ownerId: ownerId,
@@ -655,7 +673,9 @@ final class AiAgent<C> {
           yield await event('REASONING_END', {'messageId': messageId});
         }
         if (continueTurn) {
-          if (hasMedia || (outputSchema != null && textStarted)) {
+          if (hasMedia ||
+              citations.isNotEmpty ||
+              (outputSchema != null && textStarted)) {
             // A paused invocation is progress text, not a failed JSON answer.
             yield await event('MESSAGES_SNAPSHOT', {
               'messages': chatHydration(state())['messages'],
@@ -673,6 +693,7 @@ final class AiAgent<C> {
               id: messageId,
               role: MessageRole.assistant,
               content: content,
+              citations: citations,
               providerData: providerData,
               structuredOutput: StructuredMessageOutput(text.toString()),
             );
@@ -685,7 +706,7 @@ final class AiAgent<C> {
               },
             });
           }
-          if (hasMedia) {
+          if (hasMedia || citations.isNotEmpty) {
             yield await event('MESSAGES_SNAPSHOT', {
               'messages': chatHydration(state())['messages'],
             });
@@ -694,7 +715,9 @@ final class AiAgent<C> {
           yield await event('RUN_FINISHED', {'finishReason': finishReason});
           return;
         }
-        if (hasMedia || (outputSchema != null && textStarted)) {
+        if (hasMedia ||
+            citations.isNotEmpty ||
+            (outputSchema != null && textStarted)) {
           yield await event('MESSAGES_SNAPSHOT', {
             'messages': chatHydration(state())['messages'],
           });

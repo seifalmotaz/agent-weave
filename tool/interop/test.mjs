@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { ChatClient, GenerationClient, fetchServerSentEvents } from '@tanstack/ai-client';
 import { toolDefinition } from '@tanstack/ai';
-import { ContentPartSchema } from '@ag-ui/core/schemas';
+import { ContentPartSchema, CustomEventSchema } from '@ag-ui/core/schemas';
 
 const server = spawn('dart', ['run', 'tool/interop/server.dart'], {
   cwd: new URL('../../', import.meta.url), stdio: ['ignore', 'pipe', 'inherit'],
@@ -72,6 +72,56 @@ try {
       console.log(`PASS official JS client: ${scenario}`);
     } finally { chat.dispose(); }
   }
+  const seenCitations = [];
+  const citationPositions = new Map();
+  let citationRunId;
+  const citationConnection = fetchServerSentEvents(`${base}/citations`);
+  function recordCitation(name, value) {
+    if (name !== 'agent_weave:citation') return;
+    CustomEventSchema.parse({type: 'CUSTOM', name, value});
+    seenCitations.push(value);
+    citationPositions.set(`${value.messageId}:${value.citationIndex}`, value.citation);
+  }
+  const citations = new ChatClient({
+    threadId: 'citations', connection: citationConnection,
+    onChunk(chunk) { if (chunk.type === 'RUN_STARTED') citationRunId = chunk.runId; },
+    onCustomEvent: recordCitation,
+  });
+  try {
+    await citations.sendMessage('Summarize');
+    assert.equal(citations.getError(), undefined);
+    const live = citations.getMessages().find(m => m.role === 'assistant');
+    assert.equal(live.parts.filter(p => p.type === 'text').map(p => p.content).join(''), 'A 🌿 grows.');
+    assert.equal(seenCitations.length, 2);
+    assert.deepEqual(seenCitations.map(c => c.citationIndex), [0, 1]);
+    assert.equal(seenCitations[0].messageId, live.id);
+    const annotations = live.metadata.agent_weave.citations;
+    assert.deepEqual(annotations, seenCitations.map(c => c.citation));
+    assert.deepEqual(annotations[0], annotations[1]);
+    assert.equal('A 🌿 grows.'.slice(annotations[0].start, annotations[0].end), '🌿');
+    const history = await (await fetch(`${base}/citations-history?threadId=citations`)).json();
+    assert.equal(JSON.stringify(history).includes('PRIVATE-CITATION'), false);
+    assert.deepEqual(history.messages.find(m => m.role === 'assistant').metadata, live.metadata);
+    const restored = new ChatClient({threadId: 'citations', connection: fetchServerSentEvents(`${base}/citations`), initialMessages: history.messages});
+    try {
+      assert.deepEqual(restored.getMessages().find(m => m.role === 'assistant').metadata, live.metadata);
+    } finally { restored.dispose(); }
+    // Feed the actual adapter's read-only GET replay through the official processor.
+    const replay = new ChatClient({
+      threadId: 'citations',
+      connection: {connect: () => citationConnection.joinRun(citationRunId)},
+      onCustomEvent: recordCitation,
+    });
+    try {
+      await replay.sendMessage('Read stored log');
+      assert.equal(replay.getError(), undefined);
+      assert.equal(seenCitations.length, 4);
+      assert.equal(citationPositions.size, 2);
+      assert.deepEqual([...citationPositions.values()], annotations);
+      assert.deepEqual(replay.getMessages().find(m => m.role === 'assistant').metadata, live.metadata);
+    } finally { replay.dispose(); }
+    console.log('PASS official JS client: typed citations, duplicate-safe replay, snapshot and hydration');
+  } finally { citations.dispose(); }
   const media = new ChatClient({threadId: 'output-media', connection: fetchServerSentEvents(`${base}/media`)});
   try {
     await media.sendMessage('Draw');

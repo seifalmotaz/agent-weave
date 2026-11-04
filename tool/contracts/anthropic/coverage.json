@@ -5,7 +5,7 @@
   },
   "messages": {
     "status": "runtime-owned",
-    "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+    "detail": "Runtime-owned history, source and title; native document context/cache/citations decorations are supported. Five pinned citation variants have typed output and private replay with offline fixtures. Custom-content documents, search-result inputs and live behavior remain unverified."
   },
   "system": {
     "status": "runtime-owned",

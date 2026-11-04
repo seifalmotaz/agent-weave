@@ -118,7 +118,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Typed tools and approvals](docs/tools.md)
 - [Persisted approval contracts and migration](docs/approval-contracts.md)
 - [Provider author guide](docs/providers.md)
-- [Documents](docs/documents.md)
+- [Documents](docs/documents.md) · [Citations](docs/citations.md)
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [OpenAI hosted tools and images](docs/openai-hosted.md)
@@ -174,13 +174,17 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
-  browser/MCP tools, public citation rendering and full nested semantics remain
+  browser/MCP tools, live citation quality and full nested semantics remain
   open. Constructor coverage is not workflow certification.
 - OpenRouter Chat now handles selected completed text/image output, with private
   replay across approvals; its dedicated Image API, streamed Chat image extensions
   and audio remain open. Native Cloudflare text now streams documented response
   chunks; schema and traditional tools stay buffered. Model support and live
   behavior remain unverified.
+- Anthropic now normalizes all five pinned citation variants into typed text
+  annotations, client metadata and private replay across approvals. Other provider
+  citations, custom-content document inputs, live quality and device rendering
+  remain open.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.
@@ -932,6 +936,23 @@ Future-only consumers can now use `AgentRunException.message` to present the sam
 Final round 17 verification also passes the malformed native-continuation checkpoint regression: a decode failure preserves the snapshot, does not invoke the model, and releases the reservation. The independent reviewer reran the consumer and regression; the scoped score remains 9/10.
 
 
+## Round 18: typed citations
+
+# Round 18 independent citation consumer
+
+**8/10 for the tested native Anthropic citation path.** `dart run examples/review_cases/anthropic_citations.dart` passes and Dart analysis reports no issues. The loopback fixture covers five pinned native citation variants, a split text block containing an emoji and a citation before its final text, UTF-16 answer offsets, two directly enabled documents, typed persisted citations and JSON roundtrip. The five live CUSTOM payloads match reconnect hydration metadata exactly. A recreated agent resumes a tool approval with native citation replay, preserving opaque fields but removing response-only file IDs. Public events and hydration exclude those fields and another owner cannot see the history.
+
+Structured output with citations, disabled citations through native configure, and attempted in-place document-source replacement fail before dispatch. Valid native context/cache decorations survive. Unsafe credential-bearing URLs, unknown citation types, and early EOF fail without a citation event. No live provider, paid request, UI rendering, cancellation, typed SDK configuration, or persistent database was tested. The result is not evidence of those paths or model availability.
+
+DX: `chatModel(citations: true)` and typed `ChatMessage.citations` are straightforward; a developer rendering live output must separately handle `agent_weave:citation` CUSTOM events and reconnect metadata. Document the distinction between the answer's UTF-16 span and source coordinates, the citations/structured-output restriction, the all-document setting, and that generic clients may ignore CUSTOM events. Only the tested source URL guard and provider projection are covered by this consumer; no broad public-data security guarantee is implied.
+
+Guide review: the first Dart code block of `docs/citations.md` byte-matches `examples/anthropic_citations_demo.dart`. The demo and independent consumer analyze cleanly; the demo compiles to kernel without running the billable example. The loopback consumer passed again. The guide addresses the observed CUSTOM/hydration integration requirement, answer/source coordinate distinction, privacy, configuration restrictions and partial-run status. No additional concrete DX problem was found in this review. The score remains 8/10 for the independently checked native path; this review did not itself rerun JS or PostgreSQL tests.
+
+Final capability verification: with `citations: true`, the native model advertises `structuredOutput: false`; constructing an output-schema agent throws the expected public `ArgumentError` without HTTP. A direct model request containing an enabled document and output schema also throws `ArgumentError` before HTTP. The updated consumer and analyzer pass. The scoped native-path score remains 8/10.
+
+After adding `citationIndex`, the independent native consumer passes with explicit indexes 0 through 4 matching citation order and analyzes cleanly. The guide directs renderers to upsert by message ID and index, preserving equal distinct citations during replay. The scoped score remains 8/10. This consumer did not independently run an end-to-end JS rejoin.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -1143,6 +1164,24 @@ values. The runtime validates the whole batch before any execution. Public
 TanStack schema hashes retain their protocol semantics and do not decide whether
 a server-owned contract changed. This keeps native Dart validation independent
 of client numeric conversion; see [approval contracts](approval-contracts.md).
+
+
+## Public text citations
+
+`ChatMessage.citations` holds typed annotations over flattened assistant text.
+The range uses UTF-16 answer offsets; source locations retain their native
+character, page or block units. Providers emit `CitationReady` after the referenced
+text is available. The runtime validates ranges before publishing the additive
+`agent_weave:citation` event and persists annotations with their message.
+Hydration and terminal snapshots include only typed public citation JSON in
+`metadata.agent_weave.citations`.
+
+Citation-bearing content parts would require every text and media converter to
+understand a new text shape. Message annotations preserve the existing content
+contract and let ordinary clients retain metadata. Provider replay remains a
+separate private contract, including opaque fields that cannot be public. See
+[citations](citations.md) for the five supported Anthropic projections and replay
+input differences.
 
 
 # Source: docs/tools.md
@@ -1375,6 +1414,16 @@ OpenAI computer calls have no such denial result; Anthropic's computer toolset
 uses its documented error results. See the provider guides for each contract.
 
 
+## Text citations
+
+Emit `CitationReady(TextCitation(...))` after its answer text is available.
+Offsets are UTF-16 code units into all `TextDelta` output for that invocation;
+source coordinates remain separate. The runtime validates boundaries, persists
+annotations with the assistant message and exposes safe citation metadata to
+clients. Put only public fields in a typed citation. Keep native replay fields
+in `ProviderOutput`. See [citations](citations.md) for source types and wire data.
+
+
 # Source: docs/documents.md
 
 # Send documents to a model
@@ -1484,6 +1533,193 @@ provider key. No actual PDF parsing or model acceptance is proved by that fixtur
 
 Provider format rules: [OpenAI file inputs](https://developers.openai.com/api/docs/guides/file-inputs)
 and [Anthropic PDF inputs](https://platform.claude.com/docs/en/build-with-claude/pdf-support).
+
+
+# Source: docs/citations.md
+
+# Cite source documents
+
+Enable Anthropic document citations and read typed attribution from each
+assistant message. The adapter normalizes all five citation variants in the
+pinned Messages contract. Other provider adapters do not yet normalize citations.
+
+## Run a document question
+
+Set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` in your backend environment, then
+run `dart run examples/anthropic_citations_demo.dart`. Choose a model that supports
+document citations. This command makes a billable request; ordinary repository
+checks do not run it.
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
+
+Future<void> main() async {
+  final key = Platform.environment['ANTHROPIC_API_KEY'];
+  final model = Platform.environment['ANTHROPIC_MODEL'];
+  if (key == null || key.isEmpty || model == null || model.isEmpty) {
+    throw StateError('Set ANTHROPIC_API_KEY and ANTHROPIC_MODEL.');
+  }
+  final client = anthropic.AnthropicNativeClient.withApiKey(apiKey: key);
+  try {
+    final result = await generateText(
+      model: client.chatModel(model: model, citations: true),
+      messages: [
+        ChatMessage(
+          id: 'question',
+          role: MessageRole.user,
+          content: [
+            DocumentPart.bytes(
+              utf8.encode('Annual leave requests need manager approval.'),
+              mimeType: 'text/plain',
+              filename: 'Leave policy',
+            ),
+            const TextPart('Who approves annual leave? Cite the policy.'),
+          ],
+        ),
+      ],
+    );
+    for (final message in result.responseMessages) {
+      if (message.role != MessageRole.assistant) continue;
+      print(message.text);
+      for (final citation in message.citations) {
+        final claim = message.text.substring(citation.start, citation.end);
+        final source = switch (citation.source) {
+          DocumentCitationSource(:final index, :final location) =>
+            'document $index, ${location.unit.name} '
+                '[${location.start}, ${location.end})',
+          UrlCitationSource(:final url) => url,
+          SearchResultCitationSource(:final source) => source,
+        };
+        print('$claim ← $source');
+      }
+    }
+  } finally {
+    client.close();
+  }
+}
+```
+
+`citations: true` enables citations on every direct user document across the
+conversation history. URL, inline PDF, inline UTF-8 text and Anthropic file-ID
+documents use the existing `DocumentPart` factories. The typed SDK configuration
+path still cannot decode file-ID sources; use `AnthropicNativeClient` for them.
+Custom-content documents and search-result input blocks currently require the
+separate raw native API.
+
+Anthropic requires citations on all documents or none. It also rejects document
+citations combined with `output_config.format` or the deprecated `output_format`.
+AgentWeave checks both rules before dispatch, including formats supplied through
+`configure`. Do not combine this option with `generateObject` or an agent output
+schema. See [Anthropic's citation contract](https://platform.claude.com/docs/en/build-with-claude/citations).
+
+## Render the answer and its sources
+
+`ChatMessage.citations` is an immutable list. Each `TextCitation` contains
+`start` and exclusive `end` offsets into that message's complete `text`, measured
+in UTF-16 code units. These are the same offsets used by Dart `String.substring`
+and JavaScript `String.slice`. A valid range cannot split a surrogate pair.
+
+`citedText` is the source quotation. It need not match the generated answer span.
+Anthropic attaches citations to a complete response text block, so several
+citations can share the same answer range. Their order and duplicates are
+preserved. The adapter emits them when that block closes, after any remaining
+text deltas, and rejects interleaved text blocks that cannot form a contiguous
+answer range.
+
+Match `citation.source` to render its reference:
+
+| Dart source | Location |
+| --- | --- |
+| `DocumentCitationSource` | `index` identifies a document across all request messages. `location` retains character, page or block coordinates. |
+| `UrlCitationSource` | `url` and optional `title` identify a web result. |
+| `SearchResultCitationSource` | `index` identifies a search-result input, counted separately from documents. `source` is an identifier and need not be a URL. |
+
+Source character and block locations are zero-based. Pages are one-based.
+Every source range has an exclusive end. Source coordinates retain the
+provider's units; they are not converted to UTF-16 answer offsets. Do not locate
+answer spans by searching for `citedText`.
+
+Citation source text, titles and links are application content. The SDK validates
+HTTP(S) URL syntax and rejects embedded user credentials, but does not fetch
+links, detect secrets in query strings or decide what your users may read.
+Apply the same document and link policy as the rest of your application.
+
+## Stream and restore attribution
+
+Native model consumers receive `CitationReady(citation)` alongside `TextDelta`.
+`AiAgent.run()` emits this additive protocol extension after the cited text:
+
+```json
+{
+  "type": "CUSTOM",
+  "name": "agent_weave:citation",
+  "value": {
+    "messageId": "assistant-message-id",
+    "citationIndex": 0,
+    "citation": {
+      "start": 0,
+      "end": 6,
+      "source": {
+        "type": "document",
+        "index": 0,
+        "location": {"unit": "pages", "start": 1, "end": 2}
+      }
+    }
+  }
+}
+```
+
+Upsert incremental citations by `(messageId, citationIndex)` in your renderer.
+The zero-based index is the annotation position in that message. Replayed events
+reuse it, while two identical legitimate citations have distinct indexes. Do not
+deduplicate citations by their value. On a final message
+snapshot or history hydration, replace that message's attribution with
+`message.metadata.agent_weave.citations`. The entries use `TextCitation.toJson()`
+and can be decoded with `TextCitation.fromJson()` in Dart. Standard TanStack
+clients retain this metadata through snapshots and restoration; an application
+must render it. Generic clients may ignore the CUSTOM event until the snapshot.
+
+Closed text-block citations remain attached to retained partial text after a
+later failure or cancellation. An unfinished block does not produce a citation.
+A citation does not prove the whole run succeeded. Display the run status too.
+
+Only the public projection enters events and hydration. Provider file IDs,
+encrypted citation indexes and unknown native fields stay in private replay
+state. Original response blocks remain unchanged in storage. Continuation input
+omits the known response-only document `file_id` while retaining the web-search
+`encrypted_index` needed by the provider. Unknown citation types fail explicitly
+instead of exposing an unreviewed payload.
+
+## Add document context or cache control
+
+The native `configure` callback may add `context`, `citations` and `cache_control`
+to direct user document blocks. Return copied maps and lists; the supplied body
+is immutable. Canonical document source and title remain protected. With
+`citations: true`, configuration cannot disable citations. Without the flag,
+per-document configuration must still enable all documents or none. Keep the
+configuration deterministic when recreating an agent.
+
+The model-level flag covers the ordinary use case. Native configuration and raw
+Messages access are separate contracts; forwarding an option does not establish
+live cache hits or complete nested provider support.
+
+## Reproduce the offline checks
+
+```sh
+dart test packages/agent_weave/test/citations_test.dart
+dart test packages/agent_weave_anthropic/test/citations_test.dart
+dart run examples/review_cases/anthropic_citations.dart
+dart run examples/review_cases/citations_client.dart
+dart run tool/check.dart
+```
+
+The independent consumer uses loopback HTTP. Additional checks exercise both
+clients and real PostgreSQL approval recreation. These fixtures do not contact
+Anthropic or prove model availability, citation quality or Flutter rendering.
 
 
 # Source: docs/computer-use.md
@@ -3721,8 +3957,8 @@ signatures and unknown fields on supported block types. This replay data and raw
 responses may contain sensitive content; keep them private on the backend and
 out of user-facing hydration or logs. The normalized agent currently handles
 text, thinking, redacted thinking, client tool-use and pinned hosted-tool blocks with supported
-text, thinking, signature and input JSON deltas. Citation deltas are retained
-privately on text blocks for replay; there is no normalized UI citation event. Unknown block types or deltas
+text, thinking, signature and input JSON deltas. Citation blocks are normalized as typed message annotations and additive UI
+events; opaque native fields remain private. See [document citations](citations.md). Unknown block types or deltas
 fail explicitly. Hosted tools and bounded `pause_turn` continuation are integrated; see the
 [hosted-tool guide](anthropic-hosted.md). Audio/video, MCP, browser tools and
 complete nested semantics remain unfinished. Use raw native access for other
@@ -3915,7 +4151,7 @@ These dispositions describe top-level access only. Arbitrary native JSON does no
 | Field | Disposition | Access and limits |
 | --- | --- | --- |
 | max_tokens | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
-| messages | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
+| messages | runtime-owned | Runtime-owned history, source and title; native document context/cache/citations decorations are supported. Five pinned citation variants have typed output and private replay with offline fixtures. Custom-content documents, search-result inputs and live behavior remain unverified. |
 | system | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
 | tools | runtime-owned | Runtime application tools and provider-model hostedTools are built and protected by the adapter. Selected pinned hosted blocks, approvals and paused continuation have offline fixtures; full nested semantics and live behavior remain unverified. |
 | model | mixed | Adapter model constructor and SDK configure; native JSON accepts caller input. |
@@ -4452,6 +4688,8 @@ override only after checking the published package and rerunning interop tests.
 ## Implemented contracts
 
 - Text streaming, standard reasoning events, and structured-output events.
+- Typed Anthropic text citations, CUSTOM events, snapshots and hydration; see
+  [citations](citations.md).
 - Ordered completed media parts in assistant history, client snapshots and hydration.
 - Selected OpenAI Responses hosted search, code, image and server tool-search
   output with private replay; see [hosted tools](openai-hosted.md).
@@ -4486,7 +4724,8 @@ and retain the old history. Public client bindings remain unchanged. See
   client-executed tools and other native tool kinds are unsupported; native
   approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
-  and general provider-hosted progress/citation normalization are not implemented.
+  and general provider-hosted progress are not implemented. Citation normalization
+  currently covers the five pinned Anthropic variants; other providers remain open.
 - Server tools execute sequentially. Applications can perform concurrency
   inside a tool, with their own cancellation and idempotency policy.
 - Disconnecting a direct run cancels its provider request. Replaying a stored
@@ -4825,20 +5064,21 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest approval-contract and checkpoint-recovery increment was checked on
+The latest typed-citation increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 445 Dart unit and regression tests: tool validation, approvals, client tools,
+- 460 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 20 Serverpod integration tests with a real isolated PostgreSQL database:
+- 21 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 20 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 21 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, two provider-continuation cases, and eight media/history cases, including ordered output images. The media cases include document
+  generation, two provider-continuation cases, typed citations with stored-event
+  replay, and eight media/history cases, including ordered output images. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
 - 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
@@ -5372,6 +5612,52 @@ and scores this scoped path 9/10. No paid calls were made. This is not evidence
 of complete native provider coverage or arbitrary-crash recovery.
 
 
+## Typed Anthropic citations increment
+
+The complete Dart 3.12.2 check passes 460 unit/regression tests and 21 real
+PostgreSQL/Serverpod tests, all consumers, provider contracts and both client
+suites. Three documentation tests and the strict site build also pass.
+
+Core fixtures validate typed source references, JSON round trips, immutable
+message annotations, UTF-16 ranges, malformed input, continuation, memory
+approval recreation, retained partial text and cancellation. A split-surrogate
+regression rejects an unstable citation boundary before its public event.
+Provider fixtures cover all five pinned citation types, initial and streamed
+citation lists, complete-block answer spans, source coordinates, guarded document
+configuration, SDK streaming, structured-output incompatibility and malformed or
+unfinished responses before tool execution.
+
+A real PostgreSQL test recreates an approved-tool agent, verifies saved citations
+and event logs, isolates owners and restores native replay. Raw response
+citations retain private fields; continuation inputs omit response-only file IDs.
+The official JavaScript client and the Dart client preserve citation metadata in
+live snapshots and restored history. The first emoji transport fixture used
+Latin-1 output; setting its explicit UTF-8 charset corrected the fixture.
+Serverpod already encodes its event bytes as UTF-8.
+
+The independent developer consumer runs all five source kinds through loopback
+HTTP, then recreates an approval and checks native replay and privacy. Its scoped
+score is 8/10. The guide sample byte-matches the runnable example, analyzes and
+compiles without execution. No live provider or paid calls were made. Citation
+quality, custom-content document inputs, other providers' citation adapters and
+Flutter rendering remain open. URL validation does not establish a general
+public-data policy.
+
+
+The first full citation check rejected an older native consumer's incomplete
+citation fixture. It omitted required source fields and treated a document title
+as private metadata. The corrected fixture supplies a citable document and all
+required fields, and uses an unknown native field for its private-marker check.
+Public titles remain public, while unknown fields remain private.
+
+Citation events include a stable per-message `citationIndex`. The official
+JavaScript fixture reads the actual stored log through the adapter's GET
+`joinRun` path and feeds it through the official client processor. Upserting by
+message and index retains two identical citations after replay without creating
+four. This is completed-log replay evidence, not automatic reconnection during
+a live provider call.
+
+
 # Source: CONTRIBUTING.md
 
 # Contribute to AgentWeave
@@ -5441,7 +5727,9 @@ JavaScript numeric semantics for protocol hashing and is not a guard comparison.
 Pending tool contracts are private versioned snapshots. Never reconstruct an
 older contract from current definitions or use wire schema hashes as server
 authorization guards. Validate the entire resume batch before effects.
-Completed media is public content; native output/replay metadata stays private.
+Completed media and typed citations are public content; native output/replay
+metadata stays private. Citation answer offsets use UTF-16; source coordinates
+retain native units. Preserve message citations when cloning canonical history.
 Keep credentials on the backend and outside source control.
 
 Authentication owns `ownerId`. Never accept it from a request body.

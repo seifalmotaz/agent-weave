@@ -1,5 +1,7 @@
 # Unreleased
 
+- Add typed text citations, validated UTF-16 answer ranges, source locations, streaming events and persisted client hydration metadata.
+
 - Bind resumed approvals to versioned exact tool snapshots, including input/output schemas, execution kind, policies and native definitions; retain public TanStack hashes for wire compatibility.
 - Reject older pending checkpoints without exact contracts while preserving history; start a new conversation rather than reconstructing contracts from lossy hashes.
 - Expose sanitized `AgentRunException.message` consistently with streamed error messages; retain private causes and stacks for backend diagnostics.

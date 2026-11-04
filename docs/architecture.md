@@ -207,3 +207,21 @@ values. The runtime validates the whole batch before any execution. Public
 TanStack schema hashes retain their protocol semantics and do not decide whether
 a server-owned contract changed. This keeps native Dart validation independent
 of client numeric conversion; see [approval contracts](approval-contracts.md).
+
+
+## Public text citations
+
+`ChatMessage.citations` holds typed annotations over flattened assistant text.
+The range uses UTF-16 answer offsets; source locations retain their native
+character, page or block units. Providers emit `CitationReady` after the referenced
+text is available. The runtime validates ranges before publishing the additive
+`agent_weave:citation` event and persists annotations with their message.
+Hydration and terminal snapshots include only typed public citation JSON in
+`metadata.agent_weave.citations`.
+
+Citation-bearing content parts would require every text and media converter to
+understand a new text shape. Message annotations preserve the existing content
+contract and let ordinary clients retain metadata. Provider replay remains a
+separate private contract, including opaque fields that cannot be public. See
+[citations](citations.md) for the five supported Anthropic projections and replay
+input differences.

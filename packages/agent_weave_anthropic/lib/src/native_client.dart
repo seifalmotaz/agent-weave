@@ -240,9 +240,11 @@ final class AnthropicNativeClient {
     required String model,
     JsonObject Function(JsonObject)? configure,
     List<AnthropicHostedTool> hostedTools = const [],
+    bool citations = false,
   }) => AnthropicProtocolModel(
     model: model,
     configure: configure,
+    citations: citations,
     hostedTools: List.unmodifiable(hostedTools),
     transport: (body, token) async* {
       await for (final event in streamMessages(body, cancellation: token)) {

@@ -10,6 +10,7 @@ ModelRequest _textOnlyChatRequest(ModelRequest request) => ModelRequest(
           role: message.role,
           content: message.content.where((part) => part is! ImagePart),
           toolCalls: message.toolCalls,
+          citations: message.citations,
           structuredOutput: message.structuredOutput,
           providerData: message.providerData,
         )

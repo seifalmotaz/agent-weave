@@ -456,3 +456,20 @@ The consumer confirms public `run()` error events for both changed and legacy co
 Future-only consumers can now use `AgentRunException.message` to present the same safe changed-contract recovery instruction as the stream; `toString()` includes it. The independent consumer also confirms a provider exception's private marker is absent from both public message and `toString()` while remaining in the explicitly private cause. Legacy approvals need a new conversation, not automatic migration. The consumer tests native definition changes, but not each native sequential policy variant; broader database persistence and external client behavior were not checked here.
 
 Final round 17 verification also passes the malformed native-continuation checkpoint regression: a decode failure preserves the snapshot, does not invoke the model, and releases the reservation. The independent reviewer reran the consumer and regression; the scoped score remains 9/10.
+
+
+## Round 18: typed citations
+
+# Round 18 independent citation consumer
+
+**8/10 for the tested native Anthropic citation path.** `dart run examples/review_cases/anthropic_citations.dart` passes and Dart analysis reports no issues. The loopback fixture covers five pinned native citation variants, a split text block containing an emoji and a citation before its final text, UTF-16 answer offsets, two directly enabled documents, typed persisted citations and JSON roundtrip. The five live CUSTOM payloads match reconnect hydration metadata exactly. A recreated agent resumes a tool approval with native citation replay, preserving opaque fields but removing response-only file IDs. Public events and hydration exclude those fields and another owner cannot see the history.
+
+Structured output with citations, disabled citations through native configure, and attempted in-place document-source replacement fail before dispatch. Valid native context/cache decorations survive. Unsafe credential-bearing URLs, unknown citation types, and early EOF fail without a citation event. No live provider, paid request, UI rendering, cancellation, typed SDK configuration, or persistent database was tested. The result is not evidence of those paths or model availability.
+
+DX: `chatModel(citations: true)` and typed `ChatMessage.citations` are straightforward; a developer rendering live output must separately handle `agent_weave:citation` CUSTOM events and reconnect metadata. Document the distinction between the answer's UTF-16 span and source coordinates, the citations/structured-output restriction, the all-document setting, and that generic clients may ignore CUSTOM events. Only the tested source URL guard and provider projection are covered by this consumer; no broad public-data security guarantee is implied.
+
+Guide review: the first Dart code block of `docs/citations.md` byte-matches `examples/anthropic_citations_demo.dart`. The demo and independent consumer analyze cleanly; the demo compiles to kernel without running the billable example. The loopback consumer passed again. The guide addresses the observed CUSTOM/hydration integration requirement, answer/source coordinate distinction, privacy, configuration restrictions and partial-run status. No additional concrete DX problem was found in this review. The score remains 8/10 for the independently checked native path; this review did not itself rerun JS or PostgreSQL tests.
+
+Final capability verification: with `citations: true`, the native model advertises `structuredOutput: false`; constructing an output-schema agent throws the expected public `ArgumentError` without HTTP. A direct model request containing an enabled document and output schema also throws `ArgumentError` before HTTP. The updated consumer and analyzer pass. The scoped native-path score remains 8/10.
+
+After adding `citationIndex`, the independent native consumer passes with explicit indexes 0 through 4 matching citation order and analyzes cleanly. The guide directs renderers to upsert by message ID and index, preserving equal distinct citations during replay. The scoped score remains 8/10. This consumer did not independently run an end-to-end JS rejoin.

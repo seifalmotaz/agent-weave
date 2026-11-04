@@ -95,6 +95,8 @@ Future<void> main() async {
     'dart_frog',
     'provider_options',
     'approval_contract',
+    'anthropic_citations',
+    'citations_client',
     'openrouter_images',
     'cloudflare_streaming',
     'openai_hosted',

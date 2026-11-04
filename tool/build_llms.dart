@@ -10,6 +10,7 @@ const documents = [
   'docs/approval-contracts.md',
   'docs/providers.md',
   'docs/documents.md',
+  'docs/citations.md',
   'docs/computer-use.md',
   'docs/computer-parameters.md',
   'docs/openai.md',

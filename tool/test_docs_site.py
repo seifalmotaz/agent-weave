@@ -18,6 +18,9 @@ class DocumentationTest(unittest.TestCase):
         guide = (ROOT / 'docs/openai-hosted.md').read_text()
         sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
         self.assertEqual(sample, (ROOT / 'examples/openai_hosted_demo.dart').read_text())
+        guide = (ROOT / 'docs/citations.md').read_text()
+        sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
+        self.assertEqual(sample, (ROOT / 'examples/anthropic_citations_demo.dart').read_text())
         guide = (ROOT / 'docs/openrouter-images.md').read_text()
         sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
         self.assertEqual(sample, (ROOT / 'examples/openrouter_images_demo.dart').read_text())
@@ -37,7 +40,7 @@ class DocumentationTest(unittest.TestCase):
             for path in ['index.html', 'getting-started/serverpod/index.html',
                          'getting-started/dart/index.html', 'tools/index.html',
                          'providers/index.html', 'compatibility/index.html', 'approval-contracts/index.html',
-                         'documents/index.html', 'openrouter/index.html', 'openrouter-images/index.html',
+                         'documents/index.html', 'citations/index.html', 'openrouter/index.html', 'openrouter-images/index.html',
                          'openai-hosted/index.html', 'openai-hosted-parameters/index.html', 'openai-hosted-inventory.json',
                          'together/index.html', 'together-options/index.html', 'together-chat-inventory.json',
                          'vercel-gateway/index.html', 'gateway-options/index.html', 'gateway-options-inventory.json',
@@ -61,6 +64,7 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('tools/', locations)
             self.assertIn('approval-contracts/', locations)
             self.assertIn('documents/', locations)
+            self.assertIn('citations/', locations)
             self.assertIn('openrouter/', locations)
             self.assertIn('openrouter-images/', locations)
             self.assertIn('together/', locations)

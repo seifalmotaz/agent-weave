@@ -112,8 +112,8 @@ signatures and unknown fields on supported block types. This replay data and raw
 responses may contain sensitive content; keep them private on the backend and
 out of user-facing hydration or logs. The normalized agent currently handles
 text, thinking, redacted thinking, client tool-use and pinned hosted-tool blocks with supported
-text, thinking, signature and input JSON deltas. Citation deltas are retained
-privately on text blocks for replay; there is no normalized UI citation event. Unknown block types or deltas
+text, thinking, signature and input JSON deltas. Citation blocks are normalized as typed message annotations and additive UI
+events; opaque native fields remain private. See [document citations](citations.md). Unknown block types or deltas
 fail explicitly. Hosted tools and bounded `pause_turn` continuation are integrated; see the
 [hosted-tool guide](anthropic-hosted.md). Audio/video, MCP, browser tools and
 complete nested semantics remain unfinished. Use raw native access for other

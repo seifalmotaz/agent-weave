@@ -1,5 +1,7 @@
 # Unreleased
 
+- Enable document citations and publish typed citation spans while preserving private replay.
+
 - Use shared lossless typed JSON patches and exact numeric ownership/replay comparisons.
 
 - Add typed/native hosted tools, opaque result replay, bounded paused turns, container reuse and programmatic caller checks.

@@ -67,3 +67,13 @@ Implement `SequentialNativeTool` only when the provider supports valid skipped
 results after a failed action. Its `skippedResult` must never perform an action.
 OpenAI computer calls have no such denial result; Anthropic's computer toolset
 uses its documented error results. See the provider guides for each contract.
+
+
+## Text citations
+
+Emit `CitationReady(TextCitation(...))` after its answer text is available.
+Offsets are UTF-16 code units into all `TextDelta` output for that invocation;
+source coordinates remain separate. The runtime validates boundaries, persists
+annotations with the assistant message and exposes safe citation metadata to
+clients. Put only public fields in a typed citation. Keep native replay fields
+in `ProviderOutput`. See [citations](citations.md) for source types and wire data.

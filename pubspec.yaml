@@ -32,6 +32,7 @@ dev_dependencies:
   agent_weave_http: ^0.1.0-dev.1
   agent_weave_cloudflare: ^0.1.0-dev.1
   agent_weave_vercel_gateway: ^0.1.0-dev.1
+  agent_weave_serverpod_client: ^0.1.0-dev.1
   lints: ^6.0.0
   test: ^1.29.0
   http: ^1.6.0

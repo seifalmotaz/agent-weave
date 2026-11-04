@@ -13,6 +13,7 @@ Development version. Read compatibility and validation before making support cla
 - [docs/approval-contracts.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/approval-contracts.md)
 - [docs/providers.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/providers.md)
 - [docs/documents.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/documents.md)
+- [docs/citations.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/citations.md)
 - [docs/computer-use.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/computer-use.md)
 - [docs/computer-parameters.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/computer-parameters.md)
 - [docs/openai.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai.md)

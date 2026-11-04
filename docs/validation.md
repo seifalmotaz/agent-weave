@@ -21,20 +21,21 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest approval-contract and checkpoint-recovery increment was checked on
+The latest typed-citation increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 445 Dart unit and regression tests: tool validation, approvals, client tools,
+- 460 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 20 Serverpod integration tests with a real isolated PostgreSQL database:
+- 21 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 20 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 21 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, two provider-continuation cases, and eight media/history cases, including ordered output images. The media cases include document
+  generation, two provider-continuation cases, typed citations with stored-event
+  replay, and eight media/history cases, including ordered output images. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
 - 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
@@ -566,3 +567,49 @@ streamed errors while retaining private diagnostic causes.
 The independent developer reran the approval consumer and checkpoint regression
 and scores this scoped path 9/10. No paid calls were made. This is not evidence
 of complete native provider coverage or arbitrary-crash recovery.
+
+
+## Typed Anthropic citations increment
+
+The complete Dart 3.12.2 check passes 460 unit/regression tests and 21 real
+PostgreSQL/Serverpod tests, all consumers, provider contracts and both client
+suites. Three documentation tests and the strict site build also pass.
+
+Core fixtures validate typed source references, JSON round trips, immutable
+message annotations, UTF-16 ranges, malformed input, continuation, memory
+approval recreation, retained partial text and cancellation. A split-surrogate
+regression rejects an unstable citation boundary before its public event.
+Provider fixtures cover all five pinned citation types, initial and streamed
+citation lists, complete-block answer spans, source coordinates, guarded document
+configuration, SDK streaming, structured-output incompatibility and malformed or
+unfinished responses before tool execution.
+
+A real PostgreSQL test recreates an approved-tool agent, verifies saved citations
+and event logs, isolates owners and restores native replay. Raw response
+citations retain private fields; continuation inputs omit response-only file IDs.
+The official JavaScript client and the Dart client preserve citation metadata in
+live snapshots and restored history. The first emoji transport fixture used
+Latin-1 output; setting its explicit UTF-8 charset corrected the fixture.
+Serverpod already encodes its event bytes as UTF-8.
+
+The independent developer consumer runs all five source kinds through loopback
+HTTP, then recreates an approval and checks native replay and privacy. Its scoped
+score is 8/10. The guide sample byte-matches the runnable example, analyzes and
+compiles without execution. No live provider or paid calls were made. Citation
+quality, custom-content document inputs, other providers' citation adapters and
+Flutter rendering remain open. URL validation does not establish a general
+public-data policy.
+
+
+The first full citation check rejected an older native consumer's incomplete
+citation fixture. It omitted required source fields and treated a document title
+as private metadata. The corrected fixture supplies a citable document and all
+required fields, and uses an unknown native field for its private-marker check.
+Public titles remain public, while unknown fields remain private.
+
+Citation events include a stable per-message `citationIndex`. The official
+JavaScript fixture reads the actual stored log through the adapter's GET
+`joinRun` path and feeds it through the official client processor. Upserting by
+message and index retains two identical citations after replay without creating
+four. This is completed-log replay evidence, not automatic reconnection during
+a live provider call.

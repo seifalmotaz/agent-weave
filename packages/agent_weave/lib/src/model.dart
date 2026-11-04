@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'citations.dart';
 import 'cancellation.dart';
 
 typedef JsonObject = Map<String, Object?>;
@@ -356,6 +357,9 @@ final class ChatMessage {
   final List<ContentPart> content;
   final List<ToolCall> toolCalls;
   final String? toolCallId;
+
+  /// Citations into the flattened assistant [text], in UTF-16 code units.
+  final List<TextCitation> citations;
   final StructuredMessageOutput? structuredOutput;
 
   /// Provider replay state, including encrypted reasoning. Never sent to UI clients.
@@ -366,9 +370,11 @@ final class ChatMessage {
     Iterable<ContentPart> content = const [],
     Iterable<ToolCall> toolCalls = const [],
     this.toolCallId,
+    Iterable<TextCitation> citations = const [],
     this.structuredOutput,
     Map<String, List<JsonObject>> providerData = const {},
   }) : content = List.unmodifiable(content),
+       citations = List.unmodifiable(citations),
        toolCalls = List.unmodifiable(toolCalls),
        providerData = Map.unmodifiable({
          for (final entry in providerData.entries)
@@ -376,6 +382,14 @@ final class ChatMessage {
              entry.value.map(immutableJson),
            ),
        }) {
+    if (role != MessageRole.assistant && this.citations.isNotEmpty) {
+      throw const FormatException(
+        'Only assistant messages can contain citations.',
+      );
+    }
+    for (final citation in this.citations) {
+      citation.validateFor(text);
+    }
     if (role == MessageRole.tool &&
         (toolCallId == null || toolCallId!.isEmpty)) {
       throw ArgumentError('Tool messages require a toolCallId.');
@@ -403,6 +417,8 @@ final class ChatMessage {
     'content': [for (final part in content) part.toJson()],
     'toolCalls': [for (final call in toolCalls) call.toJson()],
     if (toolCallId != null) 'toolCallId': toolCallId,
+    if (citations.isNotEmpty)
+      'citations': [for (final citation in citations) citation.toJson()],
     if (providerData.isNotEmpty) 'providerData': providerData,
     if (structuredOutput != null)
       'structuredOutput': structuredOutput!.toJson(),
@@ -419,6 +435,7 @@ final class ChatMessage {
         ToolCall.fromJson(Map<String, Object?>.from(call as Map)),
     ],
     toolCallId: json['toolCallId'] as String?,
+    citations: _readCitations(json['citations']),
     structuredOutput: json['structuredOutput'] == null
         ? null
         : StructuredMessageOutput.fromJson(
@@ -432,6 +449,18 @@ final class ChatMessage {
         ],
     },
   );
+}
+
+List<TextCitation> _readCitations(Object? value) {
+  if (value == null) return const [];
+  try {
+    return [
+      for (final item in value as List)
+        TextCitation.fromJson(Map<String, Object?>.from(item as Map)),
+    ];
+  } catch (_) {
+    throw const FormatException('Invalid message citations.');
+  }
 }
 
 final class ModelCapabilities {
@@ -547,6 +576,12 @@ sealed class ModelEvent {
 final class TextDelta extends ModelEvent {
   final String text;
   const TextDelta(this.text);
+}
+
+/// A validated citation into text emitted so far in this model invocation.
+final class CitationReady extends ModelEvent {
+  final TextCitation citation;
+  const CitationReady(this.citation);
 }
 
 final class ReasoningDelta extends ModelEvent {

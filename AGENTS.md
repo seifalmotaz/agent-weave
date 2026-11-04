@@ -41,7 +41,9 @@ JavaScript numeric semantics for protocol hashing and is not a guard comparison.
 Pending tool contracts are private versioned snapshots. Never reconstruct an
 older contract from current definitions or use wire schema hashes as server
 authorization guards. Validate the entire resume batch before effects.
-Completed media is public content; native output/replay metadata stays private.
+Completed media and typed citations are public content; native output/replay
+metadata stays private. Citation answer offsets use UTF-16; source coordinates
+retain native units. Preserve message citations when cloning canonical history.
 Keep credentials on the backend and outside source control.
 
 Authentication owns `ownerId`. Never accept it from a request body.

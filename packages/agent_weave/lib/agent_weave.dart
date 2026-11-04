@@ -2,6 +2,7 @@
 library;
 
 export 'src/cancellation.dart';
+export 'src/citations.dart';
 export 'src/generation.dart';
 export 'src/history.dart';
 export 'src/media.dart';

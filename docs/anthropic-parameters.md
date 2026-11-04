@@ -7,7 +7,7 @@ These dispositions describe top-level access only. Arbitrary native JSON does no
 | Field | Disposition | Access and limits |
 | --- | --- | --- |
 | max_tokens | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
-| messages | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
+| messages | runtime-owned | Runtime-owned history, source and title; native document context/cache/citations decorations are supported. Five pinned citation variants have typed output and private replay with offline fixtures. Custom-content documents, search-result inputs and live behavior remain unverified. |
 | system | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
 | tools | runtime-owned | Runtime application tools and provider-model hostedTools are built and protected by the adapter. Selected pinned hosted blocks, approvals and paused continuation have offline fixtures; full nested semantics and live behavior remain unverified. |
 | model | mixed | Adapter model constructor and SDK configure; native JSON accepts caller input. |

@@ -89,7 +89,7 @@ Future<void> main() async {
       );
       check(messages[1]['content'][1]['type'] == 'tool_use', 'tool missing');
       check(
-        messages[1]['content'][2]['citations'][0]['document_title'] ==
+        messages[1]['content'][2]['citations'][0]['future'] ==
             'PRIVATE-CITATION',
         'citation replay',
       );
@@ -150,9 +150,12 @@ Future<void> main() async {
               'type': 'citations_delta',
               'citation': {
                 'type': 'char_location',
-                'document_title': 'PRIVATE-CITATION',
+                'document_title': 'Source',
+                'document_index': 0,
+                'cited_text': 'S',
                 'start_char_index': 0,
                 'end_char_index': 1,
+                'future': 'PRIVATE-CITATION',
               },
             }),
             stop(2),
@@ -196,7 +199,11 @@ Future<void> main() async {
     var count = 0;
     final store = MemoryRunStore();
     AiAgent<void> agent() => AiAgent<void>(
-      model: model,
+      model: client.chatModel(
+        model: 'fixture',
+        citations: true,
+        configure: model.configure,
+      ),
       store: store,
       tools: [
         Tool<int, int, void>(
@@ -218,7 +225,19 @@ Future<void> main() async {
       ChatRequest(
         threadId: 't',
         runId: 'r',
-        messages: [ChatMessage.user('double', id: 'u')],
+        messages: [
+          ChatMessage(
+            id: 'u',
+            role: MessageRole.user,
+            content: [
+              DocumentPart.bytes(
+                utf8.encode('Source.'),
+                mimeType: 'text/plain',
+              ),
+              const TextPart('double'),
+            ],
+          ),
+        ],
       ),
       ownerId: 'owner',
       context: null,
