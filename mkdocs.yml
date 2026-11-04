@@ -98,6 +98,7 @@ nav:
       - Cloudflare API inventory: cloudflare-api-reference.md
       - OpenRouter API inventory: openrouter-api-reference.md
       - Computer protocol fields: computer-parameters.md
+      - Anthropic request fields: anthropic-parameters.md
       - Developer reviews: dx-review.md
       - Coding-agent guide: agent-guide.md
       - Build these docs: docs-site.md

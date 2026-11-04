@@ -61,3 +61,10 @@ upstream repository, exact revision and path are recorded in the adjacent
 `source.json`; the full license is retained in `tool/contracts/openai-computer/LICENSE`.
 The snapshot is used to review selected protocol declarations, not as a claim of
 complete provider support.
+
+## Anthropic Messages contract source
+
+`tool/contracts/anthropic/messages.ts` retains official Anthropic TypeScript SDK
+source under Apache License 2.0. The exact repository, revision and path are in
+`source.json`; the complete license is retained beside the snapshot. The source
+is reference material for a selected contract inventory, not copied runtime code.

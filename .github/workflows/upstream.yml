@@ -21,3 +21,4 @@ jobs:
       - run: python3 tool/cloudflare_contract.py --upstream --check
       - run: python3 tool/openrouter_contract.py --upstream --check
       - run: node tool/interop/computer-inventory.mjs --upstream
+      - run: node tool/interop/anthropic-inventory.mjs --upstream

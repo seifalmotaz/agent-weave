@@ -13,6 +13,9 @@ TypeScript API conventions into the Dart developer API.
   `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and
   `packages/agent_weave_cloudflare`.
   Shared JSON HTTP transport belongs in `packages/agent_weave_http`.
+  The Anthropic normalizer consumes raw events; preserve opaque block fields
+  and signed thinking before SDK decoding. Typed SDK configuration must apply
+  changes to a pre-callback snapshot without erasing unknown replay fields.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.

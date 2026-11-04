@@ -145,3 +145,20 @@ The last command compares upstream main with the pinned projection; review drift
 provider documentation before changing the revision or regenerating the inventory.
 Update the reviewed types, Dart behavior and fixtures together. These offline
 checks do not establish live provider or model support.
+
+## Anthropic Messages contract
+
+The official TypeScript source is pinned in `tool/contracts/anthropic/source.json`.
+The inventory follows request, response and stream declarations plus their local
+type references. Imported types and unrelated endpoints are outside this scope.
+Top-level dispositions describe access, not full nested or model semantics.
+
+```sh
+node --test tool/interop/anthropic-inventory.test.mjs
+node tool/interop/anthropic-inventory.mjs --check
+node tool/interop/anthropic-inventory.mjs --upstream
+```
+
+Review field and union drift before changing the pin. Update the native client,
+normalizer, SDK patch preservation, request fixtures and disposition together.
+New raw JSON fields do not imply the agent supports their continuation protocol.

@@ -18,7 +18,7 @@ using it in production.
 | Package | Use it for |
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
-| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
+| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, private replay, cache controls, and cancellation |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
@@ -666,6 +666,23 @@ Final guide and transport review: discoverability 8/10 (the complete sample, dri
 Additional consumer cases send unknown top-level computer item data and verify it is in the private stored snapshot and replayed on continuation, but absent from UI hydration. Unknown action fields, click modifiers, and unknown drag point fields fail without executor invocation. This is limited to the specific malformed shapes tested; the fixture does not prove all future provider changes are safe. The legacy preview example in the consumer needed its environment updated from the old string to the current enum; the guide already uses the enum. Review commands use the pinned `.dart_tool/dart-3.12.2/dart-sdk/bin/dart`: `analyze examples/computer_demo.dart examples/review_cases/computer.dart` , `run examples/review_cases/computer.dart`, and `compile exe examples/computer_demo.dart -o /tmp/agentweave-computer-guide-review`.
 
 
+## Round 11: Anthropic native consumer
+
+## Before changes
+
+Score: 7.8/10. Standard text, structured output, tool execution and signed thinking continuation are approachable. The typed SDK configuration is useful, but the SDK's union decoder and endpoint surface limit native protocol coverage and can discard fields not represented by its models. The HTTP error cause included the provider's response message, which can expose sensitive content. The current docs clearly state several limits.
+
+`dart run examples/review_cases/anthropic.dart` passed against loopback HTTP: text, structured output, two-invocation tool loop, signed thinking replay, and HTTP 400 mapping. No provider request was made.
+
+## Native API review
+
+Score: 8.4/10. The native client is discoverable from the guide and makes raw and normalized access distinct. The JSON configuration callback is convenient for new fields, though it gives up compile-time option checking; unsupported blocks fail closed in normalized chat, with raw streaming available for custom handling. This is useful coverage, not full Anthropic parity.
+
+Using the pinned Dart 3.12.2 SDK, `dart analyze examples/anthropic_demo.dart examples/review_cases/anthropic_native.dart` passed. The guide's first Dart block matches the demo byte-for-byte, and `dart compile exe examples/anthropic_demo.dart` passed. `dart run examples/review_cases/anthropic_native.dart` passed against loopback HTTP: text, JSON schema, approved tool call resumed by a recreated agent, signature and unknown fields on thinking replay, hidden hydration, request cache control and unknown options, final cumulative cache input and thinking-token usage, model, private metadata, citation replay and hydration privacy, key rotation, credential redaction in HTTP errors, raw create/count requests with query and header, pending-header and stream cancellation, sibling stream isolation, borrowed client ownership, malformed SSE rejection, and unknown block raw access with normalized failure.
+
+The first run exposed two native client compile errors; implementation owner corrected them before the passing run. Provider error details are retained after credential scrubbing, so callers should treat error details as sensitive; other private response text is not generally redacted. The guide's executable demo was analyzed, not run, because it makes a billable request. No live provider, operating system, or browser behavior was tested. Unknown block types and deltas remain unsupported by the normalized agent loop. The fixture validates a selected cache-control request shape, not a provider cache hit or exhaustive native options.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -706,6 +723,20 @@ failure closes the native continuation while retaining its audit history. Start
 a new thread after inspecting the environment; never synthesize a screenshot or
 acknowledgement. Provider continuation data is private, separate from UI history.
 See [computer use](computer-use.md) for the application contract.
+
+## Anthropic normalization
+
+`AnthropicProtocolModel` encodes canonical runtime history and normalizes raw
+Messages events. `AnthropicNativeClient` uses the shared HTTP transport for
+request-scoped cancellation and deadlines. The SDK-backed facade uses the same
+normalizer without first decoding provider events into lossy SDK models.
+Typed SDK configuration applies only differences from a pre-callback snapshot,
+preserving unknown unchanged JSON fields. Canonical guards still reject changes
+to server-owned messages, tools, bounds and requested output schemas.
+
+Original supported content blocks are stored in `anthropic.messages`; compact
+message and usage metadata live separately in `anthropic.messages.metadata`.
+Only content blocks are replayed. Neither namespace enters UI hydration.
 
 ## Ownership and cancellation
 
@@ -2523,67 +2554,172 @@ metadata is available from raw methods; not all fields are normalized by the age
 
 # Source: docs/anthropic.md
 
-# Native Anthropic Messages
+# Anthropic Messages
 
-`agent_weave_anthropic` implements the native Messages wire protocol, using
-`anthropic_sdk_dart 9.0.1` for transport and typed options. That SDK is maintained
-independently of Anthropic. This adapter is not an OpenAI-compatible gateway.
+Use `AnthropicNativeClient` for native JSON and SSE access, including fields the
+pinned Dart SDK does not know. Its `chatModel` also integrates supported
+Messages streams with AgentWeave's text, structured output and tool loop. The
+package is independent and unofficial.
+
+## Run the example
+
+From the workspace, set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` in the
+backend environment, then run `dart run examples/anthropic_demo.dart`. Optionally
+set `ANTHROPIC_VERSION`; it defaults to `2023-06-01` for backwards
+compatibility. The example requests adaptive thinking, caching and structured
+output, so choose a model and API version that support that combination. It
+makes a billable request. See [Anthropic's versioning documentation](https://docs.anthropic.com/en/api/versioning)
+and verify the current model and feature requirements before selecting a newer
+version.
+
+The example's `configure` receives a read-only JSON snapshot. Return a new map,
+as it does with `...body`. The agent owns messages, max tokens, system
+instructions and tools, and protects the runtime output schema. You can add
+supported native options without replacing these values; this does not imply
+AgentWeave implements the behavior of every forwarded field.
 
 ```dart
+import 'dart:io';
+
 import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
 
-final client = anthropic.AnthropicClient.withApiKey(apiKey);
-final model = anthropic.AnthropicChatModel(
-  client: client,
-  model: yourEnabledModelId,
-);
-try {
-  final result = await generateText(model: model, prompt: 'Hello');
-  print(result.text);
-} finally {
-  client.close();
+Future<void> main() async {
+  final apiKey = Platform.environment['ANTHROPIC_API_KEY'];
+  final modelId = Platform.environment['ANTHROPIC_MODEL'];
+  if (apiKey == null || apiKey.isEmpty || modelId == null || modelId.isEmpty) {
+    throw StateError('Set ANTHROPIC_API_KEY and ANTHROPIC_MODEL.');
+  }
+  final client = anthropic.AnthropicNativeClient.withApiKey(
+    apiKey: apiKey,
+    apiVersion: Platform.environment['ANTHROPIC_VERSION'] ?? '2023-06-01',
+  );
+  try {
+    final model = client.chatModel(
+      model: modelId,
+      configure: (body) => {
+        ...body,
+        'thinking': {'type': 'adaptive'},
+        'cache_control': {'type': 'ephemeral'},
+      },
+    );
+    final result = await generateObject<String>(
+      model: model,
+      prompt: 'Give one concise title for a guide to growing herbs indoors.',
+      schema: const {
+        'type': 'object',
+        'properties': {
+          'title': {'type': 'string'},
+        },
+        'required': ['title'],
+        'additionalProperties': false,
+      },
+      decode: (json) => (json as Map<String, Object?>)['title'] as String,
+    );
+    print(result.value);
+  } finally {
+    client.close();
+  }
 }
 ```
 
-Model availability is account-specific. Keep API keys on the backend. Use the
-same adapter with `AiAgent<Session>` and `ServerpodRunStore` in a Serverpod app;
-the core runtime owns the tool loop and approval validation.
+## Native requests and streams
 
-## Implemented and fixture-tested
+`client.createMessage(body)` returns an `AnthropicNativeResponse` with the raw
+JSON in `data`, HTTP `statusCode`, and sanitized response `headers`.
+`client.countTokens(body)` calls the native token-counting endpoint and returns
+the same response shape, including fields such as `input_tokens` when supplied
+by the service. Both methods and `streamMessages(body)` accept per-request
+`headers`, `query` and `cancellation`; query values are lists of strings.
+`streamMessages` yields `JsonSseData` with raw event `data`, event name, ID and
+response headers. Error details retain private provider content after credential
+scrubbing; do not expose them directly in a UI or logs. It requires a complete stream ending in `message_stop`.
+`send` provides native JSON access to other paths without claiming endpoint
+coverage.
 
-- System instructions separate from message blocks; text and URL images.
-- User documents by URL, inline PDF, and inline plain text. See [documents](documents.md).
-- Fragmented tool JSON, native tool-use/results, multiple calls, and replay.
-- Native JSON schema format for `generateObject` and `AiAgent.outputSchema`.
-- Thinking deltas with private signed/redacted block continuation.
-- Cache read/creation input accounted in total input usage; read tokens retained
-  in `cachedInputTokens`. A fixture is not evidence of an actual cache hit.
-- `configure` for typed SDK options; native cache controls on user blocks,
-  single-block system instructions, and tool definitions; strict tool options.
-- Beta headers, user-profile options, cancellation signals and stream failures.
+The client defaults to API version `2023-06-01`; set `apiVersion` explicitly
+when your integration needs another version. Constructor options `betas`,
+`workspaceId`, and `userProfileId` set headers. In particular the
+`anthropic-workspace-id` and `anthropic-user-profile-id` headers are separate
+from any `workspace_id` and `user_profile_id` fields you put in a native JSON
+body. Check the provider contract for the endpoint and version you use.
 
-Configuration cannot rewrite authoritative messages, system instructions, tool
-schemas or token bounds. Cache decoration is compared at the native block/tool
-level; a schema property called `cache_control` is not silently ignored.
+A `credentialResolver` can fetch or rotate a key for each request; alternatively
+use `withApiKey`. Keep credentials on the backend. Close the native client when
+finished; an injected `http.Client` is borrowed and remains the caller's
+responsibility. There are no automatic retries. Cancellation aborts local
+request work; it does not undo a request or external effect already accepted by
+the provider.
 
-Thinking and signature replay belongs in server storage. Hydration does not
-return private provider continuation blocks to the UI.
+## SDK-backed facade
 
-## Explicit limits
+Existing integrations can still construct `AnthropicChatModel` with an
+`anthropic_sdk_dart` `AnthropicClient` and a typed `MessageCreateRequest`
+`configure` callback. The SDK client is caller-owned. The typed callback's patch
+preserves unknown unchanged JSON fields; edits to fields or lists can replace the
+corresponding values. The SDK's typed representation still cannot express every
+new provider field. Prefer the native client for unknown fields and
+request-scoped transport cancellation.
 
-The pinned SDK does not support file-ID documents.
-[Upstream PR #431](https://github.com/davidmigloz/ai_clients_dart/pull/431) adds
-the missing source type; an open PR is not an available SDK release. The adapter also does not
-implement audio/video input, hosted
-server-tool output or `pause_turn` continuation. Unsupported stream blocks and
-stop reasons fail explicitly. Other endpoints are available directly through
-the provider SDK, with its own support and constraints.
+## Replay and limits
 
-Thirteen offline fixture tests cover selected serialization and stream contracts.
-No live Anthropic request or device behavior has been tested. Complete nested
-parameter, header, event and endpoint coverage remains open in the
-[provider inventory](provider-coverage.md).
+The agent preserves provider content blocks for continuation, including
+signatures and unknown fields on supported block types. This replay data and raw
+responses may contain sensitive content; keep them private on the backend and
+out of user-facing hydration or logs. The normalized agent currently handles
+text, thinking, redacted thinking and client tool-use blocks with supported
+text, thinking, signature and input JSON deltas. Citation deltas are retained
+privately on text blocks for replay; there is no normalized UI citation event. Unknown block types or deltas
+fail explicitly. Hosted tools, client computer-use workflows, audio/video and
+pause-turn continuations are not integrated into the agent loop; use raw native
+access only when implementing those protocols yourself. File-ID document parts
+remain unsupported by the typed SDK path and agent document mapping; URL and
+supported inline documents are available.
+
+See the [request field inventory](anthropic-parameters.md) for the pinned
+contract and disposition of each field. Fixtures exercise selected behavior;
+they do not establish live model support or complete endpoint parity.
+
+## Upstream SDK cancellation fix
+
+[SDK PR #432](https://github.com/davidmigloz/ai_clients_dart/pull/432) adds prompt
+cancellation before response headers, during stalled bodies, and through the
+public stream wrappers while retaining shared-client ownership. The contribution
+is submitted, not merged or released. AgentWeave's native client already uses
+its own shared transport and does not require this unreleased SDK change.
+
+
+# Source: docs/anthropic-parameters.md
+
+# Anthropic Messages request fields
+
+Generated from the [contract inventory](anthropic-api-inventory.json), pinned to official TypeScript SDK commit `ea8d7de0e47614ae71044fbf7bf12041318ba37e`. Run `node tool/interop/anthropic-inventory.mjs --write` after reviewing changes.
+
+These dispositions describe top-level access only. Arbitrary native JSON does not validate nested unions or establish agent orchestration, model acceptance, or live behavior. The SDK adapter owns messages, execution bounds, system instructions and tools; its output schema is protected when supplied by the runtime.
+
+| Field | Disposition | Access and limits |
+| --- | --- | --- |
+| max_tokens | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
+| messages | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
+| system | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
+| tools | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
+| model | mixed | Adapter model constructor and SDK configure; native JSON accepts caller input. |
+| output_config | mixed | SDK configure; runtime output schema is protected when requested. Native JSON accepts caller input. |
+| stream | runtime-owned | Agent uses SDK streaming; native client controls the request mode. |
+| user_profile_id | mixed | The adapter exposes a userProfileId header; native JSON accepts this body field separately. |
+| cache_control | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| container | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| diagnostics | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| inference_geo | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| metadata | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| service_tier | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| speed | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| stop_sequences | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| thinking | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| tool_choice | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| workspace_id | native-json | Native JSON accepts this field; SDK configure support depends on the Dart SDK version. Agent semantics are not established. |
+
+The inventory follows selected local type references for Messages requests, responses and stream events. Imported declarations and unrelated endpoints are outside its scope. Review protocol behavior and provider documentation separately.
 
 
 # Source: docs/openai-options-audit.md
@@ -2678,12 +2814,12 @@ Status: incremental inventory, not an assertion of complete provider support. Re
 
 ## What exists
 
-The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package has a native JSON transport, separate Chat and stateless Responses adapters, native options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. The Vercel Gateway package implements public Chat and Responses adapters with offline fixtures. The Cloudflare package implements selected native Workers AI, Gateway run, and compatible Chat and Responses contracts with offline fixtures. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The `agent_weave_anthropic` package has native JSON/SSE transport and a lossless Messages normalizer, plus an SDK-backed facade using `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package has a native JSON transport, separate Chat and stateless Responses adapters, native options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. The Vercel Gateway package implements public Chat and Responses adapters with offline fixtures. The Cloudflare package implements selected native Workers AI, Gateway run, and compatible Chat and Responses contracts with offline fixtures. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; Responses also supports the application-executed native computer tool. | See [OpenAI audit](openai-options-audit.md): other native tool continuations, events, transport, media and complete field-by-field coverage remain open. Computer model and driver behavior require separate live verification. |
-| Anthropic native Messages | Native Messages adapter with text, URL-image and URL or inline PDF/plain-text document input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
+| Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. Complete nested semantics, hosted tools, native computer, pause-turn and other endpoint workflows remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
 | OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, all hosted tools/media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
@@ -2769,6 +2905,11 @@ not a claim of full TanStack AI core parity.
   routing, plugin and cache options, ordered private reasoning replay and compact
   provider/cost metadata have offline fixtures. Complete management, background,
   hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
+- Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
+  chat handles selected block and delta types. Hosted tools, native computer
+  use, pause-turn and complete nested field semantics remain unfinished. The
+  SDK-backed facade retains its pinned SDK transport cancellation limits.
+  See [Anthropic](anthropic.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter
   supports one choice; model acceptance of tools, schema, and media remains
   unverified. See [Together](together.md).
@@ -2937,6 +3078,23 @@ provider documentation before changing the revision or regenerating the inventor
 Update the reviewed types, Dart behavior and fixtures together. These offline
 checks do not establish live provider or model support.
 
+## Anthropic Messages contract
+
+The official TypeScript source is pinned in `tool/contracts/anthropic/source.json`.
+The inventory follows request, response and stream declarations plus their local
+type references. Imported types and unrelated endpoints are outside this scope.
+Top-level dispositions describe access, not full nested or model semantics.
+
+```sh
+node --test tool/interop/anthropic-inventory.test.mjs
+node tool/interop/anthropic-inventory.mjs --check
+node tool/interop/anthropic-inventory.mjs --upstream
+```
+
+Review field and union drift before changing the pin. Update the native client,
+normalizer, SDK patch preservation, request fixtures and disposition together.
+New raw JSON fields do not imply the agent supports their continuation protocol.
+
 
 # Source: docs/validation.md
 
@@ -2963,10 +3121,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native computer increment was checked on Dart 3.12.2. The prior
+The latest native Anthropic increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 294 Dart unit and regression tests: tool validation, approvals, client tools,
+- 318 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 14 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -3246,6 +3404,46 @@ GA nonempty safety acknowledgements, screenshot image contents, actual driver
 idempotency and crash recovery remain unverified. No paid requests or package
 publications were made in this increment.
 
+## Native Anthropic transport and lossless normalization
+
+The 37 Anthropic tests include 15 new native transport fixtures and nine new
+protocol/configuration regressions. They verify request/response JSON snapshots,
+version and attribution headers, repeated queries, create/count/GET access,
+credential rotation and redaction, malformed/error/EOF handling, request deadlines,
+pre-cancellation and cancellation during credentials, headers and stalled bodies.
+Actual local HTTP tests verify independent sibling calls and borrowed-client use.
+
+The raw normalizer preserves original fields on supported content blocks, private
+citations, signed thinking, message metadata and final cumulative cache and
+thinking-token usage. Typed SDK configuration changes are applied to the raw
+request without erasing unchanged unknown fields. Tests reject canonical-history
+mutation, absent-field injection, output-schema replacement and mismatched deltas.
+
+The independent native consumer runs text/schema, stored approval and recreated
+agent continuation, private replay and UI hydration, cache options, final usage,
+citations, rotation, diagnostics, cancellation, ownership and malformed frames.
+Its targeted score is 8.4/10. The guide's first program matches the example,
+analyzes and compiles on Dart 3.12.2 without executing a paid request.
+
+Four AST tests verify request field dispositions and selected nested declaration
+and union drift. The inventory records 19 top-level fields and 251 locally
+referenced declarations from the pinned official SDK. The current upstream
+comparison matched the projection. Imported types, unrelated endpoints and
+complete nested runtime semantics remain outside this evidence.
+
+[Upstream SDK PR #432](https://github.com/davidmigloz/ai_clients_dart/pull/432)
+fixes stalled-request cancellation separately. All 1,796 Anthropic SDK unit tests
+passed locally with three environment-dependent skips, and package analysis was
+clean. These used the locally available workspace package configuration; a clean
+repository bootstrap and live tests were not run. The PR is submitted, not merged
+or released, and AgentWeave's native client does not depend on it.
+
+No live Anthropic requests or cache hits were tested, and no paid requests or
+package publications were made. Hosted/native computer tools, pause-turn,
+file-ID agent documents and complete endpoint/nested-option parity remain
+unfinished. Provider error details retain private content after credential
+scrubbing and must not be exposed directly to UI or logs.
+
 
 # Source: CONTRIBUTING.md
 
@@ -3288,6 +3486,9 @@ TypeScript API conventions into the Dart developer API.
   `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and
   `packages/agent_weave_cloudflare`.
   Shared JSON HTTP transport belongs in `packages/agent_weave_http`.
+  The Anthropic normalizer consumes raw events; preserve opaque block fields
+  and signed thinking before SDK decoding. Typed SDK configuration must apply
+  changes to a pre-callback snapshot without erasing unknown replay fields.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.

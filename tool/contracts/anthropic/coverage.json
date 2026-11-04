@@ -1,0 +1,78 @@
+{
+  "max_tokens": {
+    "status": "runtime-owned",
+    "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+  },
+  "messages": {
+    "status": "runtime-owned",
+    "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+  },
+  "system": {
+    "status": "runtime-owned",
+    "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+  },
+  "tools": {
+    "status": "runtime-owned",
+    "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+  },
+  "model": {
+    "status": "mixed",
+    "detail": "Adapter model constructor and SDK configure; native JSON accepts caller input."
+  },
+  "output_config": {
+    "status": "mixed",
+    "detail": "SDK configure; runtime output schema is protected when requested. Native JSON accepts caller input."
+  },
+  "stream": {
+    "status": "runtime-owned",
+    "detail": "Agent uses SDK streaming; native client controls the request mode."
+  },
+  "user_profile_id": {
+    "status": "mixed",
+    "detail": "The adapter exposes a userProfileId header; native JSON accepts this body field separately."
+  },
+  "cache_control": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "container": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "diagnostics": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "inference_geo": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "metadata": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "service_tier": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "speed": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "stop_sequences": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "thinking": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "tool_choice": {
+    "status": "sdk-configure",
+    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+  },
+  "workspace_id": {
+    "status": "native-json",
+    "detail": "Native JSON accepts this field; SDK configure support depends on the Dart SDK version. Agent semantics are not established."
+  }
+}

@@ -5,7 +5,7 @@ The monorepo contains twelve packages. Use the smallest set needed by your appli
 | Package | Owns |
 | --- | --- |
 | `agent_weave` | Provider contracts, typed tools, agent execution, results, generation tasks, protocol events |
-| `agent_weave_anthropic` | Native Anthropic Messages adapter |
+| `agent_weave_anthropic` | Native Anthropic JSON/SSE client and Messages adapter |
 | `agent_weave_openrouter` | OpenRouter native Chat/Responses and private replay |
 | `agent_weave_http` | Shared JSON HTTP transport for provider adapters |
 | `agent_weave_vercel_gateway` | Vercel AI Gateway Chat and Responses adapters |

@@ -1,0 +1,457 @@
+import 'dart:convert';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_http/agent_weave_http.dart' show snapshotJson;
+import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as api;
+
+/// A native Messages stream. The caller owns and closes [client].
+final class AnthropicChatModel implements ChatModel {
+  final api.AnthropicClient client;
+  final String model;
+  final api.MessageCreateRequest Function(api.MessageCreateRequest)? configure;
+  final List<String> betas;
+  final String? userProfileId;
+
+  const AnthropicChatModel({
+    required this.client,
+    required this.model,
+    this.configure,
+    this.betas = const [],
+    this.userProfileId,
+  });
+
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities(
+    tools: true,
+    imageInput: true,
+    fileInput: true,
+    structuredOutput: true,
+  );
+
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) => AnthropicProtocolModel(
+    model: model,
+    configure: configure == null
+        ? null
+        : (body) {
+            final typed = api.MessageCreateRequest.fromJson(
+              Map<String, dynamic>.from(body),
+            );
+            final before = snapshotJson(typed.toJson());
+            final after = snapshotJson(configure!(typed).toJson());
+            return snapshotJson(
+              _applyChanges(body, before, after) as JsonObject,
+            );
+          },
+    transport: (body, token) => client.messages.postStream(
+      '/v1/messages',
+      body: Map<String, dynamic>.from(body),
+      headers: {
+        if (betas.isNotEmpty) 'anthropic-beta': betas.join(','),
+        'anthropic-user-profile-id': ?userProfileId,
+      },
+      abortTrigger: token.whenCancelled,
+    ),
+  ).stream(request, cancellation: cancellation);
+}
+
+/// Canonical Messages encoding and raw stream normalization, without SDK decoding.
+final class AnthropicProtocolModel implements ChatModel {
+  final String model;
+  final JsonObject Function(JsonObject)? configure;
+  final Stream<JsonObject> Function(JsonObject, CancellationToken) transport;
+  const AnthropicProtocolModel({
+    required this.model,
+    required this.transport,
+    this.configure,
+  });
+
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities(
+    tools: true,
+    imageInput: true,
+    fileInput: true,
+    structuredOutput: true,
+  );
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) =>
+      cancellation.bindStream((child) => _stream(request, cancellation: child));
+
+  Stream<ModelEvent> _stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) async* {
+    cancellation.throwIfCancelled();
+    if (request.tools.any((tool) => tool is NativeModelTool) ||
+        request.messages.any(
+          (message) => message.toolCalls.any((call) => call is NativeToolCall),
+        )) {
+      throw UnsupportedError(
+        'Anthropic adapter does not implement native tool definitions or calls.',
+      );
+    }
+    final messages = <Map<String, dynamic>>[];
+    for (final message in request.messages) {
+      final blocks = <Map<String, dynamic>>[];
+      final replay = message.providerData['anthropic.messages'];
+      if (message.role == MessageRole.tool) {
+        blocks.add({
+          'type': 'tool_result',
+          'tool_use_id': message.toolCallId,
+          'content': message.text,
+        });
+      } else if (message.role == MessageRole.assistant &&
+          replay != null &&
+          replay.isNotEmpty) {
+        blocks.addAll(replay.map((e) => Map<String, dynamic>.from(e)));
+      } else {
+        for (final part in message.content) {
+          blocks.add(switch (part) {
+            TextPart(:final text) => {'type': 'text', 'text': text},
+            DocumentPart part when message.role == MessageRole.user =>
+              _anthropicDocument(part),
+            ImagePart(:final url) when message.role == MessageRole.user => {
+              'type': 'image',
+              'source': {'type': 'url', 'url': url},
+            },
+            _ => throw UnsupportedError(
+              'Anthropic adapter does not support this content part.',
+            ),
+          });
+        }
+        for (final call in message.toolCalls) {
+          blocks.add({
+            'type': 'tool_use',
+            'id': call.id,
+            'name': call.name,
+            'input': call.arguments,
+          });
+        }
+      }
+      final role = message.role == MessageRole.assistant ? 'assistant' : 'user';
+      if (messages.isNotEmpty && messages.last['role'] == role) {
+        (messages.last['content'] as List).addAll(blocks);
+      } else {
+        messages.add({'role': role, 'content': blocks});
+      }
+    }
+    final canonical = snapshotJson({
+      'model': model,
+      'max_tokens': request.maxOutputTokens,
+      'messages': messages,
+      if (request.instructions != null) 'system': request.instructions,
+      if (request.outputSchema != null)
+        'output_config': {
+          'format': {
+            'type': 'json_schema',
+            'schema': jsonDecode(jsonEncode(request.outputSchema)),
+          },
+        },
+      if (request.tools.isNotEmpty)
+        'tools': [
+          for (final tool in request.tools)
+            {
+              'name': tool.name,
+              'description': tool.description,
+              'input_schema': jsonDecode(jsonEncode(tool.inputSchema)),
+            },
+        ],
+    });
+    final original = canonical;
+    final configured = snapshotJson(configure?.call(canonical) ?? canonical);
+    for (final field in ['messages', 'max_tokens', 'system', 'tools']) {
+      if (canonicalJson(_ownedValue(field, original[field])) !=
+          canonicalJson(_ownedValue(field, configured[field]))) {
+        throw ArgumentError('configure cannot replace runtime-owned $field.');
+      }
+    }
+    if (configured['stream'] != null && configured['stream'] != true) {
+      throw ArgumentError('configure cannot disable streaming.');
+    }
+    if (request.outputSchema != null &&
+        canonicalJson((original['output_config'] as Map)['format']) !=
+            canonicalJson((configured['output_config'] as Map?)?['format'])) {
+      throw ArgumentError(
+        'configure cannot replace the runtime output schema.',
+      );
+    }
+    final blocks = <int, Map<String, dynamic>>{};
+    final arguments = <int, StringBuffer>{};
+    final reportedUsage = <String, Object?>{};
+    String? actualModel, reason;
+    var stopped = false;
+    var started = false;
+    final metadata = <String, Object?>{};
+    final openBlocks = <int>{};
+    try {
+      await for (final json in transport({
+        ...configured,
+        'stream': true,
+      }, cancellation)) {
+        cancellation.throwIfCancelled();
+        if (stopped) throw const FormatException('Event after message_stop.');
+        switch (json['type']) {
+          case 'message_start':
+            if (started) {
+              throw const FormatException('Duplicate message_start.');
+            }
+            started = true;
+            final message = json['message'] as Map;
+            metadata.addAll({
+              for (final entry in message.entries)
+                if (entry.key != 'content') entry.key as String: entry.value,
+            });
+            actualModel = message['model'] as String?;
+            final usage = message['usage'] as Map;
+            reportedUsage.addAll(Map<String, Object?>.from(usage));
+          case 'content_block_start':
+            if (!started) {
+              throw const FormatException('Block before message_start.');
+            }
+            final index = json['index'] as int;
+            if (!openBlocks.add(index) || blocks.containsKey(index)) {
+              throw const FormatException('Duplicate content block.');
+            }
+            final block = Map<String, dynamic>.from(
+              json['content_block'] as Map,
+            );
+            if (!{
+              'text',
+              'thinking',
+              'redacted_thinking',
+              'tool_use',
+            }.contains(block['type'])) {
+              throw UnsupportedError(
+                'Unsupported Anthropic content block: ${block['type']}',
+              );
+            }
+            blocks[index] = block;
+            if (block['type'] == 'text' &&
+                (block['text'] as String).isNotEmpty) {
+              yield TextDelta(block['text'] as String);
+            }
+            if (block['type'] == 'thinking' &&
+                (block['thinking'] as String).isNotEmpty) {
+              yield ReasoningDelta(block['thinking'] as String);
+            }
+          case 'content_block_delta':
+            final index = json['index'] as int;
+            final block = blocks[index];
+            if (block == null || !openBlocks.contains(index)) {
+              throw const FormatException('Delta without content block.');
+            }
+            final delta = json['delta'] as Map;
+            switch (delta['type']) {
+              case 'text_delta':
+                _requireBlock(block, 'text');
+                final text = delta['text'] as String;
+                block['text'] = '${block['text'] ?? ''}$text';
+                yield TextDelta(text);
+              case 'thinking_delta':
+                _requireBlock(block, 'thinking');
+                final text = delta['thinking'] as String;
+                block['thinking'] = '${block['thinking'] ?? ''}$text';
+                yield ReasoningDelta(text);
+              case 'signature_delta':
+                _requireBlock(block, 'thinking');
+                block['signature'] =
+                    '${block['signature'] ?? ''}${delta['signature']}';
+              case 'input_json_delta':
+                _requireBlock(block, 'tool_use');
+                (arguments[index] ??= StringBuffer()).write(
+                  delta['partial_json'],
+                );
+              case 'citations_delta':
+                _requireBlock(block, 'text');
+                final citation = Map<String, Object?>.from(
+                  delta['citation'] as Map,
+                );
+                block['citations'] = [
+                  ...?block['citations'] as List?,
+                  citation,
+                ];
+              default:
+                throw UnsupportedError(
+                  'Unsupported Anthropic content delta: ${delta['type']}',
+                );
+            }
+          case 'content_block_stop':
+            final index = json['index'] as int;
+            final block = blocks[index];
+            if (block == null || !openBlocks.remove(index)) {
+              throw const FormatException('Stop without content block.');
+            }
+            if (block['type'] == 'tool_use') {
+              final partial = arguments[index]?.toString();
+              final input = partial == null || partial.isEmpty
+                  ? block['input']
+                  : jsonDecode(partial);
+              block['input'] = Map<String, dynamic>.from(input as Map);
+              yield ToolCallReady(
+                ToolCall(
+                  id: block['id'] as String,
+                  name: block['name'] as String,
+                  arguments: Map<String, Object?>.from(block['input'] as Map),
+                ),
+              );
+            }
+          case 'message_delta':
+            metadata['delta'] = json['delta'];
+            metadata['usage'] = {
+              ...?metadata['usage'] as Map?,
+              ...json['usage'] as Map,
+            };
+            reason = (json['delta'] as Map)['stop_reason'] as String? ?? reason;
+            reportedUsage.addAll({
+              for (final entry in (json['usage'] as Map).entries)
+                if (entry.value != null) entry.key as String: entry.value,
+            });
+          case 'message_stop':
+            stopped = true;
+          case 'error':
+            throw StateError('Anthropic stream error: ${json['error']}');
+        }
+      }
+    } catch (_) {
+      cancellation.throwIfCancelled();
+      rethrow;
+    }
+    cancellation.throwIfCancelled();
+    if (!stopped ||
+        reason == null ||
+        openBlocks.isNotEmpty ||
+        actualModel == null) {
+      throw StateError(
+        'Anthropic stream ended before the message was complete.',
+      );
+    }
+    final finishReason = switch (reason) {
+      'end_turn' || 'stop_sequence' => 'stop',
+      'max_tokens' || 'model_context_window_exceeded' => 'length',
+      'tool_use' => 'tool_calls',
+      'refusal' => 'refusal',
+      _ => throw UnsupportedError('Unsupported Anthropic stop reason: $reason'),
+    };
+    final ordered = blocks.keys.toList()..sort();
+    yield ProviderOutput(
+      provider: 'anthropic.messages',
+      items: [for (final index in ordered) blocks[index]!],
+    );
+    yield ProviderOutput(
+      provider: 'anthropic.messages.metadata',
+      items: [metadata],
+    );
+    yield TokenUsage(
+      inputTokens:
+          (reportedUsage['input_tokens'] as int? ?? 0) +
+          (reportedUsage['cache_read_input_tokens'] as int? ?? 0) +
+          (reportedUsage['cache_creation_input_tokens'] as int? ?? 0),
+      outputTokens: reportedUsage['output_tokens'] as int? ?? 0,
+      model: actualModel,
+      cachedInputTokens: reportedUsage['cache_read_input_tokens'] as int?,
+      reasoningTokens:
+          (reportedUsage['output_tokens_details'] as Map?)?['thinking_tokens']
+              as int?,
+    );
+    yield ModelFinished(finishReason);
+  }
+}
+
+void _requireBlock(Map<String, dynamic> block, String type) {
+  if (block['type'] != type) {
+    throw const FormatException('Anthropic delta does not match its block.');
+  }
+}
+
+// Strip only native decorations, never keys inside user schemas or tool inputs.
+Object? _ownedValue(String field, Object? value) {
+  if (field == 'system' &&
+      value is List &&
+      value.length == 1 &&
+      value[0] is Map) {
+    final block = Map<String, dynamic>.from(value[0] as Map)
+      ..remove('cache_control');
+    if (block.length == 2 && block['type'] == 'text') return block['text'];
+  }
+  if (field == 'tools' && value is List) {
+    return [
+      for (final item in value)
+        Map<String, dynamic>.from(item as Map)
+          ..remove('cache_control')
+          ..remove('strict'),
+    ];
+  }
+  if (field == 'messages' && value is List) {
+    return [
+      for (final item in value)
+        () {
+          final message = Map<String, dynamic>.from(item as Map);
+          if (message['role'] == 'user' && message['content'] is List) {
+            message['content'] = [
+              for (final raw in message['content'] as List)
+                Map<String, dynamic>.from(raw as Map)..remove('cache_control'),
+            ];
+          }
+          return message;
+        }(),
+    ];
+  }
+  return value;
+}
+
+Map<String, dynamic> _anthropicDocument(DocumentPart part) => {
+  'type': 'document',
+  if (part.filename != null) 'title': part.filename,
+  'source': switch (part) {
+    UrlDocumentPart(:final url) => {'type': 'url', 'url': url},
+    Base64DocumentPart(:final data, mimeType: 'application/pdf') => {
+      'type': 'base64',
+      'media_type': 'application/pdf',
+      'data': data,
+    },
+    Base64DocumentPart(:final data, mimeType: 'text/plain') => {
+      'type': 'text',
+      'media_type': 'text/plain',
+      'data': utf8.decode(base64Decode(data)),
+    },
+    Base64DocumentPart() => throw UnsupportedError(
+      'Anthropic inline documents support PDF or UTF-8 plain text.',
+    ),
+    FileIdDocumentPart() => throw UnsupportedError(
+      'The pinned Anthropic SDK cannot represent file-ID document sources. Use a URL or inline data.',
+    ),
+  },
+};
+
+// Apply SDK callback changes without discarding fields its decoder does not know.
+Object? _applyChanges(Object? original, Object? before, Object? after) {
+  if (canonicalJson(before) == canonicalJson(after)) return original;
+  if (before is Map && after is Map && original is Map) {
+    return <String, Object?>{
+      for (final key in {...original.keys, ...after.keys})
+        if (!(before.containsKey(key) && !after.containsKey(key)))
+          key as String: before.containsKey(key) && after.containsKey(key)
+              ? _applyChanges(original[key], before[key], after[key])
+              : after.containsKey(key)
+              ? after[key]
+              : original[key],
+    };
+  }
+  if (before is List &&
+      after is List &&
+      original is List &&
+      before.length == after.length &&
+      original.length == before.length) {
+    return [
+      for (var i = 0; i < before.length; i++)
+        _applyChanges(original[i], before[i], after[i]),
+    ];
+  }
+  return after;
+}

@@ -60,6 +60,11 @@ not a claim of full TanStack AI core parity.
   routing, plugin and cache options, ordered private reasoning replay and compact
   provider/cost metadata have offline fixtures. Complete management, background,
   hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
+- Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
+  chat handles selected block and delta types. Hosted tools, native computer
+  use, pause-turn and complete nested field semantics remain unfinished. The
+  SDK-backed facade retains its pinned SDK transport cancellation limits.
+  See [Anthropic](anthropic.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter
   supports one choice; model acceptance of tools, schema, and media remains
   unverified. See [Together](together.md).

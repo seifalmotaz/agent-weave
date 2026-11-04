@@ -21,10 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native computer increment was checked on Dart 3.12.2. The prior
+The latest native Anthropic increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 294 Dart unit and regression tests: tool validation, approvals, client tools,
+- 318 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 14 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -303,3 +303,43 @@ No real operating system, browser, driver or provider computer session was run.
 GA nonempty safety acknowledgements, screenshot image contents, actual driver
 idempotency and crash recovery remain unverified. No paid requests or package
 publications were made in this increment.
+
+## Native Anthropic transport and lossless normalization
+
+The 37 Anthropic tests include 15 new native transport fixtures and nine new
+protocol/configuration regressions. They verify request/response JSON snapshots,
+version and attribution headers, repeated queries, create/count/GET access,
+credential rotation and redaction, malformed/error/EOF handling, request deadlines,
+pre-cancellation and cancellation during credentials, headers and stalled bodies.
+Actual local HTTP tests verify independent sibling calls and borrowed-client use.
+
+The raw normalizer preserves original fields on supported content blocks, private
+citations, signed thinking, message metadata and final cumulative cache and
+thinking-token usage. Typed SDK configuration changes are applied to the raw
+request without erasing unchanged unknown fields. Tests reject canonical-history
+mutation, absent-field injection, output-schema replacement and mismatched deltas.
+
+The independent native consumer runs text/schema, stored approval and recreated
+agent continuation, private replay and UI hydration, cache options, final usage,
+citations, rotation, diagnostics, cancellation, ownership and malformed frames.
+Its targeted score is 8.4/10. The guide's first program matches the example,
+analyzes and compiles on Dart 3.12.2 without executing a paid request.
+
+Four AST tests verify request field dispositions and selected nested declaration
+and union drift. The inventory records 19 top-level fields and 251 locally
+referenced declarations from the pinned official SDK. The current upstream
+comparison matched the projection. Imported types, unrelated endpoints and
+complete nested runtime semantics remain outside this evidence.
+
+[Upstream SDK PR #432](https://github.com/davidmigloz/ai_clients_dart/pull/432)
+fixes stalled-request cancellation separately. All 1,796 Anthropic SDK unit tests
+passed locally with three environment-dependent skips, and package analysis was
+clean. These used the locally available workspace package configuration; a clean
+repository bootstrap and live tests were not run. The PR is submitted, not merged
+or released, and AgentWeave's native client does not depend on it.
+
+No live Anthropic requests or cache hits were tested, and no paid requests or
+package publications were made. Hosted/native computer tools, pause-turn,
+file-ID agent documents and complete endpoint/nested-option parity remain
+unfinished. Provider error details retain private content after credential
+scrubbing and must not be exposed directly to UI or logs.

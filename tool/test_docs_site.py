@@ -35,7 +35,8 @@ class DocumentationTest(unittest.TestCase):
                          'cloudflare/index.html', 'cloudflare-api-reference/index.html',
                          'cloudflare-api-inventory.json', 'openrouter-api-reference/index.html',
                          'openrouter-api-inventory.json', 'computer-use/index.html',
-                         'computer-parameters/index.html', 'computer-api-inventory.json', 'assets/styles.css', 'llms.txt']:
+                         'computer-parameters/index.html', 'computer-api-inventory.json',
+                         'anthropic/index.html', 'anthropic-parameters/index.html', 'anthropic-api-inventory.json', 'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
             self.assertIn('Your AI logic.', html)
@@ -55,6 +56,10 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('openrouter-api-reference/', locations)
             self.assertIn('computer-use/', locations)
             self.assertIn('computer-parameters/', locations)
+            self.assertIn('anthropic/', locations)
+            self.assertIn('anthropic-parameters/', locations)
+            anthropic = json.loads((target / 'anthropic-api-inventory.json').read_text())
+            self.assertEqual(len(anthropic['dispositions']), 19)
             openrouter = json.loads((target / 'openrouter-api-inventory.json').read_text())
             self.assertEqual(openrouter['operationCount'], 146)
             cloudflare = json.loads((target / 'cloudflare-api-inventory.json').read_text())

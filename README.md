@@ -16,7 +16,7 @@ using it in production.
 | Package | Use it for |
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
-| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
+| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, private replay, cache controls, and cancellation |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |

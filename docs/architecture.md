@@ -37,6 +37,20 @@ a new thread after inspecting the environment; never synthesize a screenshot or
 acknowledgement. Provider continuation data is private, separate from UI history.
 See [computer use](computer-use.md) for the application contract.
 
+## Anthropic normalization
+
+`AnthropicProtocolModel` encodes canonical runtime history and normalizes raw
+Messages events. `AnthropicNativeClient` uses the shared HTTP transport for
+request-scoped cancellation and deadlines. The SDK-backed facade uses the same
+normalizer without first decoding provider events into lossy SDK models.
+Typed SDK configuration applies only differences from a pre-callback snapshot,
+preserving unknown unchanged JSON fields. Canonical guards still reject changes
+to server-owned messages, tools, bounds and requested output schemas.
+
+Original supported content blocks are stored in `anthropic.messages`; compact
+message and usage metadata live separately in `anthropic.messages.metadata`.
+Only content blocks are replayed. Neither namespace enters UI hydration.
+
 ## Ownership and cancellation
 
 The caller owns provider clients. Close them at application shutdown.

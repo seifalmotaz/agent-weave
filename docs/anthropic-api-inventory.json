@@ -1,0 +1,5643 @@
+{
+  "repository": "anthropics/anthropic-sdk-typescript",
+  "revision": "ea8d7de0e47614ae71044fbf7bf12041318ba37e",
+  "path": "src/resources/messages/messages.ts",
+  "license": "Apache-2.0",
+  "source": "https://github.com/anthropics/anthropic-sdk-typescript/tree/ea8d7de0e47614ae71044fbf7bf12041318ba37e",
+  "sha256": "e4a57d12f91fa40aecaa14304e93132eab36b2427741030d720e92cd913c8cb9",
+  "scope": "Selected request, response and stream declarations and their local type references. Dispositions describe top-level access only, not nested semantics or live model support.",
+  "dispositions": {
+    "max_tokens": {
+      "status": "runtime-owned",
+      "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+    },
+    "messages": {
+      "status": "runtime-owned",
+      "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+    },
+    "system": {
+      "status": "runtime-owned",
+      "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+    },
+    "tools": {
+      "status": "runtime-owned",
+      "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+    },
+    "model": {
+      "status": "mixed",
+      "detail": "Adapter model constructor and SDK configure; native JSON accepts caller input."
+    },
+    "output_config": {
+      "status": "mixed",
+      "detail": "SDK configure; runtime output schema is protected when requested. Native JSON accepts caller input."
+    },
+    "stream": {
+      "status": "runtime-owned",
+      "detail": "Agent uses SDK streaming; native client controls the request mode."
+    },
+    "user_profile_id": {
+      "status": "mixed",
+      "detail": "The adapter exposes a userProfileId header; native JSON accepts this body field separately."
+    },
+    "cache_control": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "container": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "diagnostics": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "inference_geo": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "metadata": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "service_tier": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "speed": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "stop_sequences": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "thinking": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "tool_choice": {
+      "status": "sdk-configure",
+      "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    },
+    "workspace_id": {
+      "status": "native-json",
+      "detail": "Native JSON accepts this field; SDK configure support depends on the Dart SDK version. Agent semantics are not established."
+    }
+  },
+  "declarations": {
+    "AssistantMessageParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "MessageContentParam"
+        },
+        {
+          "name": "role",
+          "optional": false,
+          "type": "'assistant'"
+        }
+      ]
+    },
+    "Base64ImageSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "data",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "media_type",
+          "optional": false,
+          "type": "'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'base64'"
+        }
+      ]
+    },
+    "Base64PDFSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "data",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "media_type",
+          "optional": false,
+          "type": "'application/pdf'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'base64'"
+        }
+      ]
+    },
+    "BashCodeExecutionOutputBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_output'"
+        }
+      ]
+    },
+    "BashCodeExecutionOutputBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_output'"
+        }
+      ]
+    },
+    "BashCodeExecutionResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<BashCodeExecutionOutputBlock>"
+        },
+        {
+          "name": "return_code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "stderr",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "stdout",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_result'"
+        }
+      ]
+    },
+    "BashCodeExecutionResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<BashCodeExecutionOutputBlockParam>"
+        },
+        {
+          "name": "return_code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "stderr",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "stdout",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_result'"
+        }
+      ]
+    },
+    "BashCodeExecutionToolResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "BashCodeExecutionToolResultError | BashCodeExecutionResultBlock"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_tool_result'"
+        }
+      ]
+    },
+    "BashCodeExecutionToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "BashCodeExecutionToolResultErrorParam | BashCodeExecutionResultBlockParam"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        }
+      ]
+    },
+    "BashCodeExecutionToolResultError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "BashCodeExecutionToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_tool_result_error'"
+        }
+      ]
+    },
+    "BashCodeExecutionToolResultErrorCode": {
+      "kind": "alias",
+      "type": "'invalid_tool_input' | 'unavailable' | 'too_many_requests' | 'execution_time_exceeded' | 'output_file_too_large'"
+    },
+    "BashCodeExecutionToolResultErrorParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "BashCodeExecutionToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_code_execution_tool_result_error'"
+        }
+      ]
+    },
+    "BrowserCloseTabConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserDoubleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserFileUploadConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserFindConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserFormInputConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserGetPageTextConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserHoldKeyConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserHoverConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserJavascriptExecConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserKeyConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserLeftClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserLeftClickDragConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserLeftMouseDownConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserLeftMouseUpConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserListTabsConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserMiddleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserMouseMoveConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserNavigateConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserNewTabConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserReadConsoleConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserReadNetworkConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserReadPageConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserRightClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserScreenshotConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserScrollConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserScrollToConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserStateBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tabs",
+          "optional": false,
+          "type": "Array<BrowserStateTabEntry>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'browser_state'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "state_changes",
+          "optional": true,
+          "type": "Array<BrowserStateChange> | null"
+        }
+      ]
+    },
+    "BrowserStateChange": {
+      "kind": "alias",
+      "type": "BrowserStateChangeTabOpened | BrowserStateChangeDownloadStarted | BrowserStateChangeDownloadCompleted | BrowserStateChangeDownloadFailed"
+    },
+    "BrowserStateChangeDownloadCompleted": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "download_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'download_completed'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "path",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "size_bytes",
+          "optional": true,
+          "type": "number | null"
+        }
+      ]
+    },
+    "BrowserStateChangeDownloadFailed": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "download_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'download_failed'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "error",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "BrowserStateChangeDownloadStarted": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "download_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'download_started'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "BrowserStateChangeTabOpened": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tab_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tab_opened'"
+        }
+      ]
+    },
+    "BrowserStateTabEntry": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tab_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "active",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "BrowserSwitchTabConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserToolset20260801": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'browser_toolset_20260801'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "configs",
+          "optional": true,
+          "type": "BrowserToolsetConfigs | null"
+        }
+      ]
+    },
+    "BrowserToolsetConfigs": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "close_tab",
+          "optional": true,
+          "type": "BrowserCloseTabConfig | null"
+        },
+        {
+          "name": "double_click",
+          "optional": true,
+          "type": "BrowserDoubleClickConfig | null"
+        },
+        {
+          "name": "file_upload",
+          "optional": true,
+          "type": "BrowserFileUploadConfig | null"
+        },
+        {
+          "name": "find",
+          "optional": true,
+          "type": "BrowserFindConfig | null"
+        },
+        {
+          "name": "form_input",
+          "optional": true,
+          "type": "BrowserFormInputConfig | null"
+        },
+        {
+          "name": "get_page_text",
+          "optional": true,
+          "type": "BrowserGetPageTextConfig | null"
+        },
+        {
+          "name": "hold_key",
+          "optional": true,
+          "type": "BrowserHoldKeyConfig | null"
+        },
+        {
+          "name": "hover",
+          "optional": true,
+          "type": "BrowserHoverConfig | null"
+        },
+        {
+          "name": "javascript_exec",
+          "optional": true,
+          "type": "BrowserJavascriptExecConfig | null"
+        },
+        {
+          "name": "key",
+          "optional": true,
+          "type": "BrowserKeyConfig | null"
+        },
+        {
+          "name": "left_click",
+          "optional": true,
+          "type": "BrowserLeftClickConfig | null"
+        },
+        {
+          "name": "left_click_drag",
+          "optional": true,
+          "type": "BrowserLeftClickDragConfig | null"
+        },
+        {
+          "name": "left_mouse_down",
+          "optional": true,
+          "type": "BrowserLeftMouseDownConfig | null"
+        },
+        {
+          "name": "left_mouse_up",
+          "optional": true,
+          "type": "BrowserLeftMouseUpConfig | null"
+        },
+        {
+          "name": "list_tabs",
+          "optional": true,
+          "type": "BrowserListTabsConfig | null"
+        },
+        {
+          "name": "middle_click",
+          "optional": true,
+          "type": "BrowserMiddleClickConfig | null"
+        },
+        {
+          "name": "mouse_move",
+          "optional": true,
+          "type": "BrowserMouseMoveConfig | null"
+        },
+        {
+          "name": "navigate",
+          "optional": true,
+          "type": "BrowserNavigateConfig | null"
+        },
+        {
+          "name": "new_tab",
+          "optional": true,
+          "type": "BrowserNewTabConfig | null"
+        },
+        {
+          "name": "read_console",
+          "optional": true,
+          "type": "BrowserReadConsoleConfig | null"
+        },
+        {
+          "name": "read_network",
+          "optional": true,
+          "type": "BrowserReadNetworkConfig | null"
+        },
+        {
+          "name": "read_page",
+          "optional": true,
+          "type": "BrowserReadPageConfig | null"
+        },
+        {
+          "name": "right_click",
+          "optional": true,
+          "type": "BrowserRightClickConfig | null"
+        },
+        {
+          "name": "screenshot",
+          "optional": true,
+          "type": "BrowserScreenshotConfig | null"
+        },
+        {
+          "name": "scroll",
+          "optional": true,
+          "type": "BrowserScrollConfig | null"
+        },
+        {
+          "name": "scroll_to",
+          "optional": true,
+          "type": "BrowserScrollToConfig | null"
+        },
+        {
+          "name": "switch_tab",
+          "optional": true,
+          "type": "BrowserSwitchTabConfig | null"
+        },
+        {
+          "name": "triple_click",
+          "optional": true,
+          "type": "BrowserTripleClickConfig | null"
+        },
+        {
+          "name": "type",
+          "optional": true,
+          "type": "BrowserTypeConfig | null"
+        },
+        {
+          "name": "wait",
+          "optional": true,
+          "type": "BrowserWaitConfig | null"
+        },
+        {
+          "name": "zoom",
+          "optional": true,
+          "type": "BrowserZoomConfig | null"
+        }
+      ]
+    },
+    "BrowserTripleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserTypeConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserWaitConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BrowserZoomConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "CacheControlEphemeral": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'ephemeral'"
+        },
+        {
+          "name": "ttl",
+          "optional": true,
+          "type": "'5m' | '1h'"
+        }
+      ]
+    },
+    "CacheCreation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "ephemeral_1h_input_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "ephemeral_5m_input_tokens",
+          "optional": false,
+          "type": "number"
+        }
+      ]
+    },
+    "CacheMissMessagesChanged": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cache_missed_input_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'messages_changed'"
+        }
+      ]
+    },
+    "CacheMissModelChanged": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cache_missed_input_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'model_changed'"
+        }
+      ]
+    },
+    "CacheMissPreviousMessageNotFound": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'previous_message_not_found'"
+        }
+      ]
+    },
+    "CacheMissReason": {
+      "kind": "alias",
+      "type": "CacheMissModelChanged | CacheMissSystemChanged | CacheMissToolsChanged | CacheMissMessagesChanged | CacheMissPreviousMessageNotFound | CacheMissUnavailable"
+    },
+    "CacheMissSystemChanged": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cache_missed_input_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'system_changed'"
+        }
+      ]
+    },
+    "CacheMissToolsChanged": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cache_missed_input_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tools_changed'"
+        }
+      ]
+    },
+    "CacheMissUnavailable": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'unavailable'"
+        }
+      ]
+    },
+    "CitationCharLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "start_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'char_location'"
+        }
+      ]
+    },
+    "CitationCharLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'char_location'"
+        }
+      ]
+    },
+    "CitationContentBlockLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content_block_location'"
+        }
+      ]
+    },
+    "CitationContentBlockLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content_block_location'"
+        }
+      ]
+    },
+    "CitationPageLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "start_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'page_location'"
+        }
+      ]
+    },
+    "CitationPageLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'page_location'"
+        }
+      ]
+    },
+    "CitationsConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "enabled",
+          "optional": false,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CitationsConfigParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CitationsDelta": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "citation",
+          "optional": false,
+          "type": "CitationCharLocation | CitationPageLocation | CitationContentBlockLocation | CitationsWebSearchResultLocation | CitationsSearchResultLocation"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'citations_delta'"
+        }
+      ]
+    },
+    "CitationSearchResultLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "search_result_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "source",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'search_result_location'"
+        }
+      ]
+    },
+    "CitationsSearchResultLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "search_result_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "source",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'search_result_location'"
+        }
+      ]
+    },
+    "CitationsWebSearchResultLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "encrypted_index",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_result_location'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "CitationWebSearchResultLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "encrypted_index",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_result_location'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "CodeExecutionOutputBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_output'"
+        }
+      ]
+    },
+    "CodeExecutionOutputBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_output'"
+        }
+      ]
+    },
+    "CodeExecutionResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<CodeExecutionOutputBlock>"
+        },
+        {
+          "name": "return_code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "stderr",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "stdout",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_result'"
+        }
+      ]
+    },
+    "CodeExecutionResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<CodeExecutionOutputBlockParam>"
+        },
+        {
+          "name": "return_code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "stderr",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "stdout",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_result'"
+        }
+      ]
+    },
+    "CodeExecutionTool20250522": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'code_execution'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20250522'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CodeExecutionTool20250825": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'code_execution'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20250825'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CodeExecutionTool20260120": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'code_execution'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20260120'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CodeExecutionTool20260521": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'code_execution'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20260521'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "CodeExecutionToolResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "CodeExecutionToolResultBlockContent"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_tool_result'"
+        }
+      ]
+    },
+    "CodeExecutionToolResultBlockContent": {
+      "kind": "alias",
+      "type": "CodeExecutionToolResultError | CodeExecutionResultBlock | EncryptedCodeExecutionResultBlock"
+    },
+    "CodeExecutionToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "CodeExecutionToolResultBlockParamContent"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        }
+      ]
+    },
+    "CodeExecutionToolResultBlockParamContent": {
+      "kind": "alias",
+      "type": "CodeExecutionToolResultErrorParam | CodeExecutionResultBlockParam | EncryptedCodeExecutionResultBlockParam"
+    },
+    "CodeExecutionToolResultError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "CodeExecutionToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_tool_result_error'"
+        }
+      ]
+    },
+    "CodeExecutionToolResultErrorCode": {
+      "kind": "alias",
+      "type": "'invalid_tool_input' | 'unavailable' | 'too_many_requests' | 'execution_time_exceeded'"
+    },
+    "CodeExecutionToolResultErrorParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "CodeExecutionToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_tool_result_error'"
+        }
+      ]
+    },
+    "ComputerCursorPositionConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerDoubleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerHoldKeyConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerKeyConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftClickDragConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftMouseDownConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftMouseUpConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerMiddleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerMouseMoveConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerRightClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerScreenshotConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerScrollConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerToolset20260801": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'computer_toolset_20260801'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "configs",
+          "optional": true,
+          "type": "ComputerToolsetConfigs | null"
+        }
+      ]
+    },
+    "ComputerToolsetConfigs": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cursor_position",
+          "optional": true,
+          "type": "ComputerCursorPositionConfig | null"
+        },
+        {
+          "name": "double_click",
+          "optional": true,
+          "type": "ComputerDoubleClickConfig | null"
+        },
+        {
+          "name": "hold_key",
+          "optional": true,
+          "type": "ComputerHoldKeyConfig | null"
+        },
+        {
+          "name": "key",
+          "optional": true,
+          "type": "ComputerKeyConfig | null"
+        },
+        {
+          "name": "left_click",
+          "optional": true,
+          "type": "ComputerLeftClickConfig | null"
+        },
+        {
+          "name": "left_click_drag",
+          "optional": true,
+          "type": "ComputerLeftClickDragConfig | null"
+        },
+        {
+          "name": "left_mouse_down",
+          "optional": true,
+          "type": "ComputerLeftMouseDownConfig | null"
+        },
+        {
+          "name": "left_mouse_up",
+          "optional": true,
+          "type": "ComputerLeftMouseUpConfig | null"
+        },
+        {
+          "name": "middle_click",
+          "optional": true,
+          "type": "ComputerMiddleClickConfig | null"
+        },
+        {
+          "name": "mouse_move",
+          "optional": true,
+          "type": "ComputerMouseMoveConfig | null"
+        },
+        {
+          "name": "right_click",
+          "optional": true,
+          "type": "ComputerRightClickConfig | null"
+        },
+        {
+          "name": "screenshot",
+          "optional": true,
+          "type": "ComputerScreenshotConfig | null"
+        },
+        {
+          "name": "scroll",
+          "optional": true,
+          "type": "ComputerScrollConfig | null"
+        },
+        {
+          "name": "triple_click",
+          "optional": true,
+          "type": "ComputerTripleClickConfig | null"
+        },
+        {
+          "name": "type",
+          "optional": true,
+          "type": "ComputerTypeConfig | null"
+        },
+        {
+          "name": "wait",
+          "optional": true,
+          "type": "ComputerWaitConfig | null"
+        },
+        {
+          "name": "zoom",
+          "optional": true,
+          "type": "ComputerZoomConfig | null"
+        }
+      ]
+    },
+    "ComputerTripleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerTypeConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerWaitConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerZoomConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "Container": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "expires_at",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "skills",
+          "optional": false,
+          "type": "Array<ContainerSkill> | null"
+        }
+      ]
+    },
+    "ContainerParams": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "skills",
+          "optional": true,
+          "type": "Array<SkillParams> | null"
+        }
+      ]
+    },
+    "ContainerSkill": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "skill_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'anthropic' | 'custom'"
+        },
+        {
+          "name": "version",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ContainerUploadBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'container_upload'"
+        }
+      ]
+    },
+    "ContainerUploadBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'container_upload'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        }
+      ]
+    },
+    "ContentBlock": {
+      "kind": "alias",
+      "type": "TextBlock | ThinkingBlock | RedactedThinkingBlock | ToolUseBlock | ServerToolUseBlock | WebSearchToolResultBlock | WebFetchToolResultBlock | CodeExecutionToolResultBlock | BashCodeExecutionToolResultBlock | TextEditorCodeExecutionToolResultBlock | ToolSearchToolResultBlock | ContainerUploadBlock"
+    },
+    "ContentBlockParam": {
+      "kind": "alias",
+      "type": "TextBlockParam | ImageBlockParam | DocumentBlockParam | SearchResultBlockParam | ThinkingBlockParam | RedactedThinkingBlockParam | ToolUseBlockParam | ToolResultBlockParam | ServerToolUseBlockParam | WebSearchToolResultBlockParam | WebFetchToolResultBlockParam | CodeExecutionToolResultBlockParam | BashCodeExecutionToolResultBlockParam | TextEditorCodeExecutionToolResultBlockParam | ToolSearchToolResultBlockParam | ContainerUploadBlockParam"
+    },
+    "ContentBlockSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "string | Array<ContentBlockSourceContent>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content'"
+        }
+      ]
+    },
+    "ContentBlockSourceContent": {
+      "kind": "alias",
+      "type": "TextBlockParam | ImageBlockParam"
+    },
+    "Diagnostics": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cache_miss_reason",
+          "optional": false,
+          "type": "CacheMissReason | null"
+        }
+      ]
+    },
+    "DiagnosticsParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "previous_message_id",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "DirectCaller": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'direct'"
+        }
+      ]
+    },
+    "DocumentBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "citations",
+          "optional": false,
+          "type": "CitationsConfig | null"
+        },
+        {
+          "name": "source",
+          "optional": false,
+          "type": "Base64PDFSource | PlainTextSource"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'document'"
+        }
+      ]
+    },
+    "DocumentBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "source",
+          "optional": false,
+          "type": "Base64PDFSource | PlainTextSource | ContentBlockSource | URLPDFSource | FileDocumentSource"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'document'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "CitationsConfigParam | null"
+        },
+        {
+          "name": "context",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "title",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "EncryptedCodeExecutionResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<CodeExecutionOutputBlock>"
+        },
+        {
+          "name": "encrypted_stdout",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "return_code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "stderr",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'encrypted_code_execution_result'"
+        }
+      ]
+    },
+    "EncryptedCodeExecutionResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<CodeExecutionOutputBlockParam>"
+        },
+        {
+          "name": "encrypted_stdout",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "return_code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "stderr",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'encrypted_code_execution_result'"
+        }
+      ]
+    },
+    "FileDocumentSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'file'"
+        }
+      ]
+    },
+    "FileImageSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'file'"
+        }
+      ]
+    },
+    "ImageBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "source",
+          "optional": false,
+          "type": "Base64ImageSource | URLImageSource | FileImageSource"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'image'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "transformations",
+          "optional": true,
+          "type": "ImageTransformationsParam | null"
+        }
+      ]
+    },
+    "ImageTransformationsParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "oversized_image",
+          "optional": true,
+          "type": "'downsize' | 'error'"
+        }
+      ]
+    },
+    "InputJSONDelta": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "partial_json",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'input_json_delta'"
+        }
+      ]
+    },
+    "JSONOutputFormat": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "schema",
+          "optional": false,
+          "type": "{\n    [key: string]: unknown;\n}"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'json_schema'"
+        }
+      ]
+    },
+    "MemoryTool20250818": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'memory'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'memory_20250818'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "input_examples",
+          "optional": true,
+          "type": "Array<{\n    [key: string]: unknown;\n}>"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "Message": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "container",
+          "optional": false,
+          "type": "Container | null"
+        },
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<ContentBlock>"
+        },
+        {
+          "name": "diagnostics",
+          "optional": false,
+          "type": "Diagnostics | null"
+        },
+        {
+          "name": "model",
+          "optional": false,
+          "type": "Model"
+        },
+        {
+          "name": "role",
+          "optional": false,
+          "type": "'assistant'"
+        },
+        {
+          "name": "stop_details",
+          "optional": false,
+          "type": "RefusalStopDetails | null"
+        },
+        {
+          "name": "stop_reason",
+          "optional": false,
+          "type": "StopReason | null"
+        },
+        {
+          "name": "stop_sequence",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'message'"
+        },
+        {
+          "name": "usage",
+          "optional": false,
+          "type": "Usage"
+        }
+      ]
+    },
+    "MessageContentParam": {
+      "kind": "alias",
+      "type": "string | Array<ContentBlockParam>"
+    },
+    "MessageCreateParams": {
+      "kind": "alias",
+      "type": "MessageCreateParamsNonStreaming | MessageCreateParamsStreaming"
+    },
+    "MessageCreateParamsBase": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "max_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "messages",
+          "optional": false,
+          "type": "Array<MessageParam>"
+        },
+        {
+          "name": "model",
+          "optional": false,
+          "type": "Model"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "container",
+          "optional": true,
+          "type": "MessageCreateParamsContainer | null"
+        },
+        {
+          "name": "diagnostics",
+          "optional": true,
+          "type": "DiagnosticsParam | null"
+        },
+        {
+          "name": "inference_geo",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "metadata",
+          "optional": true,
+          "type": "Metadata"
+        },
+        {
+          "name": "output_config",
+          "optional": true,
+          "type": "OutputConfig"
+        },
+        {
+          "name": "service_tier",
+          "optional": true,
+          "type": "'auto' | 'standard_only'"
+        },
+        {
+          "name": "speed",
+          "optional": true,
+          "type": "'standard' | 'fast' | null"
+        },
+        {
+          "name": "stop_sequences",
+          "optional": true,
+          "type": "Array<string>"
+        },
+        {
+          "name": "stream",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "system",
+          "optional": true,
+          "type": "string | Array<TextBlockParam>"
+        },
+        {
+          "name": "thinking",
+          "optional": true,
+          "type": "ThinkingConfigParam"
+        },
+        {
+          "name": "tool_choice",
+          "optional": true,
+          "type": "ToolChoice"
+        },
+        {
+          "name": "tools",
+          "optional": true,
+          "type": "Array<ToolUnion>"
+        },
+        {
+          "name": "user_profile_id",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "workspace_id",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "MessageCreateParamsContainer": {
+      "kind": "alias",
+      "type": "ContainerParams | string"
+    },
+    "MessageCreateParamsNonStreaming": {
+      "kind": "interface",
+      "extends": [
+        "MessageCreateParamsBase"
+      ],
+      "fields": [
+        {
+          "name": "stream",
+          "optional": true,
+          "type": "false"
+        }
+      ]
+    },
+    "MessageCreateParamsStreaming": {
+      "kind": "interface",
+      "extends": [
+        "MessageCreateParamsBase"
+      ],
+      "fields": [
+        {
+          "name": "stream",
+          "optional": false,
+          "type": "true"
+        }
+      ]
+    },
+    "MessageDeltaUsage": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cache_creation_input_tokens",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "cache_read_input_tokens",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "input_tokens",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "output_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "output_tokens_details",
+          "optional": false,
+          "type": "OutputTokensDetails | null"
+        },
+        {
+          "name": "server_tool_use",
+          "optional": false,
+          "type": "ServerToolUsage | null"
+        }
+      ]
+    },
+    "MessageParam": {
+      "kind": "alias",
+      "type": "UserMessageParam | AssistantMessageParam | SystemMessageParam"
+    },
+    "Metadata": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "user_id",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "Model": {
+      "kind": "alias",
+      "type": "'claude-haiku-5-5' | 'claude-sonnet-5-5' | 'claude-fable-5-1' | 'claude-opus-5-5' | 'claude-mythos-5-1' | 'claude-sonnet-5' | 'claude-fable-5' | 'claude-mythos-5' | 'claude-opus-5' | 'claude-opus-4-8' | 'claude-opus-4-7' | 'claude-mythos-preview' | 'claude-opus-4-6' | 'claude-sonnet-4-6' | 'claude-haiku-4-5' | 'claude-haiku-4-5-20251001' | 'claude-opus-4-5' | 'claude-opus-4-5-20251101' | 'claude-sonnet-4-5' | 'claude-sonnet-4-5-20250929' | (string & {})"
+    },
+    "OutputConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "effort",
+          "optional": true,
+          "type": "'low' | 'medium' | 'high' | 'xhigh' | 'max' | null"
+        },
+        {
+          "name": "format",
+          "optional": true,
+          "type": "JSONOutputFormat | null"
+        }
+      ]
+    },
+    "OutputTokensDetails": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "thinking_tokens",
+          "optional": false,
+          "type": "number"
+        }
+      ]
+    },
+    "PlainTextSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "data",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "media_type",
+          "optional": false,
+          "type": "'text/plain'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text'"
+        }
+      ]
+    },
+    "RawContentBlockDelta": {
+      "kind": "alias",
+      "type": "TextDelta | InputJSONDelta | CitationsDelta | ThinkingDelta | SignatureDelta"
+    },
+    "RawContentBlockDeltaEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "delta",
+          "optional": false,
+          "type": "RawContentBlockDelta"
+        },
+        {
+          "name": "index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content_block_delta'"
+        }
+      ]
+    },
+    "RawContentBlockStartEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content_block",
+          "optional": false,
+          "type": "TextBlock | ThinkingBlock | RedactedThinkingBlock | ToolUseBlock | ServerToolUseBlock | WebSearchToolResultBlock | WebFetchToolResultBlock | CodeExecutionToolResultBlock | BashCodeExecutionToolResultBlock | TextEditorCodeExecutionToolResultBlock | ToolSearchToolResultBlock | ContainerUploadBlock"
+        },
+        {
+          "name": "index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content_block_start'"
+        }
+      ]
+    },
+    "RawContentBlockStopEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content_block_stop'"
+        }
+      ]
+    },
+    "RawMessageDeltaEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "delta",
+          "optional": false,
+          "type": "RawMessageDeltaEvent.Delta"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'message_delta'"
+        },
+        {
+          "name": "usage",
+          "optional": false,
+          "type": "MessageDeltaUsage"
+        }
+      ]
+    },
+    "RawMessageDeltaEvent.Delta": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "container",
+          "optional": false,
+          "type": "MessagesAPI.Container | null"
+        },
+        {
+          "name": "stop_details",
+          "optional": false,
+          "type": "MessagesAPI.RefusalStopDetails | null"
+        },
+        {
+          "name": "stop_reason",
+          "optional": false,
+          "type": "MessagesAPI.StopReason | null"
+        },
+        {
+          "name": "stop_sequence",
+          "optional": false,
+          "type": "string | null"
+        }
+      ]
+    },
+    "RawMessageStartEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "message",
+          "optional": false,
+          "type": "Message"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'message_start'"
+        }
+      ]
+    },
+    "RawMessageStopEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'message_stop'"
+        }
+      ]
+    },
+    "RawMessageStreamEvent": {
+      "kind": "alias",
+      "type": "RawMessageStartEvent | RawMessageDeltaEvent | RawMessageStopEvent | RawContentBlockStartEvent | RawContentBlockDeltaEvent | RawContentBlockStopEvent"
+    },
+    "RedactedThinkingBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "data",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'redacted_thinking'"
+        }
+      ]
+    },
+    "RedactedThinkingBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "data",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'redacted_thinking'"
+        }
+      ]
+    },
+    "RefusalStopDetails": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "category",
+          "optional": false,
+          "type": "'cyber' | 'bio' | 'frontier_llm' | 'reasoning_extraction' | 'general_harms' | null"
+        },
+        {
+          "name": "explanation",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'refusal'"
+        }
+      ]
+    },
+    "SearchResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<TextBlockParam>"
+        },
+        {
+          "name": "source",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'search_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "CitationsConfigParam"
+        }
+      ]
+    },
+    "ServerToolCaller": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20250825'"
+        }
+      ]
+    },
+    "ServerToolCaller20260120": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20260120'"
+        }
+      ]
+    },
+    "ServerToolUsage": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "web_fetch_requests",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "web_search_requests",
+          "optional": false,
+          "type": "number"
+        }
+      ]
+    },
+    "ServerToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_search' | 'web_fetch' | 'code_execution' | 'bash_code_execution' | 'text_editor_code_execution' | 'tool_search_tool_regex' | 'tool_search_tool_bm25'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'server_tool_use'"
+        }
+      ]
+    },
+    "ServerToolUseBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_search' | 'web_fetch' | 'code_execution' | 'bash_code_execution' | 'text_editor_code_execution' | 'tool_search_tool_regex' | 'tool_search_tool_bm25'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'server_tool_use'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "caller",
+          "optional": true,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        }
+      ]
+    },
+    "SignatureDelta": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "signature",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'signature_delta'"
+        }
+      ]
+    },
+    "SkillParams": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "skill_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'anthropic' | 'custom'"
+        },
+        {
+          "name": "version",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "StopReason": {
+      "kind": "alias",
+      "type": "'end_turn' | 'max_tokens' | 'stop_sequence' | 'tool_use' | 'pause_turn' | 'refusal' | 'model_context_window_exceeded'"
+    },
+    "SystemMessageParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "string | Array<TextBlockParam>"
+        },
+        {
+          "name": "role",
+          "optional": false,
+          "type": "'system'"
+        }
+      ]
+    },
+    "TextBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "citations",
+          "optional": false,
+          "type": "Array<TextCitation> | null"
+        },
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text'"
+        }
+      ]
+    },
+    "TextBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "Array<TextCitationParam> | null"
+        }
+      ]
+    },
+    "TextCitation": {
+      "kind": "alias",
+      "type": "CitationCharLocation | CitationPageLocation | CitationContentBlockLocation | CitationsWebSearchResultLocation | CitationsSearchResultLocation"
+    },
+    "TextCitationParam": {
+      "kind": "alias",
+      "type": "CitationCharLocationParam | CitationPageLocationParam | CitationContentBlockLocationParam | CitationWebSearchResultLocationParam | CitationSearchResultLocationParam"
+    },
+    "TextDelta": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_delta'"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionCreateResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "is_file_update",
+          "optional": false,
+          "type": "boolean"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_create_result'"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionCreateResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "is_file_update",
+          "optional": false,
+          "type": "boolean"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_create_result'"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionStrReplaceResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "lines",
+          "optional": false,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "new_lines",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "new_start",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "old_lines",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "old_start",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_str_replace_result'"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionStrReplaceResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_str_replace_result'"
+        },
+        {
+          "name": "lines",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "new_lines",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "new_start",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "old_lines",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "old_start",
+          "optional": true,
+          "type": "number | null"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionToolResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "TextEditorCodeExecutionToolResultError | TextEditorCodeExecutionViewResultBlock | TextEditorCodeExecutionCreateResultBlock | TextEditorCodeExecutionStrReplaceResultBlock"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_tool_result'"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "TextEditorCodeExecutionToolResultErrorParam | TextEditorCodeExecutionViewResultBlockParam | TextEditorCodeExecutionCreateResultBlockParam | TextEditorCodeExecutionStrReplaceResultBlockParam"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionToolResultError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "TextEditorCodeExecutionToolResultErrorCode"
+        },
+        {
+          "name": "error_message",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_tool_result_error'"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionToolResultErrorCode": {
+      "kind": "alias",
+      "type": "'invalid_tool_input' | 'unavailable' | 'too_many_requests' | 'execution_time_exceeded' | 'file_not_found'"
+    },
+    "TextEditorCodeExecutionToolResultErrorParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "TextEditorCodeExecutionToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_tool_result_error'"
+        },
+        {
+          "name": "error_message",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionViewResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "file_type",
+          "optional": false,
+          "type": "'text' | 'image' | 'pdf'"
+        },
+        {
+          "name": "num_lines",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "start_line",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "total_lines",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_view_result'"
+        }
+      ]
+    },
+    "TextEditorCodeExecutionViewResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "file_type",
+          "optional": false,
+          "type": "'text' | 'image' | 'pdf'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_code_execution_view_result'"
+        },
+        {
+          "name": "num_lines",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "start_line",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "total_lines",
+          "optional": true,
+          "type": "number | null"
+        }
+      ]
+    },
+    "ThinkingBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "signature",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "thinking",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'thinking'"
+        }
+      ]
+    },
+    "ThinkingBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "signature",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "thinking",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'thinking'"
+        }
+      ]
+    },
+    "ThinkingConfigAdaptive": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'adaptive'"
+        },
+        {
+          "name": "display",
+          "optional": true,
+          "type": "'summarized' | 'omitted' | null"
+        }
+      ]
+    },
+    "ThinkingConfigBetweenTools": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'between_tools'"
+        }
+      ]
+    },
+    "ThinkingConfigDisabled": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'disabled'"
+        }
+      ]
+    },
+    "ThinkingConfigEnabled": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "budget_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'enabled'"
+        },
+        {
+          "name": "display",
+          "optional": true,
+          "type": "'summarized' | 'omitted' | null"
+        }
+      ]
+    },
+    "ThinkingConfigParam": {
+      "kind": "alias",
+      "type": "ThinkingConfigEnabled | ThinkingConfigDisabled | ThinkingConfigBetweenTools | ThinkingConfigAdaptive"
+    },
+    "ThinkingDelta": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "thinking",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'thinking_delta'"
+        }
+      ]
+    },
+    "Tool": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "input_schema",
+          "optional": false,
+          "type": "Tool.InputSchema"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "description",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "eager_input_streaming",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "input_examples",
+          "optional": true,
+          "type": "Array<{\n    [key: string]: unknown;\n}>"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "type",
+          "optional": true,
+          "type": "'custom' | null"
+        }
+      ]
+    },
+    "Tool.InputSchema": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'object'"
+        },
+        {
+          "name": "properties",
+          "optional": true,
+          "type": "unknown | null"
+        },
+        {
+          "name": "required",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "[k: string]: unknown;",
+          "optional": false,
+          "type": "unknown"
+        }
+      ]
+    },
+    "ToolBash20250124": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'bash'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'bash_20250124'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "input_examples",
+          "optional": true,
+          "type": "Array<{\n    [key: string]: unknown;\n}>"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolChoice": {
+      "kind": "alias",
+      "type": "ToolChoiceAuto | ToolChoiceAny | ToolChoiceTool | ToolChoiceNone"
+    },
+    "ToolChoiceAny": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'any'"
+        },
+        {
+          "name": "disable_parallel_tool_use",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolChoiceAuto": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'auto'"
+        },
+        {
+          "name": "disable_parallel_tool_use",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolChoiceNone": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'none'"
+        }
+      ]
+    },
+    "ToolChoiceTool": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool'"
+        },
+        {
+          "name": "disable_parallel_tool_use",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolReferenceBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_reference'"
+        }
+      ]
+    },
+    "ToolReferenceBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_reference'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        }
+      ]
+    },
+    "ToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "content",
+          "optional": true,
+          "type": "string | Array<TextBlockParam | ImageBlockParam | SearchResultBlockParam | DocumentBlockParam | ToolReferenceBlockParam | BrowserStateBlockParam>"
+        },
+        {
+          "name": "is_error",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "toolset_name",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ToolSearchToolBm25_20251119": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'tool_search_tool_bm25'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_bm25_20251119' | 'tool_search_tool_bm25'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolSearchToolRegex20251119": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'tool_search_tool_regex'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_regex_20251119' | 'tool_search_tool_regex'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolSearchToolResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "ToolSearchToolResultError | ToolSearchToolSearchResultBlock"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_result'"
+        }
+      ]
+    },
+    "ToolSearchToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "ToolSearchToolResultErrorParam | ToolSearchToolSearchResultBlockParam"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        }
+      ]
+    },
+    "ToolSearchToolResultError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "ToolSearchToolResultErrorCode"
+        },
+        {
+          "name": "error_message",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_result_error'"
+        }
+      ]
+    },
+    "ToolSearchToolResultErrorCode": {
+      "kind": "alias",
+      "type": "'invalid_tool_input' | 'unavailable' | 'too_many_requests' | 'execution_time_exceeded'"
+    },
+    "ToolSearchToolResultErrorParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "ToolSearchToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_result_error'"
+        },
+        {
+          "name": "error_message",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ToolSearchToolSearchResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_references",
+          "optional": false,
+          "type": "Array<ToolReferenceBlock>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_search_result'"
+        }
+      ]
+    },
+    "ToolSearchToolSearchResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_references",
+          "optional": false,
+          "type": "Array<ToolReferenceBlockParam>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_search_tool_search_result'"
+        }
+      ]
+    },
+    "ToolTextEditor20250124": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'str_replace_editor'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_20250124'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "input_examples",
+          "optional": true,
+          "type": "Array<{\n    [key: string]: unknown;\n}>"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolTextEditor20250429": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'str_replace_based_edit_tool'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_20250429'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "input_examples",
+          "optional": true,
+          "type": "Array<{\n    [key: string]: unknown;\n}>"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolTextEditor20250728": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'str_replace_based_edit_tool'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text_editor_20250728'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "input_examples",
+          "optional": true,
+          "type": "Array<{\n    [key: string]: unknown;\n}>"
+        },
+        {
+          "name": "max_characters",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "ToolUnion": {
+      "kind": "alias",
+      "type": "Tool | ToolBash20250124 | CodeExecutionTool20250522 | CodeExecutionTool20250825 | CodeExecutionTool20260120 | CodeExecutionTool20260521 | BrowserToolset20260801 | MemoryTool20250818 | ComputerToolset20260801 | ToolTextEditor20250124 | ToolTextEditor20250429 | ToolTextEditor20250728 | WebSearchTool20250305 | WebFetchTool20250910 | WebSearchTool20260209 | WebFetchTool20260209 | WebFetchTool20260309 | WebSearchTool20260318 | WebFetchTool20260318 | ToolSearchToolBm25_20251119 | ToolSearchToolRegex20251119"
+    },
+    "ToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ToolUseBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "caller",
+          "optional": true,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        },
+        {
+          "name": "toolset_name",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "URLImageSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'url'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "URLPDFSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'url'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "Usage": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cache_creation",
+          "optional": false,
+          "type": "CacheCreation | null"
+        },
+        {
+          "name": "cache_creation_input_tokens",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "cache_read_input_tokens",
+          "optional": false,
+          "type": "number | null"
+        },
+        {
+          "name": "inference_geo",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "input_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "output_tokens",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "output_tokens_details",
+          "optional": false,
+          "type": "OutputTokensDetails | null"
+        },
+        {
+          "name": "server_tool_use",
+          "optional": false,
+          "type": "ServerToolUsage | null"
+        },
+        {
+          "name": "service_tier",
+          "optional": false,
+          "type": "'standard' | 'priority' | 'batch' | null"
+        },
+        {
+          "name": "speed",
+          "optional": false,
+          "type": "'standard' | 'fast' | null"
+        }
+      ]
+    },
+    "UserLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'approximate'"
+        },
+        {
+          "name": "city",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "country",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "region",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "timezone",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "UserMessageParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "MessageContentParam"
+        },
+        {
+          "name": "role",
+          "optional": false,
+          "type": "'user'"
+        }
+      ]
+    },
+    "WebFetchBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "DocumentBlock"
+        },
+        {
+          "name": "retrieved_at",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_result'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "WebFetchBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "DocumentBlockParam"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_result'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "retrieved_at",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "WebFetchTool20250910": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_fetch'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_20250910'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "allowed_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "blocked_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "CitationsConfigParam | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "max_content_tokens",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "max_uses",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "url_sources",
+          "optional": true,
+          "type": "WebFetchURLSources | null"
+        }
+      ]
+    },
+    "WebFetchTool20260209": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_fetch'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_20260209'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "allowed_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "blocked_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "CitationsConfigParam | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "max_content_tokens",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "max_uses",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "url_sources",
+          "optional": true,
+          "type": "WebFetchURLSources | null"
+        }
+      ]
+    },
+    "WebFetchTool20260309": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_fetch'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_20260309'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "allowed_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "blocked_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "CitationsConfigParam | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "max_content_tokens",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "max_uses",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "url_sources",
+          "optional": true,
+          "type": "WebFetchURLSources | null"
+        },
+        {
+          "name": "use_cache",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "WebFetchTool20260318": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_fetch'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_20260318'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "allowed_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "blocked_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "CitationsConfigParam | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "max_content_tokens",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "max_uses",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "response_inclusion",
+          "optional": true,
+          "type": "'full' | 'excluded'"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "url_sources",
+          "optional": true,
+          "type": "WebFetchURLSources | null"
+        },
+        {
+          "name": "use_cache",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "WebFetchToolResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        },
+        {
+          "name": "content",
+          "optional": false,
+          "type": "WebFetchToolResultErrorBlock | WebFetchBlock"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_tool_result'"
+        }
+      ]
+    },
+    "WebFetchToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "WebFetchToolResultErrorBlockParam | WebFetchBlockParam"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "caller",
+          "optional": true,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        }
+      ]
+    },
+    "WebFetchToolResultErrorBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "WebFetchToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_tool_result_error'"
+        }
+      ]
+    },
+    "WebFetchToolResultErrorBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "WebFetchToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_fetch_tool_result_error'"
+        }
+      ]
+    },
+    "WebFetchToolResultErrorCode": {
+      "kind": "alias",
+      "type": "'invalid_tool_input' | 'url_too_long' | 'url_not_allowed' | 'url_not_in_prior_context' | 'url_not_accessible' | 'unsupported_content_type' | 'too_many_requests' | 'max_uses_exceeded' | 'unavailable' | 'content_too_large'"
+    },
+    "WebFetchURLSourceAll": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'all'"
+        }
+      ]
+    },
+    "WebFetchURLSourceExcept": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tools",
+          "optional": false,
+          "type": "Array<WebFetchURLSourceToolReference>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'except'"
+        }
+      ]
+    },
+    "WebFetchURLSourceNone": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'none'"
+        }
+      ]
+    },
+    "WebFetchURLSourceOnly": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tools",
+          "optional": false,
+          "type": "Array<WebFetchURLSourceToolReference>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'only'"
+        }
+      ]
+    },
+    "WebFetchURLSources": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "client_tool_results",
+          "optional": true,
+          "type": "WebFetchURLSourceAll | WebFetchURLSourceNone | WebFetchURLSourceOnly | WebFetchURLSourceExcept"
+        },
+        {
+          "name": "server_tool_results",
+          "optional": true,
+          "type": "WebFetchURLSourceAll | WebFetchURLSourceNone | WebFetchURLSourceOnly | WebFetchURLSourceExcept"
+        },
+        {
+          "name": "user_input",
+          "optional": true,
+          "type": "WebFetchURLSourceAll | WebFetchURLSourceNone"
+        }
+      ]
+    },
+    "WebFetchURLSourceToolReference": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_reference'"
+        }
+      ]
+    },
+    "WebSearchResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "encrypted_content",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "page_age",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_result'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "WebSearchResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "encrypted_content",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_result'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "page_age",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "WebSearchTool20250305": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_search'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_20250305'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "allowed_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "blocked_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "max_uses",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "user_location",
+          "optional": true,
+          "type": "UserLocation | null"
+        }
+      ]
+    },
+    "WebSearchTool20260209": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_search'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_20260209'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "allowed_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "blocked_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "max_uses",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "user_location",
+          "optional": true,
+          "type": "UserLocation | null"
+        }
+      ]
+    },
+    "WebSearchTool20260318": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'web_search'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_20260318'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'code_execution_20250825' | 'code_execution_20260120' | 'code_execution_20260521'>"
+        },
+        {
+          "name": "allowed_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "blocked_domains",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "max_uses",
+          "optional": true,
+          "type": "number | null"
+        },
+        {
+          "name": "response_inclusion",
+          "optional": true,
+          "type": "'full' | 'excluded'"
+        },
+        {
+          "name": "strict",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "user_location",
+          "optional": true,
+          "type": "UserLocation | null"
+        }
+      ]
+    },
+    "WebSearchToolRequestError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "WebSearchToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_tool_result_error'"
+        }
+      ]
+    },
+    "WebSearchToolResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        },
+        {
+          "name": "content",
+          "optional": false,
+          "type": "WebSearchToolResultBlockContent"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_tool_result'"
+        }
+      ]
+    },
+    "WebSearchToolResultBlockContent": {
+      "kind": "alias",
+      "type": "WebSearchToolResultError | Array<WebSearchResultBlock>"
+    },
+    "WebSearchToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "WebSearchToolResultBlockParamContent"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "caller",
+          "optional": true,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        }
+      ]
+    },
+    "WebSearchToolResultBlockParamContent": {
+      "kind": "alias",
+      "type": "Array<WebSearchResultBlockParam> | WebSearchToolRequestError"
+    },
+    "WebSearchToolResultError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "error_code",
+          "optional": false,
+          "type": "WebSearchToolResultErrorCode"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_tool_result_error'"
+        }
+      ]
+    },
+    "WebSearchToolResultErrorCode": {
+      "kind": "alias",
+      "type": "'invalid_tool_input' | 'unavailable' | 'max_uses_exceeded' | 'too_many_requests' | 'query_too_long' | 'request_too_large'"
+    }
+  }
+}

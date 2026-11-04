@@ -51,6 +51,8 @@ Future<void> main() async {
   ]);
 
   await run('node', ['--test', 'tool/interop/inventory.test.mjs']);
+  await run('node', ['--test', 'tool/interop/anthropic-inventory.test.mjs']);
+  await run('node', ['tool/interop/anthropic-inventory.mjs', '--check']);
   await run('dart', ['run', 'tool/computer_contract.dart']);
   await run('node', ['--test', 'tool/interop/computer-inventory.test.mjs']);
   await run('node', ['tool/interop/computer-inventory.mjs', '--check']);
@@ -70,6 +72,11 @@ Future<void> main() async {
   await run('dart', ['run', 'examples/review_cases/failures.dart']);
   await run('dart', ['run', 'examples/review_cases/reliability.dart']);
   await run('dart', ['run', 'examples/review_cases/anthropic.dart']);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/anthropic_native.dart',
+  ]);
   await run('dart', [
     '--enable-asserts',
     'run',
@@ -111,7 +118,7 @@ Future<void> main() async {
   await run('python3', ['tool/test_openrouter_contract.py']);
   await run('python3', ['tool/openrouter_contract.py', '--check']);
   final secret = RegExp(
-    r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',
+    r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',
   );
   for (final path in files) {
     final file = File(path);

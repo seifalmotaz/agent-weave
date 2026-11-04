@@ -237,7 +237,10 @@ void main() {
       expect(result.whereType<TokenUsage>().single.cachedInputTokens, 4);
       expect(result.whereType<TokenUsage>().single.inputTokens, 16);
       expect(result.whereType<ModelFinished>().single.reason, 'tool_calls');
-      replay = result.whereType<ProviderOutput>().single.items;
+      replay = result
+          .whereType<ProviderOutput>()
+          .singleWhere((output) => output.provider == 'anthropic.messages')
+          .items;
       expect(replay[0]['signature'], 'signed');
       await model
           .stream(
