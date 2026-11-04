@@ -33,6 +33,12 @@ final class AnthropicChatModel implements ChatModel {
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
+  }) =>
+      cancellation.bindStream((child) => _stream(request, cancellation: child));
+
+  Stream<ModelEvent> _stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
     final messages = <Map<String, dynamic>>[];

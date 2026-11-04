@@ -12,6 +12,8 @@ const documents = [
   'docs/openai.md',
   'docs/openrouter.md',
   'docs/together.md',
+  'docs/cloudflare.md',
+  'docs/cloudflare-api-reference.md',
   'docs/vercel-gateway.md',
   'docs/gateway-options.md',
   'docs/together-options.md',

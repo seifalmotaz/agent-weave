@@ -54,12 +54,14 @@ final class ResponsesProtocolModel implements ChatModel {
   configure;
   final String providerDataKey;
   final String? fileIdProvider;
+  final bool includeEncryptedReasoning;
   const ResponsesProtocolModel({
     required this.model,
     required this.transport,
     this.configure,
     this.providerDataKey = 'openai.responses',
     this.fileIdProvider = 'openai',
+    this.includeEncryptedReasoning = true,
   });
 
   @override
@@ -75,9 +77,9 @@ final class ResponsesProtocolModel implements ChatModel {
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
-  }) => _cancelWithSubscription(
-    cancellation,
+  }) => cancellation.bindStream(
     (token) => _stream(request, cancellation: token),
+    isCancellationError: (error) => error is api.AbortedException,
   );
 
   Stream<ModelEvent> _stream(
@@ -149,7 +151,7 @@ final class ResponsesProtocolModel implements ChatModel {
       'model': model,
       'input': input,
       'store': false,
-      'include': ['reasoning.encrypted_content'],
+      if (includeEncryptedReasoning) 'include': ['reasoning.encrypted_content'],
       'max_output_tokens': request.maxOutputTokens,
       if (request.instructions != null) 'instructions': request.instructions,
       if (request.tools.isNotEmpty)
@@ -180,10 +182,15 @@ final class ResponsesProtocolModel implements ChatModel {
       owned: ['input', 'instructions', 'max_output_tokens'],
       schemaField: 'text',
     );
-    options['include'] = <Object?>{
+    final includes = <Object?>{
       ...?options['include'] as List?,
-      'reasoning.encrypted_content',
-    }.toList();
+      if (includeEncryptedReasoning) 'reasoning.encrypted_content',
+    };
+    if (includes.isEmpty) {
+      options.remove('include');
+    } else {
+      options['include'] = includes.toList();
+    }
     params = api.CreateResponseRequest.fromJson(options);
 
     var terminal = false;
@@ -322,9 +329,9 @@ final class ChatCompletionsProtocolModel implements ChatModel {
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
-  }) => _cancelWithSubscription(
-    cancellation,
+  }) => cancellation.bindStream(
     (token) => _stream(request, cancellation: token),
+    isCancellationError: (error) => error is api.AbortedException,
   );
 
   Stream<ModelEvent> _stream(
@@ -569,48 +576,3 @@ JsonObject _responseDocument(DocumentPart part, String? fileIdProvider) => {
     ),
   },
 };
-
-Stream<T> _cancelWithSubscription<T>(
-  CancellationToken parent,
-  Stream<T> Function(CancellationToken) create,
-) {
-  final token = CancellationToken();
-  late StreamController<T> controller;
-  StreamSubscription<T>? subscription;
-  StreamSubscription<void>? parentSubscription;
-  var active = true;
-  controller = StreamController<T>(
-    onListen: () {
-      if (parent.isCancelled) token.cancel();
-      parentSubscription = parent.onCancelled.listen((_) {
-        if (active) token.cancel();
-      });
-      subscription = create(token).listen(
-        controller.add,
-        onError: (Object error, StackTrace stack) {
-          if (active) controller.addError(error, stack);
-        },
-        onDone: () {
-          active = false;
-          unawaited(parentSubscription?.cancel());
-          controller.close();
-        },
-      );
-    },
-    onPause: () => subscription?.pause(),
-    onResume: () => subscription?.resume(),
-    onCancel: () async {
-      active = false;
-      token.cancel();
-      await parentSubscription?.cancel();
-      try {
-        await subscription?.cancel();
-      } on api.AbortedException {
-        // The SDK reports an intentional abort while waiting for headers.
-      } on RunCancelled {
-        // A transport may report the linked cancellation directly.
-      }
-    },
-  );
-  return controller.stream;
-}

@@ -21,6 +21,7 @@ using it in production.
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
+| [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
 | [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
 | [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
@@ -116,6 +117,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [OpenRouter](docs/openrouter.md)
+- [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)
 - [Together Chat Completions](docs/together.md)
 - [Vercel AI Gateway](docs/vercel-gateway.md)
 - [Compatibility and limitations](docs/compatibility.md)
@@ -609,6 +611,28 @@ Both complete code blocks in `docs/vercel-gateway.md` were copied unchanged into
 Revised targeted DX score: 7.6/10 — discoverability 8, clarity 8, type safety 7, debugging 7, testing 8. The complete runnable guide and typed routing materially improve setup and diagnosis; provider-specific configuration and BYOK still require JSON, and live provider behavior remains unverified. Earlier 5.8 and 6.4 assessments remain above as the initial and first-retest records.
 
 
+## Round 8: Cloudflare consumer review
+
+
+Offline loopback review, Dart 3.12.2, assertions enabled. No credentials, Cloudflare requests, license acceptance, or paid services were used.
+
+| Criterion | First read | Current | Evidence and remaining friction |
+| --- | ---: | ---: | --- |
+| Getting started and ownership | 7/10 | 7/10 | Separate client and Gateway contracts and client ownership are explained; account/model availability still requires external verification. |
+| Typed data and wire fidelity | 6/10 | 8/10 | Typed embedding and transcription results expose useful fields and raw responses; typed image bytes cover binary and decoded Flux JSON. Embedding vectors and image bytes reject mutation. |
+| Agent and tool workflow | 7/10 | 7/10 | One native call pauses for approval and resumes with the documented replay; compatible chat and Responses replay a tool result in two requests. Native multiple calls are explicitly rejected. |
+| Control and error handling | 7/10 | 7/10 | Loopback covers cancellation and deadline during token resolution, cancellation after send with pending headers and after a streamed event, request-scoped token rotation, and redaction on HTTP errors. |
+| Documentation and discoverability | 6/10 | 8/10 | The expanded guide separates all four contracts, shows typed setup, states ownership and retry behavior, and qualifies model availability and live verification. It does not establish which models work in a particular account. |
+
+Overall qualitative assessment: 7/10 initially, 8/10 now. These are reviewer judgments, not measured benchmarks; the typed-result and documentation improvements do not establish broader provider compatibility.
+
+Run: `.dart_tool/dart-3.12.2/dart-sdk/bin/dart --enable-asserts run examples/review_cases/cloudflare.dart`. Also ran `dart analyze examples/review_cases/cloudflare.dart`; both passed. The loopback fixture checks native versus Gateway path, payload and headers; schema GET query; embedding shape and pooling; transcription bytes and JSON; image JSON and bytes; native approval, replay and multiple-call rejection before execution; compatible chat and Responses tool continuation; immutable embedding vectors and image bytes; credential rotation; error privacy; cancellation and timeout during token resolution; cancellation after send with pending headers; Gateway default and override headers across native, Gateway and compatible endpoints; and stream cancellation after headers and an event.
+
+No defect was reproduced in those scenarios. Fixtures do not establish live Cloudflare behavior, model or account availability, license status, or all model schemas. Live service errors, actual Gateway billing and real inference were not checked in this independent example. Native traditional continuation is limited to the documented single-call replay; multiple-call continuation is not verified or claimed.
+
+The first `docs/cloudflare.md` Dart block was extracted unchanged, verified identical to `examples/cloudflare_demo.dart`, analyzed, and compiled with Dart 3.12.2. It was not executed; no live or paid calls were made. The API inventory classifies operations rather than claiming parity.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -636,8 +660,10 @@ operation.
 ## Ownership and cancellation
 
 The caller owns provider clients. Close them at application shutdown.
-Each run owns its cancellation token. Cancelling a run subscription signals
-the provider and releases its reservation after cleanup.
+Each invocation owns a child cancellation token. `CancellationToken.bindStream`
+links it to a caller signal and forwards pause/resume. Cancelling one subscription
+signals only that invocation; cancelling the caller signal synchronously signals
+all active children. The run releases its reservation after cleanup.
 
 An HTTP response owns a separate Serverpod session for the duration of its
 stream. Create tool context from that session. The incoming HTTP request session
@@ -701,9 +727,9 @@ message's private OpenAI Responses state, and it rejects provider file handles
 until their gateway/account ownership can be established. URLs and inline input
 remain separate source variants.
 
-`agent_weave_http` owns optional JSON POST/SSE I/O for native adapters. Together
-and Gateway use the same per-request deadline, abort, metadata and error-body
-handling. Provider adapters own finish/EOF semantics and credential redaction.
+`agent_weave_http` owns HTTP methods with explicit empty, JSON or binary bodies
+and JSON SSE I/O for native adapters. Together, Gateway and Cloudflare use the
+same per-request deadline, abort, metadata and error-body handling. Provider adapters own finish/EOF semantics and credential redaction.
 This package does not add an HTTP dependency to the core agent runtime.
 
 `CancellationToken.whenCancelled` remains the one-shot Future API.
@@ -1212,6 +1238,315 @@ metadata are available through the raw native client and are not normalized into
 `AgentResult`. Message names and URL audio also require native requests.
 
 
+# Source: docs/cloudflare.md
+
+# Cloudflare Workers AI and AI Gateway
+
+`agent_weave_cloudflare` provides REST clients and selected model adapters. The
+contracts below are distinct; a model's support for one does not establish its
+support for another. Model availability, options, pricing, gateway behavior and
+live inference have not been verified by the offline fixtures.
+
+| Contract | Client | Request |
+| --- | --- | --- |
+| Workers AI native | `CloudflareClient` | `POST /accounts/{accountId}/ai/run/{model}` with model-specific input |
+| Gateway run | `CloudflareGatewayClient` | `POST /accounts/{accountId}/ai/run` wrapping `model`, `input`, and optional `options` |
+| Compatible Chat | `CloudflareCompatibleClient` | `/accounts/{accountId}/ai/v1/chat/completions` |
+| Compatible Responses | `CloudflareCompatibleClient` | `/accounts/{accountId}/ai/v1/responses` |
+
+The native client also exposes `getModelSchema`, `listModels`, raw JSON, bytes,
+and SSE methods. Raw methods preserve status, headers, bytes and, when present,
+JSON; they do not validate every model's schema. Gateway options can be passed
+to the gateway and compatible clients. `@cf/` models require a gateway ID for
+the gateway run contract. The compatible endpoints have separate payloads and
+stream semantics; select the adapter supported by the chosen model.
+
+## Start a backend chat
+
+Set `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_CHAT_MODEL` for a model available to your account. For Workers AI
+models routed through Gateway, also set `CLOUDFLARE_GATEWAY_ID`.
+The API token needs Account > Workers AI > Read permission, including when
+calling third-party models. AI Gateway management permission alone is insufficient.
+
+The complete `examples/cloudflare_demo.dart` program is:
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_cloudflare/agent_weave_cloudflare.dart' as cf;
+
+Future<void> main() async {
+  final accountId = Platform.environment['CLOUDFLARE_ACCOUNT_ID'];
+  final apiToken = Platform.environment['CLOUDFLARE_API_TOKEN'];
+  final modelId = Platform.environment['CLOUDFLARE_CHAT_MODEL'];
+  final gatewayId = Platform.environment['CLOUDFLARE_GATEWAY_ID'];
+  if (accountId == null || apiToken == null || modelId == null) {
+    throw StateError(
+      'Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN and CLOUDFLARE_CHAT_MODEL.',
+    );
+  }
+  if (modelId.startsWith('@cf/') && gatewayId == null) {
+    throw StateError(
+      'Set CLOUDFLARE_GATEWAY_ID for Workers AI gateway requests.',
+    );
+  }
+  final workers = cf.CloudflareClient.withApiToken(
+    accountId: accountId,
+    apiToken: apiToken,
+    gateway: gatewayId == null
+        ? null
+        : cf.CloudflareGatewayOptions(gatewayId: gatewayId),
+  );
+  try {
+    final model = cf.CloudflareCompatibleChatModel(
+      client: cf.CloudflareCompatibleClient(client: workers),
+      model: modelId,
+    );
+    final result = await generateText(model: model, prompt: 'Say hello.');
+    print(result.text);
+  } finally {
+    workers.close();
+  }
+}
+```
+
+Run `dart run examples/cloudflare_demo.dart` from the workspace. It sends a real
+inference request and may incur charges. This example was analyzed and compiled,
+but not run against Cloudflare. Keep credentials on the backend.
+
+For rotating secrets, construct `CloudflareClient` with an application-owned
+`tokenResolver`. It runs per request within that request's timeout. Requests
+use Bearer authorization. The optional client `gateway` supplies default
+Gateway headers to native inference and compatible endpoints; explicit
+request-level Gateway options override matching defaults. A model-in-path
+request can therefore carry the gateway ID needed for prepaid Gateway billing.
+Actual billing behavior has not been tested.
+
+Gateway options include cache key, TTL, bypass, metadata, timeout and retry
+headers. A cache key can group responses: choose it with the application's data
+isolation and privacy requirements in mind. Custom Gateway headers cannot
+override authentication or built-in option headers. The client does not retry
+POSTs itself; Gateway retry headers request gateway-side behavior.
+
+With an application-owned `workers` client, native inference is separate from
+the compatible Chat adapter:
+
+```dart
+final embeddings = await cf.CloudflareEmbeddingModel(client: workers).embed(
+  cf.CloudflareEmbeddingRequest(text: ['hello'], pooling: cf.CloudflarePooling.cls),
+);
+print(embeddings.vectors);
+print(embeddings.pooling); // Actual returned pooling, never an inferred default.
+
+final gateway = cf.CloudflareGatewayClient(client: workers);
+final response = await gateway.runJson(
+  modelId,
+  {'messages': [{'role': 'user', 'content': 'Hello'}]},
+  gateway: cf.CloudflareGatewayOptions(gatewayId: gatewayId),
+);
+print(response.json);
+```
+
+## Model adapters
+
+- `CloudflareEmbeddingModel` supports the BGE `text` input and optional
+  `CloudflarePooling.mean` or `.cls`. Its result exposes `vectors`, `shape`,
+  returned `pooling`, `result`, and the full `response`.
+- `CloudflareTranscriptionModel` accepts `CloudflareAudioInput.json` for
+  model-specific JSON or `.bytes` for binary input, with a configurable content
+  type defaulting to `application/octet-stream`. The exact binary REST content
+  type and server acceptance have not been live verified. The result exposes
+  text and raw result data.
+- `CloudflareImageModel` accepts model-specific JSON. It returns image bytes for
+  image content types and decodes the base64 `result.image` for Flux Schnell;
+  retain `response` for raw JSON and metadata. Unknown formats require raw
+  client inspection. Image format and model acceptance remain model-specific.
+
+For an agent, prefer `CloudflareCompatibleChatModel` with an explicitly chosen,
+currently available compatible model, configured by the application (for
+example via an environment variable). `CloudflareCompatibleResponsesModel`
+uses the separate Responses contract. Both expose `options` and an SDK-typed
+`configure` callback; request-owned fields cannot be overridden through
+`options`. Compatible Chat defaults to `max_completion_tokens`; select
+`CloudflareChatTokenField.maxTokens` for models requiring `max_tokens`.
+
+For example, configure the compatible Chat adapter with a model supplied by the
+application:
+
+```dart
+final compatible = cf.CloudflareCompatibleClient(client: workers);
+final chat = cf.CloudflareCompatibleChatModel(
+  client: compatible,
+  model: compatibleModelFromEnvironment,
+);
+```
+
+`CloudflareChatModel` requires an explicit model and implements the documented
+Hermes traditional single-tool continuation. It performs non-streamed native
+requests even when used through the core stream API, accepts text parts, and
+rejects multi-call continuation. Its structured-output mode sends a bare JSON
+schema. Availability of the legacy Hermes model has not been verified; do not
+assume that another native model supports this continuation format. Tool
+execution and approvals remain the runtime's responsibility.
+
+## Lifecycle and evidence
+
+Pass a `CancellationToken` to client methods and model operations as needed.
+Request timeouts include preparation; cancellation cannot undo an operation
+already accepted remotely. Close the client when done. An injected transport
+or HTTP client remains caller-owned. Cancelling one subscription signals that invocation without cancelling sibling
+calls sharing its parent token. Cancelling the parent signals all active calls.
+Streaming subscription cancellation aborts the request when supported by the
+underlying HTTP client. No license acceptance
+or paid inference occurs automatically.
+
+Offline fixtures exercise selected request and response behavior, not live model
+availability, full API parity, provider billing, or server acceptance. Consult
+[Workers AI REST](https://developers.cloudflare.com/workers-ai/get-started/rest-api/),
+[function calling](https://developers.cloudflare.com/workers-ai/features/function-calling/),
+[JSON mode](https://developers.cloudflare.com/workers-ai/features/json-mode/), and
+[AI Gateway REST](https://developers.cloudflare.com/ai-gateway/usage/rest-api/)
+for current provider requirements. See [provider coverage](provider-coverage.md)
+and [compatibility](compatibility.md) for the scope of this integration. The
+[API inventory reference](cloudflare-api-reference.md) records the classified
+contracts; it is not a parity certificate. The inventory includes management
+endpoints that are not integrated. Compatible endpoint documentation is tracked
+separately from the pinned API specification.
+
+
+# Source: docs/cloudflare-api-reference.md
+
+# Cloudflare API inventory
+
+Source: [Cloudflare OpenAPI](https://raw.githubusercontent.com/cloudflare/api-schemas/193e683baba9c46b675d91c959c3b9a726b2d184/openapi.json), revision `193e683baba9c46b675d91c959c3b9a726b2d184`, reviewed 2026-11-04.
+
+The pinned schema contains 82 operations across 50 Workers AI and AI Gateway paths. Four operations have selected AgentWeave integrations. The rest remain explicitly unimplemented.
+
+Download the [machine-readable inventory](cloudflare-api-inventory.json) for nested request and response fields, unions, required flags, defaults, enum values and parameter constraints. These are specification entries, not claims that AgentWeave executes every option.
+
+Model documentation schemas are attributed to Cloudflare under CC BY 4.0, with unmodified snapshots and generated field inventories. The OpenAPI source is BSD-3-Clause. See the retained licenses and attribution in `tool/contracts/cloudflare/README.md`.
+
+The complete selected source schemas and BSD license are retained in `tool/contracts/cloudflare/`. Run `python3 tool/cloudflare_contract.py --check` offline. Refresh with `--extract /path/to/official/openapi.json` only after reviewing the revision and upstream changes. New operations receive `not-integrated` status automatically.
+
+See [Cloudflare usage](cloudflare.md) for auth, native model inputs, compatible protocols, cancellation and known limits.
+
+## OpenAPI operations
+
+| Method | Path | AgentWeave status |
+| --- | --- | --- |
+| GET | `/accounts/{account_id}/ai-gateway/billing/credit-balance` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/billing/invoice-history` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/billing/invoice-preview` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/billing/spending-limit` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/billing/spending-limit` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/billing/spending-limit` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/billing/topup` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/billing/topup/config` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/billing/topup/config` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/billing/topup/config` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/billing/topup/eligibility` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/billing/topup/limits` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/billing/topup/status` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/billing/usage-history` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/custom-providers` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/custom-providers` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/custom-providers/costs` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/custom-providers/costs` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/custom-providers/costs/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/custom-providers/costs/{id}` | not-integrated |
+| PATCH | `/accounts/{account_id}/ai-gateway/custom-providers/costs/{id}` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/custom-providers/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/custom-providers/{id}` | not-integrated |
+| PATCH | `/accounts/{account_id}/ai-gateway/custom-providers/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/evaluation-types` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/custom-domains` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/custom-domains` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/custom-domains/{hostname}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/custom-domains/{hostname}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/datasets` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/datasets` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/datasets/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/datasets/{id}` | not-integrated |
+| PUT | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/datasets/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/evaluations` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/evaluations` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/evaluations/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/evaluations/{id}` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/logs` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/logs` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/logs/{id}` | not-integrated |
+| PATCH | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/logs/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/logs/{id}/request` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/logs/{id}/response` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/provider_configs` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/provider_configs` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/provider_configs/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/provider_configs/{id}` | not-integrated |
+| PUT | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/provider_configs/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}` | not-integrated |
+| PATCH | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}/deployments` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}/deployments` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}/versions` | not-integrated |
+| POST | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}/versions` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/routes/{id}/versions/{version_id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{gateway_id}/url/{provider}` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai-gateway/gateways/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/gateways/{id}` | not-integrated |
+| PUT | `/accounts/{account_id}/ai-gateway/gateways/{id}` | not-integrated |
+| GET | `/accounts/{account_id}/ai-gateway/logging-state` | not-integrated |
+| PATCH | `/accounts/{account_id}/ai-gateway/logging-state` | not-integrated |
+| GET | `/accounts/{account_id}/ai/authors/search` | not-integrated |
+| GET | `/accounts/{account_id}/ai/finetunes` | not-integrated |
+| POST | `/accounts/{account_id}/ai/finetunes` | not-integrated |
+| GET | `/accounts/{account_id}/ai/finetunes/public` | not-integrated |
+| DELETE | `/accounts/{account_id}/ai/finetunes/{finetune_id}` | not-integrated |
+| POST | `/accounts/{account_id}/ai/finetunes/{finetune_id}/finetune-assets` | not-integrated |
+| GET | `/accounts/{account_id}/ai/finetunes/{finetune_id}/finetune-assets/{file_name}` | not-integrated |
+| GET | `/accounts/{account_id}/ai/models/schema` | integrated-selected-behavior |
+| GET | `/accounts/{account_id}/ai/models/search` | integrated-selected-behavior |
+| POST | `/accounts/{account_id}/ai/run` | integrated-selected-behavior |
+| POST | `/accounts/{account_id}/ai/run/{model_name}` | integrated-selected-behavior |
+| GET | `/accounts/{account_id}/ai/tasks/search` | not-integrated |
+| POST | `/accounts/{account_id}/ai/tomarkdown` | not-integrated |
+| GET | `/accounts/{account_id}/ai/tomarkdown/supported` | not-integrated |
+| POST | `/accounts/{account_id}/ai/websearch` | not-integrated |
+
+## Compatible endpoints outside this specification
+
+The public [Gateway REST guide](https://developers.cloudflare.com/ai-gateway/usage/rest-api/) documents the following endpoints. Their request/response types are not in the pinned OpenAPI. Chat and Responses have separate offline continuation fixtures; Messages is not implemented. Model-specific feature availability still applies.
+
+| Method | Path | AgentWeave status |
+| --- | --- | --- |
+| POST | `/accounts/{account_id}/ai/v1/chat/completions` | integrated-selected-behavior |
+| POST | `/accounts/{account_id}/ai/v1/responses` | integrated-selected-behavior |
+| POST | `/accounts/{account_id}/ai/v1/messages` | not-integrated |
+
+## Selected public model schemas
+
+The inventory retains the full input/output JSON schema for BGE base English, Whisper and Flux Schnell. Public documentation URLs are unversioned. Each downloaded snapshot has a SHA-256 hash; they are not attributed to the OpenAPI Git revision.
+
+| Snapshot | Official source | SHA-256 |
+| --- | --- | --- |
+| `bge-input.json` | [Schema](https://developers.cloudflare.com/workers-ai/models/bge-base-en-v1.5/sync-input.json) | `0291aab34abe8e4657ead038aba73f37098ab8f94888e7d99e4791a4adfcb353` |
+| `bge-output.json` | [Schema](https://developers.cloudflare.com/workers-ai/models/bge-base-en-v1.5/sync-output.json) | `4f25a95d82f8b25fb9f386fc35b1ee244fa7437a7fc75db7506aa66daa6d9541` |
+| `whisper-input.json` | [Schema](https://developers.cloudflare.com/workers-ai/models/whisper/schema-input.json) | `e82ea39d3b7aef1058accc4e5a5c27c5817b30f16cd9c04a6cb6eded41edb944` |
+| `whisper-output.json` | [Schema](https://developers.cloudflare.com/workers-ai/models/whisper/schema-output.json) | `d6f939cc1591e5f6176e1e0a7d64ac8b976d0c55d9fdba9b435d260c1710a2da` |
+| `flux-input.json` | [Schema](https://developers.cloudflare.com/workers-ai/models/flux-1-schnell/schema-input.json) | `d17b781a278e8f00233de3c93b1ac73ed07ba609204674338749c1df38c16b17` |
+| `flux-output.json` | [Schema](https://developers.cloudflare.com/workers-ai/models/flux-1-schnell/schema-output.json) | `5528a6a3b29dec4480fd67a9d695300ad5616c54372afb51988ee660c87a32c6` |
+
+Whisper declares a binary-string input variant, but this schema does not establish an accepted REST Content-Type. The typed binary path has serialization tests only. Native `/run` model schemas vary; forwarding raw fields does not certify those models.
+
+Model schemas, Gateway request headers, Workers bindings, asynchronous batch APIs and compatible endpoints require separate reviews when the OpenAPI omits them. No live Cloudflare calls were made for this inventory.
+
+
 # Source: docs/vercel-gateway.md
 
 # Use Vercel AI Gateway
@@ -1596,7 +1931,7 @@ Status: incremental inventory, not an assertion of complete provider support. Re
 
 ## What exists
 
-The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. The Vercel Gateway package implements public Chat and Responses adapters with offline fixtures. There is no dedicated Cloudflare package. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. The Vercel Gateway package implements public Chat and Responses adapters with offline fixtures. The Cloudflare package implements selected native Workers AI, Gateway run, and compatible Chat and Responses contracts with offline fixtures. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
@@ -1605,7 +1940,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | OpenRouter Chat and Responses | Dedicated Chat adapter exposes selected typed provider preferences, fallback models, route, reasoning, and usage options with offline fixtures. Responses is not implemented. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Plugins, top-level cache control and newer routing fields are unavailable. The adapter does not preserve response provider identity, cost or reasoning continuation metadata. Inventory nested options, routing, sticky/cache behavior, plugins, headers and usage/cost; preserve actual provider metadata. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
-| Cloudflare Workers AI / AI Gateway | Configurable OpenAI Chat/embedding SDK path is possible; no dedicated Workers AI `/run` adapter, Worker binding or Gateway-specific integration. | [Workers AI bindings](https://developers.cloudflare.com/workers-ai/configuration/bindings/) and [model parameters](https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/) are model- and endpoint-specific; [changelog](https://developers.cloudflare.com/changelog/product/workers-ai/2/) also documents Responses for particular models. Inventory `/run`, compatible endpoints and gateway separately; model-specific input/output schemas, auth/account path, streaming, errors, gateway caching and metadata cannot be inferred from OpenAI support. |
+| Cloudflare Workers AI / AI Gateway | Native run, model discovery and selected embedding, transcription, image and traditional chat adapters; Gateway run and compatible Chat and Responses. | Model-specific schemas, availability, live acceptance, caching, binary audio and billing remain unverified. Native traditional tool continuation covers the documented Hermes single-call format only. See [Cloudflare](cloudflare.md). |
 | Other providers | Custom `ChatModel` can be implemented by users. | No blanket support or parity claim. Add named provider/API/version inventory entries and evidence before advertising them. Model availability, feature support and defaults are not stable constants. |
 
 ## Architecture requirements
@@ -1685,6 +2020,11 @@ not a claim of full TanStack AI core parity.
 - Vercel AI Gateway supports selected Chat and Responses contracts with offline
   fixtures; provider selection, model acceptance, and billing are unverified.
   See [Vercel AI Gateway](vercel-gateway.md).
+- Cloudflare supports selected native Workers AI, Gateway run, and compatible
+  Chat and Responses contracts with offline fixtures. Model availability,
+  acceptance and live gateway behavior are unverified. Native traditional tool
+  continuation is limited to the documented Hermes single-call format. See
+  [Cloudflare](cloudflare.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 
@@ -1785,6 +2125,24 @@ coverage dispositions, Dart options and fixture, then regenerate with `--write`
 and run the full check. The manually invoked upstream workflow compares both
 Together and Gateway sources; it does not publish packages or mutate pins.
 
+## Cloudflare contracts
+
+Review the [Cloudflare API reference](cloudflare-api-reference.md) and its
+machine-readable inventory when provider schemas or documented contracts
+change. Update the relevant implementation, fixtures, and dispositions
+together. Verify model-specific schemas separately; an inventory entry does not
+prove live model acceptance.
+
+```sh
+python3 tool/cloudflare_contract.py --upstream --check
+python3 tool/cloudflare_contract.py --check
+```
+
+The manual upstream workflow compares the selected Cloudflare OpenAPI paths and
+six public model schemas with the reviewed snapshots. It fails on drift and
+never rewrites the pin. See `tool/contracts/cloudflare/README.md` for refreshing
+the revision, retained licenses and operation dispositions.
+
 
 # Source: docs/validation.md
 
@@ -1811,10 +2169,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest Gateway/protocol increment was checked on Dart 3.12.2. The prior
+The latest Cloudflare/cancellation increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 222 Dart unit and regression tests: tool validation, approvals, client tools,
+- 247 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -1981,6 +2339,44 @@ HTTP contract. No new paid provider calls were made.
 Both new HTTP and Gateway package publication dry-runs passed with zero warnings
 on Dart 3.12.2. Neither package has been published to pub.dev.
 
+## Cloudflare and cancellation increment
+
+Sixteen Cloudflare fixtures cover distinct native, Gateway and compatible wire
+contracts, model-schema GET queries, embedding shape/pooling, binary and JSON
+audio, binary images and decoded Flux image JSON, request snapshots, credential
+rotation/redaction, approval and the documented single-call native continuation.
+Raw streaming cancellation is checked after headers and a data event. Client
+Gateway defaults and explicit request overrides preserve authentication.
+
+The independent consumer exercises both compatible protocols through two-turn
+tool continuation, typed media results, stored native approval, cancellation
+during credential resolution and after sending, and Gateway header inheritance.
+Its after-headers streaming fixture also passes over actual loopback HTTP. The
+complete guide entry program was compiled unchanged, without invoking Cloudflare.
+The targeted review improved from 7/10 to 8/10; it is not SDK-wide acceptance.
+
+Twelve shared HTTP tests now include GET/HEAD with repeated queries, binary PATCH
+bytes and immutable snapshots, MIME/byte validation and body/method rejection
+before dispatch. Shared stream binding isolates sibling calls while synchronously
+propagating parent cancellation. The full suite caught and now prevents an extra
+buffered text chunk entering cancelled history. Core, provider and generation
+regressions verify cleanup and independent shared-parent calls.
+
+The Cloudflare extractor has five tests for reference closure, escaped and
+recursive schema references, nested unions/constraints, and explicit operation
+status. It records all 82 operations across 50 AI/Gateway paths in the pinned
+OpenAPI, four selected integrations, and six public model schemas with hashes.
+The explicit upstream comparison matched current official sources. Compatible
+Chat/Responses endpoints are documentation-only contracts outside that OpenAPI
+revision; their separate fixtures do not certify all fields or models.
+
+The documentation build and two routing/search tests pass. The Cloudflare package
+publication dry-run has zero warnings. No package was published, no model license
+was accepted, and no paid Cloudflare or other provider calls were made. Live
+model availability, Gateway routing/cache hits, binary audio Content-Type
+acceptance, billing, management operations and exhaustive provider parity remain
+unverified or unimplemented as listed in the inventory.
+
 
 # Source: CONTRIBUTING.md
 
@@ -2020,7 +2416,8 @@ TypeScript API conventions into the Dart developer API.
 - Core model contracts and agent execution live in `packages/agent_weave`.
 - Provider-specific types stay in `packages/agent_weave_openai` and
   `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
-  `packages/agent_weave_together`, and `packages/agent_weave_vercel_gateway`.
+  `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and
+  `packages/agent_weave_cloudflare`.
   Shared JSON HTTP transport belongs in `packages/agent_weave_http`.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.

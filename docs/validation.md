@@ -21,10 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest Gateway/protocol increment was checked on Dart 3.12.2. The prior
+The latest Cloudflare/cancellation increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 222 Dart unit and regression tests: tool validation, approvals, client tools,
+- 247 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -190,3 +190,41 @@ HTTP contract. No new paid provider calls were made.
 
 Both new HTTP and Gateway package publication dry-runs passed with zero warnings
 on Dart 3.12.2. Neither package has been published to pub.dev.
+
+## Cloudflare and cancellation increment
+
+Sixteen Cloudflare fixtures cover distinct native, Gateway and compatible wire
+contracts, model-schema GET queries, embedding shape/pooling, binary and JSON
+audio, binary images and decoded Flux image JSON, request snapshots, credential
+rotation/redaction, approval and the documented single-call native continuation.
+Raw streaming cancellation is checked after headers and a data event. Client
+Gateway defaults and explicit request overrides preserve authentication.
+
+The independent consumer exercises both compatible protocols through two-turn
+tool continuation, typed media results, stored native approval, cancellation
+during credential resolution and after sending, and Gateway header inheritance.
+Its after-headers streaming fixture also passes over actual loopback HTTP. The
+complete guide entry program was compiled unchanged, without invoking Cloudflare.
+The targeted review improved from 7/10 to 8/10; it is not SDK-wide acceptance.
+
+Twelve shared HTTP tests now include GET/HEAD with repeated queries, binary PATCH
+bytes and immutable snapshots, MIME/byte validation and body/method rejection
+before dispatch. Shared stream binding isolates sibling calls while synchronously
+propagating parent cancellation. The full suite caught and now prevents an extra
+buffered text chunk entering cancelled history. Core, provider and generation
+regressions verify cleanup and independent shared-parent calls.
+
+The Cloudflare extractor has five tests for reference closure, escaped and
+recursive schema references, nested unions/constraints, and explicit operation
+status. It records all 82 operations across 50 AI/Gateway paths in the pinned
+OpenAPI, four selected integrations, and six public model schemas with hashes.
+The explicit upstream comparison matched current official sources. Compatible
+Chat/Responses endpoints are documentation-only contracts outside that OpenAPI
+revision; their separate fixtures do not certify all fields or models.
+
+The documentation build and two routing/search tests pass. The Cloudflare package
+publication dry-run has zero warnings. No package was published, no model license
+was accepted, and no paid Cloudflare or other provider calls were made. Live
+model availability, Gateway routing/cache hits, binary audio Content-Type
+acceptance, billing, management operations and exhaustive provider parity remain
+unverified or unimplemented as listed in the inventory.

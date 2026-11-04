@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:agent_weave/agent_weave.dart';
 import 'package:test/test.dart';
 
@@ -59,4 +61,35 @@ void main() {
     expect(events, isEmpty);
     expect(called, isFalse);
   });
+  test(
+    'generation subscriptions do not cancel a shared parent or sibling',
+    () async {
+      final parent = CancellationToken();
+      final started = <int, Completer<void>>{1: Completer(), 2: Completer()};
+      final cancelled = <int, Completer<void>>{1: Completer(), 2: Completer()};
+      final task = GenerationTask<int, int>(
+        execute: (value, context) async {
+          started[value]!.complete();
+          await context.cancellation.whenCancelled;
+          cancelled[value]!.complete();
+          context.cancellation.throwIfCancelled();
+          return value;
+        },
+        encodeResult: (result) => result,
+      );
+      final one = task
+          .run(1, threadId: 't1', runId: 'r1', cancellation: parent)
+          .listen(null);
+      final two = task
+          .run(2, threadId: 't2', runId: 'r2', cancellation: parent)
+          .listen(null);
+      await Future.wait(started.values.map((c) => c.future));
+      await one.cancel().timeout(const Duration(seconds: 1));
+      expect(parent.isCancelled, isFalse);
+      expect(cancelled[2]!.isCompleted, isFalse);
+      parent.cancel();
+      await cancelled[2]!.future.timeout(const Duration(seconds: 1));
+      await two.cancel();
+    },
+  );
 }

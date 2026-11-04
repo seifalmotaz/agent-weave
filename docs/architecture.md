@@ -23,8 +23,10 @@ operation.
 ## Ownership and cancellation
 
 The caller owns provider clients. Close them at application shutdown.
-Each run owns its cancellation token. Cancelling a run subscription signals
-the provider and releases its reservation after cleanup.
+Each invocation owns a child cancellation token. `CancellationToken.bindStream`
+links it to a caller signal and forwards pause/resume. Cancelling one subscription
+signals only that invocation; cancelling the caller signal synchronously signals
+all active children. The run releases its reservation after cleanup.
 
 An HTTP response owns a separate Serverpod session for the duration of its
 stream. Create tool context from that session. The incoming HTTP request session
@@ -88,9 +90,9 @@ message's private OpenAI Responses state, and it rejects provider file handles
 until their gateway/account ownership can be established. URLs and inline input
 remain separate source variants.
 
-`agent_weave_http` owns optional JSON POST/SSE I/O for native adapters. Together
-and Gateway use the same per-request deadline, abort, metadata and error-body
-handling. Provider adapters own finish/EOF semantics and credential redaction.
+`agent_weave_http` owns HTTP methods with explicit empty, JSON or binary bodies
+and JSON SSE I/O for native adapters. Together, Gateway and Cloudflare use the
+same per-request deadline, abort, metadata and error-body handling. Provider adapters own finish/EOF semantics and credential redaction.
 This package does not add an HTTP dependency to the core agent runtime.
 
 `CancellationToken.whenCancelled` remains the one-shot Future API.

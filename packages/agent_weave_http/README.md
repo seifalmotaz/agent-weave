@@ -1,7 +1,7 @@
 # AgentWeave HTTP
 
-Optional JSON POST and JSON SSE transport for native provider adapters. The core
-agent package does not depend on HTTP. Together and Vercel Gateway share this
+Optional JSON and binary HTTP and JSON SSE transport for native provider adapters. The core
+agent package does not depend on HTTP. Together, Vercel Gateway, and Cloudflare share this
 transport; protocol-specific completion checks stay in their adapters.
 
 ```dart
@@ -32,6 +32,8 @@ pausing it pauses consumption. Closing the transport cancels its own active
 requests. An injected `http.Client` remains caller-owned; other clients using it
 are not closed. Actual I/O cancellation requires an injected client to honor
 `http.AbortableRequest`; an accepted remote operation cannot be rolled back.
+
+`send` supports GET and byte request bodies for provider discovery and binary payloads.
 
 `streamJson` emits `JsonSseData` with JSON, event name, ID and response headers,
 and a separate `JsonSseDone` for `[DONE]`. It handles split UTF-8, CRLF and

@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:http/http.dart' as http;
 
@@ -40,15 +41,13 @@ JsonObject snapshotJson(JsonObject value) {
   return copy(value) as JsonObject;
 }
 
-/// Resolved request data. Its default representation never prints headers/body.
-final class JsonHttpRequest {
-  final JsonObject body;
+enum HttpMethod { get, post, put, patch, delete, head, options }
+
+/// A request body variant. Its representation never prints headers or data.
+sealed class HttpRequestData {
   final Map<String, String> headers;
-  JsonHttpRequest({
-    required JsonObject body,
-    Map<String, String> headers = const {},
-  }) : body = snapshotJson(body),
-       headers = Map.unmodifiable(headers) {
+  HttpRequestData._(Map<String, String> headers)
+    : headers = Map.unmodifiable(headers) {
     for (final name in headers.keys) {
       if ({
         'host',
@@ -60,6 +59,59 @@ final class JsonHttpRequest {
       }
     }
   }
+  factory HttpRequestData.json({
+    required JsonObject body,
+    Map<String, String> headers = const {},
+  }) => JsonHttpRequest(body: body, headers: headers);
+  factory HttpRequestData.bytes({
+    required List<int> bytes,
+    String contentType = 'application/octet-stream',
+    Map<String, String> headers = const {},
+  }) => BinaryHttpRequest(
+    bytes: bytes,
+    contentType: contentType,
+    headers: headers,
+  );
+  factory HttpRequestData.empty({Map<String, String> headers = const {}}) =>
+      EmptyHttpRequest(headers: headers);
+}
+
+final class JsonHttpRequest extends HttpRequestData {
+  final JsonObject body;
+  JsonHttpRequest({
+    required JsonObject body,
+    Map<String, String> headers = const {},
+  }) : body = snapshotJson(body),
+       super._(headers);
+}
+
+final class BinaryHttpRequest extends HttpRequestData {
+  final Uint8List bytes;
+  final String contentType;
+  BinaryHttpRequest({
+    required List<int> bytes,
+    this.contentType = 'application/octet-stream',
+    Map<String, String> headers = const {},
+  }) : bytes = _snapshotBytes(bytes),
+       super._(headers) {
+    if (contentType.trim().isEmpty ||
+        contentType.contains(RegExp(r'[\r\n\x00]'))) {
+      throw ArgumentError(
+        'Expected a nonempty content type without control delimiters.',
+      );
+    }
+  }
+}
+
+Uint8List _snapshotBytes(List<int> bytes) {
+  if (bytes.any((byte) => byte < 0 || byte > 255)) {
+    throw ArgumentError('Expected bytes between 0 and 255.');
+  }
+  return Uint8List.fromList(bytes).asUnmodifiableView();
+}
+
+final class EmptyHttpRequest extends HttpRequestData {
+  EmptyHttpRequest({Map<String, String> headers = const {}}) : super._(headers);
 }
 
 /// Response diagnostics are private backend data and are omitted by toString.
@@ -218,23 +270,38 @@ final class JsonHttpClient {
 
   Future<http.StreamedResponse> _send(
     String path,
-    FutureOr<JsonHttpRequest> Function() prepare,
+    FutureOr<HttpRequestData> Function() prepare,
     _Scope scope,
     Map<String, List<String>> query,
+    HttpMethod method,
   ) async {
     if (_closed) throw StateError('The HTTP client is closed.');
     scope.check();
     final uri = _uri(path, query);
     final resolved = await scope.wait(Future.sync(prepare));
     scope.check();
+    if ((method == HttpMethod.get || method == HttpMethod.head) &&
+        resolved is! EmptyHttpRequest) {
+      throw ArgumentError('GET and HEAD requests require an empty body.');
+    }
     final request =
-        http.AbortableRequest('POST', uri, abortTrigger: scope.abort.future)
+        http.AbortableRequest(
+            method.name.toUpperCase(),
+            uri,
+            abortTrigger: scope.abort.future,
+          )
           ..followRedirects = false
-          ..headers.addAll({
-            ...resolved.headers,
-            'Content-Type': 'application/json',
-          })
-          ..body = jsonEncode(resolved.body);
+          ..headers.addAll(resolved.headers);
+    switch (resolved) {
+      case JsonHttpRequest(:final body):
+        request.headers['Content-Type'] = 'application/json';
+        request.body = jsonEncode(body);
+      case BinaryHttpRequest(:final bytes, :final contentType):
+        request.headers['Content-Type'] = contentType;
+        request.bodyBytes = bytes;
+      case EmptyHttpRequest():
+        break;
+    }
     final response = await scope.wait(_client.send(request));
     scope.check();
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -281,15 +348,24 @@ final class JsonHttpClient {
     }
   }
 
+  /// JSON POST convenience retained for existing provider adapters.
   Future<http.Response> sendJson(
     String path, {
     required FutureOr<JsonHttpRequest> Function() prepare,
     CancellationToken? cancellation,
     Map<String, List<String>> query = const {},
+  }) => send(path, prepare: prepare, cancellation: cancellation, query: query);
+
+  Future<http.Response> send(
+    String path, {
+    required FutureOr<HttpRequestData> Function() prepare,
+    HttpMethod method = HttpMethod.post,
+    CancellationToken? cancellation,
+    Map<String, List<String>> query = const {},
   }) async {
     final scope = _start(cancellation);
     try {
-      final response = await _send(path, prepare, scope, query);
+      final response = await _send(path, prepare, scope, query, method);
       final result = await http.Response.fromStream(
         http.StreamedResponse(
           _bytes(response.stream, scope),
@@ -313,7 +389,7 @@ final class JsonHttpClient {
 
   Stream<JsonSseEvent> streamJson(
     String path, {
-    required FutureOr<JsonHttpRequest> Function() prepare,
+    required FutureOr<HttpRequestData> Function() prepare,
     CancellationToken? cancellation,
     Map<String, List<String>> query = const {},
   }) {
@@ -347,12 +423,18 @@ final class JsonHttpClient {
 
   Stream<JsonSseEvent> _stream(
     String path,
-    FutureOr<JsonHttpRequest> Function() prepare,
+    FutureOr<HttpRequestData> Function() prepare,
     _Scope scope,
     Map<String, List<String>> query,
   ) async* {
     try {
-      final response = await _send(path, prepare, scope, query);
+      final response = await _send(
+        path,
+        prepare,
+        scope,
+        query,
+        HttpMethod.post,
+      );
       final data = <String>[];
       String? event;
       String? id;

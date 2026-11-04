@@ -49,7 +49,18 @@ final class GenerationTask<P, R> {
         'Persistent generations require a server-derived ownerId.',
       );
     }
-    final token = cancellation ?? CancellationToken();
+    return (cancellation ?? CancellationToken()).bindStream(
+      (token) => _runBound(parameters, threadId, runId, ownerId, token),
+    );
+  }
+
+  Stream<AgentEvent> _runBound(
+    P parameters,
+    String threadId,
+    String runId,
+    String? ownerId,
+    CancellationToken token,
+  ) {
     var sequence = 0;
     late final StreamController<AgentEvent> controller;
     void add(String type, [JsonObject fields = const {}]) {

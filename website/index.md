@@ -48,7 +48,7 @@ Build agents with typed tools, stream responses to your application, and keep co
 
     Implement one model invocation. The runtime handles tools, validation, approvals, and the agent loop.
 
-    [Write a provider →](providers.md)
+    [Write a provider →](providers.md) · [Cloudflare guide →](cloudflare.md)
 
 </div>
 

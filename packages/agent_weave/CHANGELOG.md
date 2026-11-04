@@ -1,5 +1,7 @@
 # Unreleased
 
+- Isolate stream subscription cancellation per call while retaining shared parent cancellation.
+
 - Add a disposable cancellation event stream while preserving the existing Future signal.
 
 - Add URL, inline bytes, and provider-scoped document inputs with canonical media hydration.

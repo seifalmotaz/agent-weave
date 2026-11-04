@@ -37,3 +37,11 @@ The native Messages adapter depends on anthropic_sdk_dart, maintained by David
 Miguel and contributors, under the MIT license. It is a third-party SDK and
 is not an official Anthropic library. Dependency license notices remain in
 the distributed SDK package.
+
+## Cloudflare contract sources
+
+The reviewed API schema subset is from Cloudflare's api-schemas repository,
+BSD-3-Clause. Public model documentation schemas are attributed to Cloudflare
+under CC BY 4.0. Original source URLs, revision, hashes, retained licenses and
+extraction details are in `tool/contracts/cloudflare/README.md`. Generated
+inventories reorganize those schemas; AgentWeave remains independent.

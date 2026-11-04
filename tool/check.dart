@@ -37,6 +37,7 @@ Future<void> main() async {
     'packages/agent_weave_openrouter/test',
     'packages/agent_weave_together/test',
     'packages/agent_weave_http/test',
+    'packages/agent_weave_cloudflare/test',
     'packages/agent_weave_vercel_gateway/test',
     'packages/agent_weave_serverpod_client/test',
   ]);
@@ -86,7 +87,14 @@ Future<void> main() async {
     'run',
     'examples/review_cases/gateway.dart',
   ]);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/cloudflare.dart',
+  ]);
   await run('python3', ['tool/test_audit_openai.py']);
+  await run('python3', ['tool/test_cloudflare_contract.py']);
+  await run('python3', ['tool/cloudflare_contract.py', '--check']);
   final secret = RegExp(
     r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',
   );

@@ -88,3 +88,21 @@ Review any source change before updating the full commit and snapshot. Update
 coverage dispositions, Dart options and fixture, then regenerate with `--write`
 and run the full check. The manually invoked upstream workflow compares both
 Together and Gateway sources; it does not publish packages or mutate pins.
+
+## Cloudflare contracts
+
+Review the [Cloudflare API reference](cloudflare-api-reference.md) and its
+machine-readable inventory when provider schemas or documented contracts
+change. Update the relevant implementation, fixtures, and dispositions
+together. Verify model-specific schemas separately; an inventory entry does not
+prove live model acceptance.
+
+```sh
+python3 tool/cloudflare_contract.py --upstream --check
+python3 tool/cloudflare_contract.py --check
+```
+
+The manual upstream workflow compares the selected Cloudflare OpenAPI paths and
+six public model schemas with the reviewed snapshots. It fails on drift and
+never rewrites the pin. See `tool/contracts/cloudflare/README.md` for refreshing
+the revision, retained licenses and operation dispositions.

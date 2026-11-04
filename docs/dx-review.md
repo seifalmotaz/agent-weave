@@ -191,3 +191,25 @@ The same command now passes all four loopback checks, including the approved Cha
 Both complete code blocks in `docs/vercel-gateway.md` were copied unchanged into fresh temporary Dart files and compiled with the workspace package configuration and Dart 3.12.2; neither was run because the examples use a live, potentially paid endpoint. The offline consumer journey was rerun successfully. It now additionally exercises `withApiKey`, enum-based cache/service-tier/sort configuration, forward-compatible extra options, and HTTP and stream errors with status/request ID and provider details. Known bearer and BYOK values were redacted in diagnostics while error codes remained available. These are synthetic loopback responses, not confirmation of the Gateway's production error shapes. The dynamic resolver journey rotates credentials between requests; the guide's environment-based example itself was compiled, not executed against a secret manager.
 
 Revised targeted DX score: 7.6/10 — discoverability 8, clarity 8, type safety 7, debugging 7, testing 8. The complete runnable guide and typed routing materially improve setup and diagnosis; provider-specific configuration and BYOK still require JSON, and live provider behavior remains unverified. Earlier 5.8 and 6.4 assessments remain above as the initial and first-retest records.
+
+
+## Round 8: Cloudflare consumer review
+
+
+Offline loopback review, Dart 3.12.2, assertions enabled. No credentials, Cloudflare requests, license acceptance, or paid services were used.
+
+| Criterion | First read | Current | Evidence and remaining friction |
+| --- | ---: | ---: | --- |
+| Getting started and ownership | 7/10 | 7/10 | Separate client and Gateway contracts and client ownership are explained; account/model availability still requires external verification. |
+| Typed data and wire fidelity | 6/10 | 8/10 | Typed embedding and transcription results expose useful fields and raw responses; typed image bytes cover binary and decoded Flux JSON. Embedding vectors and image bytes reject mutation. |
+| Agent and tool workflow | 7/10 | 7/10 | One native call pauses for approval and resumes with the documented replay; compatible chat and Responses replay a tool result in two requests. Native multiple calls are explicitly rejected. |
+| Control and error handling | 7/10 | 7/10 | Loopback covers cancellation and deadline during token resolution, cancellation after send with pending headers and after a streamed event, request-scoped token rotation, and redaction on HTTP errors. |
+| Documentation and discoverability | 6/10 | 8/10 | The expanded guide separates all four contracts, shows typed setup, states ownership and retry behavior, and qualifies model availability and live verification. It does not establish which models work in a particular account. |
+
+Overall qualitative assessment: 7/10 initially, 8/10 now. These are reviewer judgments, not measured benchmarks; the typed-result and documentation improvements do not establish broader provider compatibility.
+
+Run: `.dart_tool/dart-3.12.2/dart-sdk/bin/dart --enable-asserts run examples/review_cases/cloudflare.dart`. Also ran `dart analyze examples/review_cases/cloudflare.dart`; both passed. The loopback fixture checks native versus Gateway path, payload and headers; schema GET query; embedding shape and pooling; transcription bytes and JSON; image JSON and bytes; native approval, replay and multiple-call rejection before execution; compatible chat and Responses tool continuation; immutable embedding vectors and image bytes; credential rotation; error privacy; cancellation and timeout during token resolution; cancellation after send with pending headers; Gateway default and override headers across native, Gateway and compatible endpoints; and stream cancellation after headers and an event.
+
+No defect was reproduced in those scenarios. Fixtures do not establish live Cloudflare behavior, model or account availability, license status, or all model schemas. Live service errors, actual Gateway billing and real inference were not checked in this independent example. Native traditional continuation is limited to the documented single-call replay; multiple-call continuation is not verified or claimed.
+
+The first `docs/cloudflare.md` Dart block was extracted unchanged, verified identical to `examples/cloudflare_demo.dart`, analyzed, and compiled with Dart 3.12.2. It was not executed; no live or paid calls were made. The API inventory classifies operations rather than claiming parity.

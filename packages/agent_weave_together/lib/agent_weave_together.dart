@@ -286,6 +286,12 @@ final class TogetherChatModel implements ChatModel {
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
+  }) =>
+      cancellation.bindStream((child) => _stream(request, cancellation: child));
+
+  Stream<ModelEvent> _stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
     final choice = options.toJson()['tool_choice'];

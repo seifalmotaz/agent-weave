@@ -9,6 +9,7 @@ workspace:
   - packages/agent_weave_openrouter
   - packages/agent_weave_together
   - packages/agent_weave_http
+  - packages/agent_weave_cloudflare
   - packages/agent_weave_vercel_gateway
   - packages/agent_weave_serverpod
   - packages/agent_weave_serverpod_client
@@ -23,6 +24,7 @@ dev_dependencies:
   agent_weave_openrouter: ^0.1.0-dev.1
   agent_weave_together: ^0.1.0-dev.1
   agent_weave_http: ^0.1.0-dev.1
+  agent_weave_cloudflare: ^0.1.0-dev.1
   agent_weave_vercel_gateway: ^0.1.0-dev.1
   lints: ^6.0.0
   test: ^1.29.0

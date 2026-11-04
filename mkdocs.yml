@@ -77,6 +77,7 @@ nav:
       - Documents: documents.md
       - OpenAI capabilities: openai.md
       - OpenRouter: openrouter.md
+      - Cloudflare Workers AI and AI Gateway: cloudflare.md
       - Together: together.md
       - Vercel AI Gateway: vercel-gateway.md
       - Gateway request fields: gateway-options.md
@@ -93,6 +94,7 @@ nav:
       - Update upstream: updating.md
       - OpenAI options audit: openai-options-audit.md
       - Provider coverage: provider-coverage.md
+      - Cloudflare API inventory: cloudflare-api-reference.md
       - Developer reviews: dx-review.md
       - Coding-agent guide: agent-guide.md
       - Build these docs: docs-site.md

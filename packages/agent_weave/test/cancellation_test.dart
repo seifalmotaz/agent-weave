@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:agent_weave/agent_weave.dart';
 import 'package:test/test.dart';
 
@@ -46,4 +48,40 @@ void main() {
       expect(disposed, 0);
     },
   );
+  test(
+    'bound streams isolate subscription cancellation and share parent cancellation',
+    () async {
+      final parent = CancellationToken();
+      final children = <CancellationToken>[];
+      Stream<int> blocked(CancellationToken child) async* {
+        children.add(child);
+        await child.whenCancelled;
+        child.throwIfCancelled();
+      }
+
+      final one = parent.bindStream(blocked).listen(null);
+      final two = parent
+          .bindStream(blocked)
+          .listen(null, onError: (Object _) {});
+      await Future<void>.delayed(Duration.zero);
+      await one.cancel().timeout(const Duration(seconds: 1));
+      expect(parent.isCancelled, isFalse);
+      expect(children[0].isCancelled, isTrue);
+      expect(children[1].isCancelled, isFalse);
+      parent.cancel();
+      expect(children[1].isCancelled, isTrue);
+      await children[1].whenCancelled.timeout(const Duration(seconds: 1));
+      await two.cancel();
+    },
+  );
+
+  test('synchronous stream creation errors reach the listener', () async {
+    final parent = CancellationToken();
+    final error = StateError('create');
+    await expectLater(
+      parent.bindStream<int>((_) => throw error),
+      emitsError(same(error)),
+    );
+    expect(parent.isCancelled, isFalse);
+  });
 }

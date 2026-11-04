@@ -10,7 +10,8 @@ TypeScript API conventions into the Dart developer API.
 - Core model contracts and agent execution live in `packages/agent_weave`.
 - Provider-specific types stay in `packages/agent_weave_openai` and
   `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
-  `packages/agent_weave_together`, and `packages/agent_weave_vercel_gateway`.
+  `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and
+  `packages/agent_weave_cloudflare`.
   Shared JSON HTTP transport belongs in `packages/agent_weave_http`.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.

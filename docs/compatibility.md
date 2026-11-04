@@ -58,6 +58,11 @@ not a claim of full TanStack AI core parity.
 - Vercel AI Gateway supports selected Chat and Responses contracts with offline
   fixtures; provider selection, model acceptance, and billing are unverified.
   See [Vercel AI Gateway](vercel-gateway.md).
+- Cloudflare supports selected native Workers AI, Gateway run, and compatible
+  Chat and Responses contracts with offline fixtures. Model availability,
+  acceptance and live gateway behavior are unverified. Native traditional tool
+  continuation is limited to the documented Hermes single-call format. See
+  [Cloudflare](cloudflare.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 

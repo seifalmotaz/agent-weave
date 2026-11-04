@@ -26,6 +26,98 @@ void main() {
   );
 
   test(
+    'GET and HEAD preserve query, status and headers with no body',
+    () async {
+      for (final method in [HttpMethod.get, HttpMethod.head]) {
+        handler = (request) async {
+          expect(request.method, method.name.toUpperCase());
+          expect(request.uri.path, '/v1/models/schema');
+          expect(request.uri.queryParametersAll['model'], ['@cf/a/b', 'a b']);
+          expect(await request.toList(), isEmpty);
+          expect(request.headers.value('authorization'), 'Bearer fixture');
+          request.response.statusCode = 202;
+          request.response.headers.set('x-request-id', 'schema-request');
+          if (method == HttpMethod.get) request.response.write('{"result":{}}');
+          await request.response.close();
+        };
+        final response = await client.send(
+          '/models/schema',
+          method: method,
+          prepare: () =>
+              EmptyHttpRequest(headers: {'Authorization': 'Bearer fixture'}),
+          query: {
+            'model': ['@cf/a/b', 'a b'],
+          },
+        );
+        expect(response.statusCode, 202);
+        expect(response.headers['x-request-id'], 'schema-request');
+        expect(response.body, method == HttpMethod.get ? '{"result":{}}' : '');
+      }
+    },
+  );
+  test(
+    'binary PATCH sends immutable exact bytes and retains binary output',
+    () async {
+      final original = [0, 128, 255];
+      final payload = BinaryHttpRequest(
+        bytes: original,
+        contentType: 'audio/wav',
+      );
+      original[0] = 10;
+      expect(() => payload.bytes[0] = 10, throwsUnsupportedError);
+      handler = (request) async {
+        expect(request.method, 'PATCH');
+        expect(request.headers.contentType.toString(), 'audio/wav');
+        expect(
+          await request.fold<List<int>>(
+            [],
+            (bytes, chunk) => bytes..addAll(chunk),
+          ),
+          [0, 128, 255],
+        );
+        request.response.headers.contentType = ContentType.binary;
+        request.response.add([255, 0, 128]);
+        await request.response.close();
+      };
+      final response = await client.send(
+        '/audio',
+        method: HttpMethod.patch,
+        prepare: () => payload,
+      );
+      expect(response.bodyBytes, [255, 0, 128]);
+    },
+  );
+  test(
+    'invalid byte, MIME and GET/HEAD body variants never dispatch',
+    () async {
+      handler = (_) async => fail('must not send');
+      for (final bytes in [
+        [-1],
+        [256],
+      ]) {
+        expect(() => BinaryHttpRequest(bytes: bytes), throwsArgumentError);
+      }
+      for (final mime in ['', 'audio/wav\r\nHost: other', 'audio/\x00wav']) {
+        expect(
+          () => BinaryHttpRequest(bytes: [], contentType: mime),
+          throwsArgumentError,
+        );
+      }
+      for (final method in [HttpMethod.get, HttpMethod.head]) {
+        for (final body in [
+          JsonHttpRequest(body: {}),
+          BinaryHttpRequest(bytes: []),
+        ]) {
+          await expectLater(
+            client.send('/models', method: method, prepare: () => body),
+            throwsArgumentError,
+          );
+        }
+      }
+    },
+  );
+
+  test(
     'SSE retains event names, IDs, repeated query and headers across fragmented UTF8',
     () async {
       handler = (request) async {

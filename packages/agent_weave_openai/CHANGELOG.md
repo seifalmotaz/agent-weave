@@ -1,5 +1,7 @@
 # Unreleased
 
+- Allow compatible Responses transports to omit OpenAI encrypted-reasoning includes.
+
 - Extract reusable typed Chat/Responses protocol models and isolate provider replay.
 - Fix assistant text and tool-call history serialization for Chat continuation.
 - Reject unsupported choices/audio and require a Responses terminal event.

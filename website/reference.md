@@ -1,6 +1,6 @@
 # Packages and API
 
-The monorepo contains eleven packages. Use the smallest set needed by your application.
+The monorepo contains twelve packages. Use the smallest set needed by your application.
 
 | Package | Owns |
 | --- | --- |
@@ -9,6 +9,7 @@ The monorepo contains eleven packages. Use the smallest set needed by your appli
 | `agent_weave_openrouter` | OpenRouter Chat Completions adapter |
 | `agent_weave_http` | Shared JSON HTTP transport for provider adapters |
 | `agent_weave_vercel_gateway` | Vercel AI Gateway Chat and Responses adapters |
+| `agent_weave_cloudflare` | Workers AI and AI Gateway REST clients and selected model adapters |
 | `agent_weave_together` | Native Together Chat Completions client and adapter |
 | `agent_weave_openai` | OpenAI model adapters and typed provider resource access |
 | `agent_weave_serverpod` | Authenticated HTTP/SSE routes and native endpoint helpers |
@@ -41,7 +42,7 @@ See [the Dart API guide](dart-api.md) for complete recipes and [architecture](ar
 
 Import `agent_weave_openai` with a prefix, such as `openai`. Provider types can share names with core types. Model and account capabilities vary; an adapter's supported request formats do not mean every selected model accepts them.
 
-The [OpenAI guide](openai.md) distinguishes normalized adapters from delegated provider resources. The [operation inventory](openai-api-inventory.json) is an update-review list, not an endpoint parity certificate.
+The [Cloudflare guide](cloudflare.md) separates native, gateway and compatible contracts. The [OpenAI guide](openai.md) distinguishes normalized adapters from delegated provider resources. The [operation inventory](openai-api-inventory.json) is an update-review list, not an endpoint parity certificate.
 
 ## Generate API reference locally
 

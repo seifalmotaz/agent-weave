@@ -127,28 +127,9 @@ final class AiAgent<C> {
     required C context,
     CancellationToken? cancellation,
     void Function(AgentResult, Object?, StackTrace?, String?)? onResult,
-  }) {
-    final token = cancellation ?? CancellationToken();
-    StreamSubscription<AgentEvent>? subscription;
-    late final StreamController<AgentEvent> controller;
-    controller = StreamController<AgentEvent>(
-      onListen: () {
-        subscription = _execute(request, ownerId, context, token, onResult)
-            .listen(
-              controller.add,
-              onError: controller.addError,
-              onDone: controller.close,
-            );
-      },
-      onPause: () => subscription?.pause(),
-      onResume: () => subscription?.resume(),
-      onCancel: () async {
-        token.cancel();
-        await subscription?.cancel();
-      },
-    );
-    return controller.stream;
-  }
+  }) => (cancellation ?? CancellationToken()).bindStream(
+    (token) => _execute(request, ownerId, context, token, onResult),
+  );
 
   Stream<AgentEvent> _execute(
     ChatRequest request,

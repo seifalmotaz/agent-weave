@@ -299,6 +299,27 @@ void main() {
       expect(await client.createChat({'model': 'x'}), {'choices': <Object?>[]});
     },
   );
+  test(
+    'cancelling chat model while awaiting headers keeps parent active',
+    () async {
+      final started = Completer<void>();
+      handler = (request) async {
+        await request.drain<void>();
+        started.complete();
+      };
+      final parent = CancellationToken();
+      final subscription = TogetherChatModel(client: client, model: 'x')
+          .stream(
+            ModelRequest(messages: [ChatMessage.user('hello', id: 'u')]),
+            cancellation: parent,
+          )
+          .listen(null);
+      await started.future.timeout(const Duration(seconds: 1));
+      await subscription.cancel().timeout(const Duration(seconds: 1));
+      expect(parent.isCancelled, isFalse);
+    },
+  );
+
   test('request timeout aborts a stalled response body', () async {
     handler = (request) async {
       await request.drain<void>();

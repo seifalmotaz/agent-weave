@@ -442,6 +442,40 @@ void main() {
     },
   );
 
+  test(
+    'agent runs isolate subscription cancellation with a shared parent',
+    () async {
+      final parent = CancellationToken();
+      final model = MultiBlockingModel();
+      final agent = AiAgent<String>(model: model);
+      final one = agent
+          .run(
+            request(thread: 'one', run: 'one'),
+            ownerId: 'owner',
+            context: 'x',
+            cancellation: parent,
+          )
+          .listen(null, onError: (Object _) {});
+      final two = agent
+          .run(
+            request(thread: 'two', run: 'two'),
+            ownerId: 'owner',
+            context: 'x',
+            cancellation: parent,
+          )
+          .listen(null, onError: (Object _) {});
+      await model.started.future.timeout(const Duration(seconds: 1));
+      await one.cancel().timeout(const Duration(seconds: 1));
+      expect(parent.isCancelled, isFalse);
+      expect(model.tokens.where((token) => token.isCancelled), hasLength(1));
+      parent.cancel();
+      await Future.wait(
+        model.tokens.map((token) => token.whenCancelled),
+      ).timeout(const Duration(seconds: 1));
+      await two.cancel();
+    },
+  );
+
   test('configuration rejects duplicate tool names and nonpositive limits', () {
     expect(
       () => AiAgent<String>(model: FakeModel([]), maxSteps: 0),
@@ -470,6 +504,23 @@ final class BlockingModel implements ChatModel {
   }) async* {
     token = cancellation;
     started.complete();
+    await cancellation.whenCancelled;
+    cancellation.throwIfCancelled();
+  }
+}
+
+final class MultiBlockingModel implements ChatModel {
+  final started = Completer<void>();
+  final tokens = <CancellationToken>[];
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities();
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) async* {
+    tokens.add(cancellation);
+    if (tokens.length == 2) started.complete();
     await cancellation.whenCancelled;
     cancellation.throwIfCancelled();
   }

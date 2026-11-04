@@ -264,6 +264,38 @@ void main() {
     );
   });
 
+  test(
+    'Responses compatibility can omit encrypted reasoning includes',
+    () async {
+      for (final configured in [false, true]) {
+        final model = openai.ResponsesProtocolModel(
+          model: 'fixture',
+          includeEncryptedReasoning: false,
+          configure: configured
+              ? (request) => openai.CreateResponseRequest.fromJson({
+                  ...request.toJson(),
+                  'include': ['web_search_call.action.sources'],
+                })
+              : null,
+          transport: (request, _) {
+            final body = request.toJson();
+            if (configured) {
+              expect(body['include'], ['web_search_call.action.sources']);
+            } else {
+              expect(body.containsKey('include'), false);
+            }
+            return Stream.value(
+              responseEvent('response.completed', {'response': responseJson()}),
+            );
+          },
+        );
+        await model
+            .stream(modelRequest, cancellation: CancellationToken())
+            .toList();
+      }
+    },
+  );
+
   test('protocol isolates replay and guards conversation ownership', () async {
     Map<String, dynamic>? sent;
     final model = openai.ResponsesProtocolModel(

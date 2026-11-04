@@ -19,6 +19,7 @@ using it in production.
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
+| [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
 | [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
 | [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
@@ -114,6 +115,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [OpenRouter](docs/openrouter.md)
+- [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)
 - [Together Chat Completions](docs/together.md)
 - [Vercel AI Gateway](docs/vercel-gateway.md)
 - [Compatibility and limitations](docs/compatibility.md)
