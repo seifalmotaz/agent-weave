@@ -5,6 +5,93 @@ import 'package:test/test.dart';
 import 'chat_test.dart' as f;
 
 void main() {
+  test(
+    'computer calls retain block order when block stops arrive out of order',
+    () async {
+      final tool = api.AnthropicComputerTool<void>(
+        environmentId: 'desktop',
+        execute: (_, _) =>
+            fail('Model normalization cannot execute the driver'),
+      );
+      final model = api.AnthropicProtocolModel(
+        model: 'fixture',
+        transport: (_, _) async* {
+          yield f.start();
+          for (final index in [0, 1]) {
+            yield f.block(index, {
+              'type': 'tool_use',
+              'id': 'computer-$index',
+              'toolset_name': 'computer',
+              'name': 'key',
+              'input': {'text': '$index'},
+            });
+          }
+          yield f.stop(1);
+          yield f.stop(0);
+          yield f.finish('tool_use');
+          yield f.done;
+        },
+      );
+      final events = await model
+          .stream(
+            ModelRequest(messages: [], tools: [tool.definition]),
+            cancellation: CancellationToken(),
+          )
+          .toList();
+      expect(events.whereType<NativeToolCallReady>().map((e) => e.call.id), [
+        'computer-0',
+        'computer-1',
+      ]);
+    },
+  );
+
+  test(
+    'native configuration supports scoped file handles while old typed SDK fails clearly',
+    () async {
+      final request = ModelRequest(
+        messages: [
+          ChatMessage(
+            id: 'u',
+            role: MessageRole.user,
+            content: [DocumentPart.fileId('file', provider: 'anthropic')],
+          ),
+        ],
+      );
+      final raw = api.AnthropicProtocolModel(
+        model: 'fixture',
+        configure: (body) => {
+          ...body,
+          'cache_control': {'type': 'ephemeral'},
+        },
+        transport: (body, _) async* {
+          expect(
+            ((body['messages'] as List).single['content'] as List)
+                .single['source'],
+            {'type': 'file', 'file_id': 'file'},
+          );
+          yield f.start();
+          yield f.finish('end_turn');
+          yield f.done;
+        },
+      );
+      await raw
+          .stream(request, cancellation: CancellationToken())
+          .drain<void>();
+      final client = f.fixture(
+        [],
+        (_) => fail('Unsupported SDK input must not dispatch'),
+      );
+      await expectLater(
+        api.AnthropicChatModel(
+          client: client,
+          model: 'fixture',
+          configure: (r) => r.copyWith(temperature: .2),
+        ).stream(request, cancellation: CancellationToken()).toList(),
+        throwsUnsupportedError,
+      );
+    },
+  );
+
   test('SDK option and cache edits preserve opaque replay fields', () async {
     final replay = <JsonObject>[
       {

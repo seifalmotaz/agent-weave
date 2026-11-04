@@ -25,6 +25,8 @@ Development version. Read compatibility and validation before making support cla
 - [docs/together-options.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/together-options.md)
 - [docs/anthropic.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic.md)
 - [docs/anthropic-parameters.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic-parameters.md)
+- [docs/anthropic-computer.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic-computer.md)
+- [docs/anthropic-computer-parameters.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic-computer-parameters.md)
 - [docs/openai-options-audit.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai-options-audit.md)
 - [docs/provider-coverage.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/provider-coverage.md)
 - [docs/compatibility.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/compatibility.md)

@@ -119,6 +119,39 @@ try {
       console.log(`PASS official JS client: native ${approved ? 'approval' : 'denial'} and private history`);
     } finally { chat.dispose(); }
   }
+  {
+    const threadId = 'mixed-computer';
+    const chat = new ChatClient({ threadId, connection: fetchServerSentEvents(`${base}/mixed`) });
+    try {
+      await chat.sendMessage('computer');
+      assert.equal(chat.getError(), undefined);
+      const interrupts = chat.getInterrupts();
+      assert.equal(interrupts.length, 3);
+      assert.ok(interrupts.every(item => item.kind === 'generic' && item.canResolve));
+      assert.deepEqual(await (await fetch(`${base}/mixed-state`)).json(), {computer: 0, ordinary: 0});
+      const before = await (await fetch(`${base}/mixed-history?threadId=${threadId}`)).json();
+      const nativePending = before.interrupts.pending.filter(item => item.toolCallId.startsWith('computer-'));
+      assert.equal(nativePending.length, 2);
+      for (const item of nativePending) assert.deepEqual(item.responseSchema, {
+        type: 'object', properties: { approved: { type: 'boolean' } },
+        required: ['approved'], additionalProperties: false,
+      });
+      assert.equal(JSON.stringify(before).includes('private-mixed-replay'), false);
+      assert.equal(JSON.stringify(before).includes('private-mixed-environment'), false);
+      for (const interrupt of interrupts) interrupt.resolveInterrupt({ approved: true });
+      for (let i = 0; i < 100; i++) {
+        if (chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'Mixed completed'))) break;
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      assert.equal(chat.getError(), undefined);
+      assert.ok(chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'Mixed completed')));
+      assert.deepEqual(await (await fetch(`${base}/mixed-state`)).json(), {computer: 1, ordinary: 0});
+      const after = await (await fetch(`${base}/mixed-history?threadId=${threadId}`)).json();
+      assert.equal(JSON.stringify(after).includes('private-mixed-replay'), false);
+      assert.equal(JSON.stringify(after).includes('private-mixed-environment'), false);
+      console.log('PASS official JS client: mixed computer batch approval and failure halt');
+    } finally { chat.dispose(); }
+  }
   const generation = new GenerationClient({ threadId: 'generation',
     connection: fetchServerSentEvents(`${base}/generation`) });
   try {

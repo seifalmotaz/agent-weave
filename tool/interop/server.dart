@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
 
 const inputSchema = <String, Object?>{
   'type': 'object',
@@ -40,6 +41,32 @@ Future<void> main() async {
     model: const NativeInteropModel(),
     tools: [NativeInteropTool()],
   );
+  var computerEffects = 0;
+  var ordinaryEffects = 0;
+  final mixedAgent = AiAgent<void>(
+    model: const MixedInteropModel(),
+    tools: [
+      anthropic.AnthropicComputerTool<void>(
+        environmentId: 'private-mixed-environment',
+        execute: (call, context) {
+          computerEffects++;
+          return anthropic.AnthropicComputerResult.error('fixture failure');
+        },
+      ),
+      Tool<int, int, void>(
+        name: 'double',
+        description: 'Double',
+        inputSchema: inputSchema,
+        outputSchema: const {'type': 'integer'},
+        decode: (json) => json['count'] as int,
+        encode: (value) => value,
+        execute: (n, context) {
+          ordinaryEffects++;
+          return n * 2;
+        },
+      ),
+    ],
+  );
   final structuredAgent = AiAgent<void>(
     model: const InteropModel(),
     outputSchema: const {
@@ -61,14 +88,30 @@ Future<void> main() async {
       break;
     }
     try {
+      if (request.method == 'GET' && request.uri.path == '/mixed-state') {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'computer': computerEffects,
+            'ordinary': ordinaryEffects,
+          }),
+        );
+        continue;
+      }
       if (request.method == 'GET' &&
-          {'/history', '/native-history'}.contains(request.uri.path)) {
+          {
+            '/history',
+            '/native-history',
+            '/mixed-history',
+          }.contains(request.uri.path)) {
         request.response.headers.contentType = ContentType.json;
         request.response.write(
           jsonEncode(
             chatHydration(
               await (request.uri.path == '/native-history'
                       ? nativeAgent
+                      : request.uri.path == '/mixed-history'
+                      ? mixedAgent
                       : agent)
                   .store
                   .load(
@@ -103,7 +146,9 @@ Future<void> main() async {
             );
       } else {
         source =
-            (request.uri.path == '/native'
+            (request.uri.path == '/mixed'
+                    ? mixedAgent
+                    : request.uri.path == '/native'
                     ? nativeAgent
                     : request.uri.path == '/structured'
                     ? structuredAgent
@@ -242,5 +287,67 @@ final class NativeInteropModel implements ChatModel {
       );
       yield const ModelFinished('tool_calls');
     }
+  }
+}
+
+final class MixedInteropModel implements ChatModel {
+  const MixedInteropModel();
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities(tools: true);
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) async* {
+    if (request.messages.last.role == MessageRole.tool) {
+      final results = request.messages
+          .where((m) => m.role == MessageRole.tool)
+          .toList();
+      if (results.map((m) => m.toolCallId).join(',') !=
+              'computer-1,regular,computer-2' ||
+          !results[0].text.contains('fixture failure') ||
+          !results[1].text.contains('Not executed') ||
+          !results[2].text.contains('Not executed')) {
+        throw StateError(
+          'Mixed result IDs, order or halt incorrect: ${results.map((m) => m.toJson()).toList()}',
+        );
+      }
+      yield const TextDelta('Mixed completed');
+      yield const ModelFinished();
+      return;
+    }
+    for (final (id, name) in [
+      ('computer-1', 'screenshot'),
+      ('regular', 'double'),
+      ('computer-2', 'screenshot'),
+    ]) {
+      if (name == 'double') {
+        yield ToolCallReady(
+          ToolCall(id: id, name: name, arguments: {'count': 2}),
+        );
+      } else {
+        yield NativeToolCallReady(
+          NativeToolCall(
+            id: id,
+            name: 'computer',
+            provider: 'anthropic.messages',
+            arguments: {
+              'type': 'tool_use',
+              'id': id,
+              'name': name,
+              'toolset_name': 'computer',
+              'input': {},
+            },
+          ),
+        );
+      }
+    }
+    yield ProviderOutput(
+      provider: 'anthropic.messages',
+      items: [
+        {'private': 'private-mixed-replay'},
+      ],
+    );
+    yield const ModelFinished('tool_calls');
   }
 }

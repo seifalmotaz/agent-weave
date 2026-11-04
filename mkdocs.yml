@@ -84,6 +84,7 @@ nav:
       - Gateway request fields: gateway-options.md
       - Together request fields: together-options.md
       - Anthropic Messages: anthropic.md
+      - Anthropic computer use: anthropic-computer.md
       - Testing your application: testing.md
   - Understand the SDK:
       - Architecture: architecture.md
@@ -99,6 +100,7 @@ nav:
       - OpenRouter API inventory: openrouter-api-reference.md
       - Computer protocol fields: computer-parameters.md
       - Anthropic request fields: anthropic-parameters.md
+      - Anthropic computer fields: anthropic-computer-parameters.md
       - Developer reviews: dx-review.md
       - Coding-agent guide: agent-guide.md
       - Build these docs: docs-site.md

@@ -86,6 +86,14 @@ final request = ModelRequest(
 void main() {
   for (final (part, source) in <(DocumentPart, Map<String, Object?>)>[
     (
+      DocumentPart.fileId(
+        'file',
+        provider: 'anthropic',
+        filename: 'report.pdf',
+      ),
+      {'type': 'file', 'file_id': 'file'},
+    ),
+    (
       DocumentPart.url(
         'https://example.com/report.pdf',
         filename: 'report.pdf',
@@ -140,7 +148,7 @@ void main() {
     );
   }
   for (final part in <DocumentPart>[
-    DocumentPart.fileId('file', provider: 'anthropic'),
+    DocumentPart.fileId('file', provider: 'openai'),
     DocumentPart.bytes([1, 2, 3], mimeType: 'application/zip'),
   ]) {
     test(

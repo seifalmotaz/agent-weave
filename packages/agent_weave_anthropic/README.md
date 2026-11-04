@@ -29,3 +29,9 @@ mean every provider feature is integrated into the agent loop.
 See the [native guide](https://seifalmotaz.github.io/agent-weave/anthropic/)
 for a complete example, private replay, client ownership and protocol limits,
 and the [coverage matrix](https://seifalmotaz.github.io/agent-weave/provider-coverage/).
+
+`AnthropicComputerTool` adds the 17-member computer toolset with an app-owned
+executor, typed Dart action records/enums, approval and batch-failure handling.
+See the [computer guide](https://seifalmotaz.github.io/agent-weave/anthropic-computer/).
+Native file-ID documents use `provider: 'anthropic'`; the pinned SDK typed
+configuration callback cannot decode them. Live driver behavior remains unverified.

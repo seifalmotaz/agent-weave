@@ -162,3 +162,21 @@ node tool/interop/anthropic-inventory.mjs --upstream
 Review field and union drift before changing the pin. Update the native client,
 normalizer, SDK patch preservation, request fixtures and disposition together.
 New raw JSON fields do not imply the agent supports their continuation protocol.
+
+## Anthropic computer toolset
+
+The selected computer projection uses the existing Anthropic source pin. Its
+Dart fixture serializes the actual helper, typed configs, all action parameters,
+scroll enum values and result payloads. The check runs `dart` from PATH; CI uses
+the selected minimum or stable SDK. The upstream-only check does not require Dart.
+
+```sh
+node --test tool/interop/anthropic-computer-inventory.test.mjs
+node tool/interop/anthropic-computer-inventory.mjs --check
+node tool/interop/anthropic-computer-inventory.mjs --upstream
+```
+
+Review documentation-only constraints separately, including direct callers,
+numeric limits and stopping a batch after failure. The official SDK declaration
+currently omits the documented `allowed_callers` field. Parameter forwarding is
+not evidence of real desktop operation or complete provider support.

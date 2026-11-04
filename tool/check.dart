@@ -53,6 +53,14 @@ Future<void> main() async {
   await run('node', ['--test', 'tool/interop/inventory.test.mjs']);
   await run('node', ['--test', 'tool/interop/anthropic-inventory.test.mjs']);
   await run('node', ['tool/interop/anthropic-inventory.mjs', '--check']);
+  await run('node', [
+    '--test',
+    'tool/interop/anthropic-computer-inventory.test.mjs',
+  ]);
+  await run('node', [
+    'tool/interop/anthropic-computer-inventory.mjs',
+    '--check',
+  ]);
   await run('dart', ['run', 'tool/computer_contract.dart']);
   await run('node', ['--test', 'tool/interop/computer-inventory.test.mjs']);
   await run('node', ['tool/interop/computer-inventory.mjs', '--check']);
@@ -66,7 +74,11 @@ Future<void> main() async {
   if (!passwords.existsSync()) {
     File('$example/config/passwords.example.yaml').copySync(passwords.path);
   }
-  await run('dart', ['test', 'test/integration'], directory: example);
+  await run('dart', [
+    'test',
+    'test/integration',
+    '--concurrency=1',
+  ], directory: example);
   await run('node', ['tool/interop/test.mjs']);
   await run('dart', ['run', 'examples/review_cases/consumer.dart']);
   await run('dart', ['run', 'examples/review_cases/failures.dart']);
@@ -76,6 +88,11 @@ Future<void> main() async {
     '--enable-asserts',
     'run',
     'examples/review_cases/anthropic_native.dart',
+  ]);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/anthropic_computer.dart',
   ]);
   await run('dart', [
     '--enable-asserts',

@@ -30,9 +30,10 @@ not a claim of full TanStack AI core parity.
 
 ## Current limits
 
-- Native computer use is limited to the OpenAI Responses adapter. Native
-  client-executed tools and other native tool kinds are unsupported. Approval
-  does not allow edited native arguments.
+- Selected native computer use is implemented for OpenAI Responses and the
+  Anthropic computer toolset. The application provides the actual driver. Native
+  client-executed tools and other native tool kinds are unsupported; native
+  approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
   and provider-hosted tool event normalization are not implemented.
 - Server tools execute sequentially. Applications can perform concurrency
@@ -51,7 +52,8 @@ not a claim of full TanStack AI core parity.
   remain unfinished.
 - Document support varies by adapter. Responses accepts URLs, inline data, and
   OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
-  file IDs are blocked by the pinned SDK. Gateway Responses accepts URLs and
+  native file IDs use `provider: 'anthropic'`; typed SDK configuration still
+  cannot decode those handles. Gateway Responses accepts URLs and
   inline data but blocks file IDs. OpenRouter Responses also accepts URL/inline
   documents and rejects foreign file IDs. OpenRouter Chat, OpenAI Chat
   Completions, and Together reject document parts. See [documents](documents.md) for storage
@@ -61,8 +63,9 @@ not a claim of full TanStack AI core parity.
   provider/cost metadata have offline fixtures. Complete management, background,
   hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
-  chat handles selected block and delta types. Hosted tools, native computer
-  use, pause-turn and complete nested field semantics remain unfinished. The
+  chat handles selected block/delta types and the 17-member computer toolset.
+  Hosted tools, browser toolsets, pause-turn and complete nested field semantics
+  remain unfinished. The
   SDK-backed facade retains its pinned SDK transport cancellation limits.
   See [Anthropic](anthropic.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter

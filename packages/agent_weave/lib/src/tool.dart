@@ -40,6 +40,15 @@ abstract interface class AgentTool<C> {
   Future<Object?> invoke(JsonObject input, ToolContext<C> context);
 }
 
+/// A native tool whose failure stops later executors in the same model turn.
+/// Skipped results must be valid provider results and must not execute actions.
+abstract interface class SequentialNativeTool<C> implements AgentTool<C> {
+  @override
+  NativeModelTool get definition;
+  bool isFailure(Object? result);
+  Object? skippedResult();
+}
+
 final class Tool<I, O, C> implements AgentTool<C> {
   @override
   final ModelTool definition;

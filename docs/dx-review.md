@@ -261,3 +261,28 @@ Score: 8.4/10. The native client is discoverable from the guide and makes raw an
 Using the pinned Dart 3.12.2 SDK, `dart analyze examples/anthropic_demo.dart examples/review_cases/anthropic_native.dart` passed. The guide's first Dart block matches the demo byte-for-byte, and `dart compile exe examples/anthropic_demo.dart` passed. `dart run examples/review_cases/anthropic_native.dart` passed against loopback HTTP: text, JSON schema, approved tool call resumed by a recreated agent, signature and unknown fields on thinking replay, hidden hydration, request cache control and unknown options, final cumulative cache input and thinking-token usage, model, private metadata, citation replay and hydration privacy, key rotation, credential redaction in HTTP errors, raw create/count requests with query and header, pending-header and stream cancellation, sibling stream isolation, borrowed client ownership, malformed SSE rejection, and unknown block raw access with normalized failure.
 
 The first run exposed two native client compile errors; implementation owner corrected them before the passing run. Provider error details are retained after credential scrubbing, so callers should treat error details as sensitive; other private response text is not generally redacted. The guide's executable demo was analyzed, not run, because it makes a billable request. No live provider, operating system, or browser behavior was tested. Unknown block types and deltas remain unsupported by the normalized agent loop. The fixture validates a selected cache-control request shape, not a provider cache hit or exhaustive native options.
+
+
+
+
+## Round 12: Anthropic computer consumer review
+
+Initial assessment: 3/10 for this specific path. The native Messages client and general tool approval pattern are discoverable from `anthropic_native.dart`, but no computer tool exists in the provider package at the start of this round. A consumer cannot safely represent toolset actions, execute them, or resume their results through this API yet. This is not an SDK-wide score.
+
+Review environment: local loopback HTTP, `MemoryRunStore`, fixture credentials and app-owned fake executor. No provider calls, real desktop driver, or paid usage.
+
+Initial integration run: the 17 documented members passed in consecutive batches of up to three; error batch halting, environment change, decline, unknown member/input/caller, disabled member, incomplete stream, invalid stop, cancellation, typed image result and ID matching also passed. An ordinary function mixed with a computer action ran before the computer approval and its result was serialized before the preceding computer call. Reported both to the implementation owner. The implementation was then changed to pause the entire mixed batch and sort the result blocks.
+
+Final assessment: **7.8/10 for this Anthropic computer path**, not an SDK-wide grade. The typed action/result API and stable environment ID make the executor understandable and prevent accidental replay to a changed environment. Defaults require approval, and the private provider data is separated from the safe callback and hydration. A consumer still needs to implement and secure all real desktop operations, resize screenshots, choose a stable environment identity, and understand how a failed action halts the rest of a batch. Debugging is helped by typed actions and the loopback fixture, but there is no real driver or model evidence here.
+
+Final run with Dart 3.12.2: `dart run examples/review_cases/anthropic_computer.dart` passed all 12 modes, including mixed function/computer approval and continuation ordering after the fix. `dart analyze examples/review_cases/anthropic_computer.dart` passed on the final fixture. These are fixture-backed observations only: no live Anthropic request, actual image capture, desktop effects, or persisted database restart was tested.
+
+The official JavaScript client also passed a mixed three-interrupt scenario against an actual `AnthropicComputerTool` with a scripted model. Before approval both executors had zero effects; response schemas excluded native argument edits. After approval, the first computer error skipped the second computer call, the ordinary function was initially allowed to run, result IDs reached the model in order, and hydration excluded private replay and the environment binding. The full existing interop script passed all 17 cases. This does not exercise a real Anthropic model or native desktop.
+
+The guide explains the HTTPS driver contract, approvals, idempotency, error behavior and security boundaries clearly. The standalone example analyzes cleanly. Its live network and console behavior remain untested. The 7.8/10 assessment stands: the entry point is usable and safer, while the application still owns substantial driver and operational work.
+
+After the final API freeze, the guide's first Dart block matched the executable example byte-for-byte, and Dart 3.12.2 analysis passed for that example, the consumer fixture and interop server. All 12 consumer modes and all 17 JavaScript interop scenarios passed again. The guide now states the default approval policy accurately and documents typed coordinates and scroll directions.
+
+A subsequent safety fix stops all later executors in the same mixed turn after a computer error. The final rerun passed all 13 consumer modes, including mixed error and no regular effect, and all 17 JavaScript interop scenarios, with one computer effect and zero ordinary effects. Analysis remained clean.
+
+Final guide review: the mixed-turn failure wording now matches the verified halt behavior, and its Dart block still matches the executable example exactly. The scoped 7.8/10 assessment remains unchanged.

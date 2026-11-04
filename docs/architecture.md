@@ -24,8 +24,8 @@ operation.
 
 `NativeModelTool` and `NativeToolCall` distinguish provider-native definitions
 and calls from function tools, using a provider namespace to match the adapter.
-The selected OpenAI Responses computer implementation registers one native
-server tool. The application owns action execution and the resulting screenshot;
+The selected OpenAI Responses computer implementation and Anthropic computer
+toolset each register one native server tool. The application owns action execution and the resulting screenshot;
 the runtime owns approval, sequencing, and continuation. Other native tool
 kinds and client-executed native tools are unsupported.
 
@@ -36,6 +36,20 @@ failure closes the native continuation while retaining its audit history. Start
 a new thread after inspecting the environment; never synthesize a screenshot or
 acknowledgement. Provider continuation data is private, separate from UI history.
 See [computer use](computer-use.md) for the application contract.
+
+## Ordered native batches
+
+`SequentialNativeTool` defines provider-valid failure and skipped-result policy.
+After its first failed result, later executors in the same model turn stop.
+Sequential native tools return their provider-valid skipped results and ordinary
+functions return generic skipped errors. A native tool that cannot represent a
+skipped result closes the continuation. The policy resets for
+the next model turn and is included in the persisted definition binding.
+
+When one sequential native call requires approval, the entire mixed turn pauses
+before any executor runs. All answers are validated before execution, and approved
+calls retain model order. A computer failure stops later mixed-turn effects; the
+next model turn can recover from the error results.
 
 ## Anthropic normalization
 

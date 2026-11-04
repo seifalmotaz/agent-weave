@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_http/agent_weave_http.dart' show snapshotJson;
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as api;
+import 'computer_tool.dart';
 
 /// A native Messages stream. The caller owns and closes [client].
 final class AnthropicChatModel implements ChatModel {
@@ -37,9 +38,17 @@ final class AnthropicChatModel implements ChatModel {
     configure: configure == null
         ? null
         : (body) {
-            final typed = api.MessageCreateRequest.fromJson(
-              Map<String, dynamic>.from(body),
-            );
+            final api.MessageCreateRequest typed;
+            try {
+              typed = api.MessageCreateRequest.fromJson(
+                Map<String, dynamic>.from(body),
+              );
+            } on FormatException {
+              throw UnsupportedError(
+                'The pinned SDK cannot decode this request for typed configuration. '
+                'Use AnthropicNativeClient.chatModel with native JSON configuration.',
+              );
+            }
             final before = snapshotJson(typed.toJson());
             final after = snapshotJson(configure!(typed).toJson());
             return snapshotJson(
@@ -88,24 +97,103 @@ final class AnthropicProtocolModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
-    if (request.tools.any((tool) => tool is NativeModelTool) ||
-        request.messages.any(
-          (message) => message.toolCalls.any((call) => call is NativeToolCall),
-        )) {
+    final nativeTools = request.tools.whereType<NativeModelTool>().toList();
+    if (nativeTools.length > 1 ||
+        nativeTools.any(
+          (tool) =>
+              tool.provider != 'anthropic.messages' ||
+              tool.definition['type'] != 'computer_toolset_20260801',
+        ) ||
+        (nativeTools.isNotEmpty &&
+            request.tools.any(
+              (tool) => tool is FunctionModelTool && tool.name == 'computer',
+            ))) {
       throw UnsupportedError(
-        'Anthropic adapter does not implement native tool definitions or calls.',
+        'Unsupported Anthropic native tool configuration.',
       );
     }
+    for (final tool in nativeTools) {
+      validateAnthropicComputerDefinition(tool);
+    }
+    final nativeHistory = <String, NativeToolCall>{};
+    final callOrder = <String, int>{};
     final messages = <Map<String, dynamic>>[];
     for (final message in request.messages) {
       final blocks = <Map<String, dynamic>>[];
       final replay = message.providerData['anthropic.messages'];
+      if (message.role == MessageRole.assistant) {
+        final ids = replay == null || replay.isEmpty
+            ? message.toolCalls.map((call) => call.id)
+            : replay
+                  .where((block) => block['type'] == 'tool_use')
+                  .map((block) => block['id'] as String);
+        for (final id in ids) {
+          callOrder[id] = callOrder.length;
+        }
+      }
+      for (final call in message.toolCalls.whereType<NativeToolCall>()) {
+        if (call.provider != 'anthropic.messages') {
+          throw UnsupportedError('Foreign native call in Anthropic history.');
+        }
+        if (nativeTools.length != 1 ||
+            call.provider != 'anthropic.messages' ||
+            call.name != nativeTools.single.name ||
+            nativeHistory.containsKey(call.id)) {
+          throw const FormatException('Invalid Anthropic native call history.');
+        }
+        final parsed = AnthropicComputerCall.fromJson(
+          call.arguments,
+          definition: nativeTools.single,
+        );
+        if (parsed.id != call.id) {
+          throw const FormatException('Computer call ID mismatch.');
+        }
+        if (replay == null ||
+            replay
+                    .where(
+                      (block) =>
+                          block['type'] == 'tool_use' &&
+                          block['toolset_name'] == 'computer' &&
+                          canonicalJson(
+                                AnthropicComputerCall.fromJson(
+                                  block,
+                                  definition: nativeTools.single,
+                                ).raw,
+                              ) ==
+                              canonicalJson(call.arguments),
+                    )
+                    .length !=
+                1) {
+          throw const FormatException(
+            'Computer call requires exact provider replay.',
+          );
+        }
+        nativeHistory[call.id] = call;
+      }
+      for (final block in replay ?? <JsonObject>[]) {
+        if (block['type'] == 'tool_use' &&
+            block['toolset_name'] != null &&
+            (block['toolset_name'] != 'computer' ||
+                !nativeHistory.containsKey(block['id']))) {
+          throw const FormatException('Unmatched native tool replay.');
+        }
+      }
       if (message.role == MessageRole.tool) {
-        blocks.add({
-          'type': 'tool_result',
-          'tool_use_id': message.toolCallId,
-          'content': message.text,
-        });
+        final call = nativeHistory[message.toolCallId];
+        blocks.add(
+          call == null
+              ? {
+                  'type': 'tool_result',
+                  'tool_use_id': message.toolCallId,
+                  'content': message.text,
+                }
+              : {
+                  'type': 'tool_result',
+                  'tool_use_id': call.id,
+                  'toolset_name': 'computer',
+                  ..._computerResult(call, jsonDecode(message.text)),
+                },
+        );
       } else if (message.role == MessageRole.assistant &&
           replay != null &&
           replay.isNotEmpty) {
@@ -141,6 +229,26 @@ final class AnthropicProtocolModel implements ChatModel {
         messages.add({'role': role, 'content': blocks});
       }
     }
+    if (nativeTools.isNotEmpty) {
+      for (final message in messages.where(
+        (message) => message['role'] == 'user',
+      )) {
+        final content = message['content'] as List;
+        final positions = [
+          for (var i = 0; i < content.length; i++)
+            if (content[i]['type'] == 'tool_result') i,
+        ];
+        final results = [for (final i in positions) content[i]];
+        results.sort(
+          (a, b) => (callOrder[a['tool_use_id']] ?? callOrder.length).compareTo(
+            callOrder[b['tool_use_id']] ?? callOrder.length,
+          ),
+        );
+        for (var i = 0; i < positions.length; i++) {
+          content[positions[i]] = results[i];
+        }
+      }
+    }
     final canonical = snapshotJson({
       'model': model,
       'max_tokens': request.maxOutputTokens,
@@ -156,10 +264,13 @@ final class AnthropicProtocolModel implements ChatModel {
       if (request.tools.isNotEmpty)
         'tools': [
           for (final tool in request.tools)
-            {
-              'name': tool.name,
-              'description': tool.description,
-              'input_schema': jsonDecode(jsonEncode(tool.inputSchema)),
+            switch (tool) {
+              NativeModelTool() => tool.definition,
+              FunctionModelTool() => {
+                'name': tool.name,
+                'description': tool.description,
+                'input_schema': jsonDecode(jsonEncode(tool.inputSchema)),
+              },
             },
         ],
     });
@@ -189,6 +300,7 @@ final class AnthropicProtocolModel implements ChatModel {
     var started = false;
     final metadata = <String, Object?>{};
     final openBlocks = <int>{};
+    final stagedCalls = <int, ToolCall>{};
     try {
       await for (final json in transport({
         ...configured,
@@ -293,13 +405,30 @@ final class AnthropicProtocolModel implements ChatModel {
                   ? block['input']
                   : jsonDecode(partial);
               block['input'] = Map<String, dynamic>.from(input as Map);
-              yield ToolCallReady(
-                ToolCall(
+              if (block['toolset_name'] != null) {
+                if (block['toolset_name'] != 'computer' ||
+                    nativeTools.length != 1) {
+                  throw UnsupportedError(
+                    'Unregistered Anthropic native toolset.',
+                  );
+                }
+                final call = AnthropicComputerCall.fromJson(
+                  Map<String, Object?>.from(block),
+                  definition: nativeTools.single,
+                );
+                stagedCalls[index] = NativeToolCall(
+                  id: call.id,
+                  name: nativeTools.single.name,
+                  arguments: call.raw,
+                  provider: 'anthropic.messages',
+                );
+              } else {
+                stagedCalls[index] = ToolCall(
                   id: block['id'] as String,
                   name: block['name'] as String,
                   arguments: Map<String, Object?>.from(block['input'] as Map),
-                ),
-              );
+                );
+              }
             }
           case 'message_delta':
             metadata['delta'] = json['delta'];
@@ -338,6 +467,24 @@ final class AnthropicProtocolModel implements ChatModel {
       'refusal' => 'refusal',
       _ => throw UnsupportedError('Unsupported Anthropic stop reason: $reason'),
     };
+    if (stagedCalls.values.any((call) => call is NativeToolCall) &&
+        reason != 'tool_use') {
+      throw const FormatException(
+        'Computer execution requires a complete tool-use turn.',
+      );
+    }
+    final ids = <String>{};
+    final orderedCalls = stagedCalls.keys.toList()..sort();
+    for (final index in orderedCalls) {
+      final call = stagedCalls[index]!;
+      if (!ids.add(call.id)) {
+        throw const FormatException('Duplicate Anthropic tool call.');
+      }
+      yield switch (call) {
+        NativeToolCall() => NativeToolCallReady(call),
+        FunctionToolCall() => ToolCallReady(call),
+      };
+    }
     final ordered = blocks.keys.toList()..sort();
     yield ProviderOutput(
       provider: 'anthropic.messages',
@@ -361,6 +508,15 @@ final class AnthropicProtocolModel implements ChatModel {
     );
     yield ModelFinished(finishReason);
   }
+}
+
+JsonObject _computerResult(NativeToolCall call, Object? value) {
+  if (value is! Map<String, Object?>) {
+    throw const FormatException('Invalid computer result.');
+  }
+  final result = AnthropicComputerResult.fromJson(value);
+  AnthropicComputerCall.fromJson(call.arguments).validateResult(result);
+  return result.toJson();
 }
 
 void _requireBlock(Map<String, dynamic> block, String type) {
@@ -423,8 +579,12 @@ Map<String, dynamic> _anthropicDocument(DocumentPart part) => {
     Base64DocumentPart() => throw UnsupportedError(
       'Anthropic inline documents support PDF or UTF-8 plain text.',
     ),
+    FileIdDocumentPart(provider: 'anthropic', :final fileId) => {
+      'type': 'file',
+      'file_id': fileId,
+    },
     FileIdDocumentPart() => throw UnsupportedError(
-      'The pinned Anthropic SDK cannot represent file-ID document sources. Use a URL or inline data.',
+      'Anthropic rejects document handles from other providers.',
     ),
   },
 };

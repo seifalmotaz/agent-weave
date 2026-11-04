@@ -36,7 +36,7 @@ class DocumentationTest(unittest.TestCase):
                          'cloudflare-api-inventory.json', 'openrouter-api-reference/index.html',
                          'openrouter-api-inventory.json', 'computer-use/index.html',
                          'computer-parameters/index.html', 'computer-api-inventory.json',
-                         'anthropic/index.html', 'anthropic-parameters/index.html', 'anthropic-api-inventory.json', 'assets/styles.css', 'llms.txt']:
+                         'anthropic/index.html', 'anthropic-parameters/index.html', 'anthropic-api-inventory.json', 'anthropic-computer/index.html', 'anthropic-computer-parameters/index.html', 'anthropic-computer-inventory.json', 'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
             self.assertIn('Your AI logic.', html)
@@ -58,6 +58,8 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('computer-parameters/', locations)
             self.assertIn('anthropic/', locations)
             self.assertIn('anthropic-parameters/', locations)
+            self.assertIn('anthropic-computer/', locations)
+            self.assertIn('anthropic-computer-parameters/', locations)
             anthropic = json.loads((target / 'anthropic-api-inventory.json').read_text())
             self.assertEqual(len(anthropic['dispositions']), 19)
             openrouter = json.loads((target / 'openrouter-api-inventory.json').read_text())

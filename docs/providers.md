@@ -38,3 +38,16 @@ submission, document that limit rather than silently promising cancellation.
 
 The fixture providers in `packages/agent_weave/test` and the offline example
 demonstrate custom implementations without any OpenAI dependency.
+
+## Native tools
+
+Use `NativeModelTool` and `NativeToolCallReady` for provider-native protocols,
+with matching provider namespaces and stable execution bindings. Preserve the
+original provider continuation privately; UI tool names can differ from native
+toolset member names. Validate the full native turn before exposing executable
+calls. Native approvals are read-only, and changed definitions cannot resume.
+
+Implement `SequentialNativeTool` only when the provider supports valid skipped
+results after a failed action. Its `skippedResult` must never perform an action.
+OpenAI computer calls have no such denial result; Anthropic's computer toolset
+uses its documented error results. See the provider guides for each contract.

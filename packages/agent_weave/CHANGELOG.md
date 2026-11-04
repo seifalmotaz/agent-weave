@@ -1,5 +1,7 @@
 # Unreleased
 
+- Add sequential native batch policies, bind them across approvals, and pause whole mixed turns before execution when required.
+
 - Add provider-namespaced native tool calls and approval-only continuation,
   with definition and environment binding and closed continuations on denial
   or failure. Client-executed native tools are unsupported.

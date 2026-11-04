@@ -76,8 +76,10 @@ providers. Your application obtains the ID separately.
 
 - OpenAI Responses accepts URLs, inline data, and file IDs with
   `provider: 'openai'`.
-- Anthropic Messages accepts URLs, inline PDF, and inline plain text. File IDs
-  are blocked until the pinned SDK supports them.
+- Anthropic Messages accepts URLs, inline PDF/plain text, and file IDs scoped
+  with `provider: 'anthropic'` through the raw/native agent path. The pinned SDK's
+  typed `configure` callback cannot decode file handles; use native JSON configuration.
+  This does not verify account permissions or provider acceptance.
 - OpenAI Chat Completions and the OpenRouter adapter reject document inputs.
 
 These are adapter contracts tested offline. The provider and selected model can

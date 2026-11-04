@@ -340,11 +340,7 @@ final class AiAgent<C> {
         final tool = _tool(call.name);
         _validateToolKind(call, tool.definition);
         if (call is NativeToolCall &&
-            item['definitionHash'] !=
-                _nativeDefinitionHash(
-                  tool.definition as NativeModelTool,
-                  tool.outputSchema,
-                )) {
+            item['definitionHash'] != _nativeDefinitionHash(tool)) {
           throw const FormatException(
             'Native tool definition changed since the run paused.',
           );
@@ -428,6 +424,7 @@ final class AiAgent<C> {
       yield await event('RUN_STARTED', {
         if (request.parentRunId != null) 'parentRunId': request.parentRunId,
       });
+      final failedNativeBatches = <String>{};
       for (final item in waiting) {
         final call = ToolCall.fromJson(
           Map<String, Object?>.from(item['call'] as Map),
@@ -449,7 +446,8 @@ final class AiAgent<C> {
           if (resolution['approved'] == true) {
             final edited = resolution['editedArgs'];
             phase = 'tool';
-            result = await _invoke(
+            result = await _invokeInBatch(
+              failedNativeBatches,
               tool,
               edited == null
                   ? call
@@ -472,6 +470,7 @@ final class AiAgent<C> {
         yield await event('TOOL_CALL_RESULT', _resultFields(call, result));
       }
       for (var step = 0; step < maxSteps; step++) {
+        failedNativeBatches.clear();
         phase = 'provider';
         token.throwIfCancelled();
         final messageId = _newId();
@@ -639,10 +638,18 @@ final class AiAgent<C> {
           return;
         }
         final interrupts = <JsonObject>[];
+        final sequentialApprovals = {
+          for (final call in calls)
+            if (_tool(call.name) is SequentialNativeTool<C> &&
+                (_tool(call.name).needsApproval ||
+                    (call is NativeToolCall && call.requiresApproval)))
+              call.name,
+        };
         for (final call in calls) {
           final tool = _tool(call.name);
           if (tool.needsApproval ||
               tool.clientExecuted ||
+              sequentialApprovals.isNotEmpty ||
               (call is NativeToolCall && call.requiresApproval)) {
             final id = _newId();
             pending.add({
@@ -651,10 +658,7 @@ final class AiAgent<C> {
               'inputSchemaHash': schemaHash(tool.definition.inputSchema),
               'outputSchemaHash': schemaHash(tool.outputSchema),
               if (call is NativeToolCall)
-                'definitionHash': _nativeDefinitionHash(
-                  tool.definition as NativeModelTool,
-                  tool.outputSchema,
-                ),
+                'definitionHash': _nativeDefinitionHash(tool),
             });
             final binding = <String, Object?>{
               'v': 1,
@@ -701,7 +705,8 @@ final class AiAgent<C> {
             });
           } else {
             phase = 'tool';
-            final result = await _invoke(
+            final result = await _invokeInBatch(
+              failedNativeBatches,
               tool,
               call,
               request,
@@ -854,6 +859,55 @@ final class AiAgent<C> {
     orElse: () => throw const FormatException('Unknown tool.'),
   );
 
+  Future<Object?> _invokeInBatch(
+    Set<String> failed,
+    AgentTool<C> tool,
+    ToolCall call,
+    ChatRequest request,
+    String ownerId,
+    C context,
+    CancellationToken token, {
+    bool approved = false,
+  }) async {
+    token.throwIfCancelled();
+    if (failed.isNotEmpty) {
+      if (call is NativeToolCall && tool is SequentialNativeTool<C>) {
+        return tool.skippedResult();
+      }
+      if (call is FunctionToolCall) {
+        return {
+          'error':
+              'Not executed: an earlier native action in this turn failed.',
+        };
+      }
+      throw StateError(
+        'Cannot synthesize a skipped result for this native tool.',
+      );
+    }
+    if (call is NativeToolCall && tool is SequentialNativeTool<C>) {
+      final result = await _invoke(
+        tool,
+        call,
+        request,
+        ownerId,
+        context,
+        token,
+        approved: approved,
+      );
+      if (tool.isFailure(result)) failed.add(call.name);
+      return result;
+    }
+    return _invoke(
+      tool,
+      call,
+      request,
+      ownerId,
+      context,
+      token,
+      approved: approved,
+    );
+  }
+
   Future<Object?> _invoke(
     AgentTool<C> tool,
     ToolCall call,
@@ -907,17 +961,18 @@ void _validateToolKind(ToolCall call, ModelTool definition) {
   );
 }
 
-String _nativeDefinitionHash(
-  NativeModelTool definition,
-  JsonObject? outputSchema,
-) => schemaHash({
-  'name': definition.name,
-  'provider': definition.provider,
-  'bindingId': definition.bindingId,
-  'definition': definition.definition,
-  'inputSchema': definition.inputSchema,
-  'outputSchema': outputSchema,
-});
+String _nativeDefinitionHash<C>(AgentTool<C> tool) {
+  final definition = tool.definition as NativeModelTool;
+  return schemaHash({
+    'name': definition.name,
+    'provider': definition.provider,
+    'bindingId': definition.bindingId,
+    'definition': definition.definition,
+    'inputSchema': definition.inputSchema,
+    'outputSchema': tool.outputSchema,
+    if (tool is SequentialNativeTool<C>) 'sequential': true,
+  });
+}
 
 JsonObject _approvalSchema(ToolCall call, JsonObject inputSchema) =>
     call is NativeToolCall

@@ -21,18 +21,18 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native Anthropic increment was checked on Dart 3.12.2. The prior
+The latest Anthropic computer increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 318 Dart unit and regression tests: tool validation, approvals, client tools,
+- 333 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 14 Serverpod integration tests with a real isolated PostgreSQL database:
+- 15 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 16 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 17 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
   generation, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
@@ -339,7 +339,50 @@ repository bootstrap and live tests were not run. The PR is submitted, not merge
 or released, and AgentWeave's native client does not depend on it.
 
 No live Anthropic requests or cache hits were tested, and no paid requests or
-package publications were made. Hosted/native computer tools, pause-turn,
-file-ID agent documents and complete endpoint/nested-option parity remain
-unfinished. Provider error details retain private content after credential
+package publications were made. Hosted/browser tools, pause-turn and complete
+endpoint/nested-option parity remain unfinished. Selected computer and native
+file-ID integration are verified in the increment below. Provider error details retain private content after credential
 scrubbing and must not be exposed directly to UI or logs.
+
+## Anthropic computer toolset and scoped files
+
+Six core tests cover sequential native result policies, stopping mixed-turn
+executors after failure, resetting policy for the next model turn, forced and
+configured whole-turn approvals, and binding the result policy across resumes.
+Six typed-helper tests cover all 17 input field sets, named coordinate records,
+scroll enums, direct callers, configs, selected limits, safe call snapshots and
+text/image/error results. Successful screenshots and zoom require an image;
+cursor position requires nonempty text. Decoded image contents remain unchecked.
+Protocol regressions also verify block-index order and native file-ID documents,
+including a clear failure for unsupported typed SDK configuration.
+
+The independent consumer passes 13 loopback modes, including all actions,
+approval and recreation, mixed failure stopping, disabled/unknown actions,
+malformed calls, truncation, cancellation and hydration privacy. Its targeted
+score is recorded in [the review](dx-review.md). The complete guide matches its
+example and was checked without invoking a live provider or driver. The new
+pinned official JavaScript client case resolves all three mixed-turn approvals,
+rejects editable native arguments, verifies ordered results and no later effects
+after the computer error, and hides private provider/environment state.
+
+A real PostgreSQL test uses the native client's loopback HTTP transport. It
+persists both approvals, rejects a changed environment, recreates the agent and
+store, executes the first action once, skips the second after error, verifies
+full private replay and matching result IDs/toolset names on the next HTTP
+request, excludes private state from UI hydration and rejects duplicate resume.
+This is recreated-instance persistence, not a computer-specific process-crash test.
+
+Two AST mutation tests and an executable Dart fixture compare 68 selected
+computer/caller/result/image declarations, actual helper/config serialization,
+all input fields and requiredness, scroll values and result payloads with the
+pinned official SDK. The current upstream projection matched. Documentation-only
+overrides, including direct callers, are explicit. PostgreSQL suites run one file
+at a time to bound test database disk use; contention tests still issue concurrent
+requests. A first parallel local run exhausted disk and was discarded before the
+clean rerun.
+
+No real desktop effects, image capture, live model support or provider permissions
+were verified, and no paid requests or package publication occurred. Browser and
+other native toolsets remain unfinished. SDK PR #431 is still needed for its
+published typed decoder to represent file-ID sources; native normalization does
+not require that unreleased change.

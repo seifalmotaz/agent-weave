@@ -1,0 +1,1491 @@
+{
+  "repository": "anthropics/anthropic-sdk-typescript",
+  "revision": "ea8d7de0e47614ae71044fbf7bf12041318ba37e",
+  "path": "src/resources/messages/messages.ts",
+  "license": "Apache-2.0",
+  "source": "https://github.com/anthropics/anthropic-sdk-typescript/tree/ea8d7de0e47614ae71044fbf7bf12041318ba37e",
+  "sha256": "e4a57d12f91fa40aecaa14304e93132eab36b2427741030d720e92cd913c8cb9",
+  "scope": "Selected Computer declarations and root tool result, caller and image wire types; documentation-only constraints are listed separately.",
+  "documentation": "https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool",
+  "documentationOverrides": {
+    "allowed_callers": "Official computer-use documentation permits [\"direct\"] only; this field is absent from the pinned ComputerToolset20260801 SDK declaration.",
+    "limits": "Official docs specify key repeat 1..100 (default 1), and hold_key/wait duration up to 300 seconds. The driver must validate fields and bound duration, repeat and scroll_amount.",
+    "batching": "Run in order; after first failure, answer all remaining calls as errors with exactly: Not executed: an earlier computer action in this turn failed."
+  },
+  "declarations": {
+    "Base64ImageSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "data",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "media_type",
+          "optional": false,
+          "type": "'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'base64'"
+        }
+      ]
+    },
+    "CacheControlEphemeral": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'ephemeral'"
+        },
+        {
+          "name": "ttl",
+          "optional": true,
+          "type": "'5m' | '1h'"
+        }
+      ]
+    },
+    "ComputerCursorPositionConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerCursorPositionInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": []
+    },
+    "ComputerCursorPositionToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerCursorPositionInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'cursor_position'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerDoubleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerDoubleClickInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "coordinate",
+          "optional": true,
+          "type": "Array<number> | null"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ComputerDoubleClickToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerDoubleClickInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'double_click'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerHoldKeyConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerHoldKeyInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "duration",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ComputerHoldKeyToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerHoldKeyInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'hold_key'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerKeyConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerKeyInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "repeat",
+          "optional": true,
+          "type": "number | null"
+        }
+      ]
+    },
+    "ComputerKeyToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerKeyInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'key'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerLeftClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftClickDragConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftClickDragInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "coordinate",
+          "optional": false,
+          "type": "Array<number>"
+        },
+        {
+          "name": "start_coordinate",
+          "optional": false,
+          "type": "Array<number>"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ComputerLeftClickDragToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerLeftClickDragInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'left_click_drag'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerLeftClickInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "coordinate",
+          "optional": true,
+          "type": "Array<number> | null"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ComputerLeftClickToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerLeftClickInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'left_click'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerLeftMouseDownConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftMouseDownInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": []
+    },
+    "ComputerLeftMouseDownToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerLeftMouseDownInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'left_mouse_down'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerLeftMouseUpConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerLeftMouseUpInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": []
+    },
+    "ComputerLeftMouseUpToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerLeftMouseUpInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'left_mouse_up'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerMemberInput": {
+      "kind": "alias",
+      "type": "ComputerKeyInput | ComputerHoldKeyInput | ComputerTypeInput | ComputerCursorPositionInput | ComputerMouseMoveInput | ComputerLeftMouseDownInput | ComputerLeftMouseUpInput | ComputerLeftClickInput | ComputerLeftClickDragInput | ComputerRightClickInput | ComputerMiddleClickInput | ComputerDoubleClickInput | ComputerTripleClickInput | ComputerScrollInput | ComputerWaitInput | ComputerScreenshotInput | ComputerZoomInput"
+    },
+    "ComputerMemberName": {
+      "kind": "alias",
+      "type": "'key' | 'hold_key' | 'type' | 'cursor_position' | 'mouse_move' | 'left_mouse_down' | 'left_mouse_up' | 'left_click' | 'left_click_drag' | 'right_click' | 'middle_click' | 'double_click' | 'triple_click' | 'scroll' | 'wait' | 'screenshot' | 'zoom'"
+    },
+    "ComputerMiddleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerMiddleClickInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "coordinate",
+          "optional": true,
+          "type": "Array<number> | null"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ComputerMiddleClickToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerMiddleClickInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'middle_click'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerMouseMoveConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerMouseMoveInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "coordinate",
+          "optional": false,
+          "type": "Array<number>"
+        }
+      ]
+    },
+    "ComputerMouseMoveToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerMouseMoveInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'mouse_move'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerRightClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerRightClickInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "coordinate",
+          "optional": true,
+          "type": "Array<number> | null"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ComputerRightClickToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerRightClickInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'right_click'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerScreenshotConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerScreenshotInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": []
+    },
+    "ComputerScreenshotToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerScreenshotInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'screenshot'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerScrollConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerScrollDirection": {
+      "kind": "alias",
+      "type": "'up' | 'down' | 'left' | 'right'"
+    },
+    "ComputerScrollInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "scroll_amount",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "scroll_direction",
+          "optional": false,
+          "type": "ComputerScrollDirection"
+        },
+        {
+          "name": "coordinate",
+          "optional": true,
+          "type": "Array<number> | null"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ComputerScrollToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerScrollInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'scroll'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerToolset20260801": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'computer_toolset_20260801'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "configs",
+          "optional": true,
+          "type": "ComputerToolsetConfigs | null"
+        }
+      ]
+    },
+    "ComputerToolsetConfigs": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cursor_position",
+          "optional": true,
+          "type": "ComputerCursorPositionConfig | null"
+        },
+        {
+          "name": "double_click",
+          "optional": true,
+          "type": "ComputerDoubleClickConfig | null"
+        },
+        {
+          "name": "hold_key",
+          "optional": true,
+          "type": "ComputerHoldKeyConfig | null"
+        },
+        {
+          "name": "key",
+          "optional": true,
+          "type": "ComputerKeyConfig | null"
+        },
+        {
+          "name": "left_click",
+          "optional": true,
+          "type": "ComputerLeftClickConfig | null"
+        },
+        {
+          "name": "left_click_drag",
+          "optional": true,
+          "type": "ComputerLeftClickDragConfig | null"
+        },
+        {
+          "name": "left_mouse_down",
+          "optional": true,
+          "type": "ComputerLeftMouseDownConfig | null"
+        },
+        {
+          "name": "left_mouse_up",
+          "optional": true,
+          "type": "ComputerLeftMouseUpConfig | null"
+        },
+        {
+          "name": "middle_click",
+          "optional": true,
+          "type": "ComputerMiddleClickConfig | null"
+        },
+        {
+          "name": "mouse_move",
+          "optional": true,
+          "type": "ComputerMouseMoveConfig | null"
+        },
+        {
+          "name": "right_click",
+          "optional": true,
+          "type": "ComputerRightClickConfig | null"
+        },
+        {
+          "name": "screenshot",
+          "optional": true,
+          "type": "ComputerScreenshotConfig | null"
+        },
+        {
+          "name": "scroll",
+          "optional": true,
+          "type": "ComputerScrollConfig | null"
+        },
+        {
+          "name": "triple_click",
+          "optional": true,
+          "type": "ComputerTripleClickConfig | null"
+        },
+        {
+          "name": "type",
+          "optional": true,
+          "type": "ComputerTypeConfig | null"
+        },
+        {
+          "name": "wait",
+          "optional": true,
+          "type": "ComputerWaitConfig | null"
+        },
+        {
+          "name": "zoom",
+          "optional": true,
+          "type": "ComputerZoomConfig | null"
+        }
+      ]
+    },
+    "ComputerToolUseBlock": {
+      "kind": "alias",
+      "type": "ComputerKeyToolUseBlock | ComputerHoldKeyToolUseBlock | ComputerTypeToolUseBlock | ComputerCursorPositionToolUseBlock | ComputerMouseMoveToolUseBlock | ComputerLeftMouseDownToolUseBlock | ComputerLeftMouseUpToolUseBlock | ComputerLeftClickToolUseBlock | ComputerLeftClickDragToolUseBlock | ComputerRightClickToolUseBlock | ComputerMiddleClickToolUseBlock | ComputerDoubleClickToolUseBlock | ComputerTripleClickToolUseBlock | ComputerScrollToolUseBlock | ComputerWaitToolUseBlock | ComputerScreenshotToolUseBlock | ComputerZoomToolUseBlock"
+    },
+    "ComputerTripleClickConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerTripleClickInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "coordinate",
+          "optional": true,
+          "type": "Array<number> | null"
+        },
+        {
+          "name": "text",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ComputerTripleClickToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerTripleClickInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'triple_click'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerTypeConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerTypeInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ComputerTypeToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerTypeInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'type'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerWaitConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerWaitInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "duration",
+          "optional": false,
+          "type": "number"
+        }
+      ]
+    },
+    "ComputerWaitToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerWaitInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'wait'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "ComputerZoomConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "ComputerZoomInput": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "region",
+          "optional": false,
+          "type": "Array<number>"
+        }
+      ]
+    },
+    "ComputerZoomToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "ToolUseCaller"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "ComputerZoomInput"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "'zoom'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": false,
+          "type": "'computer'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        }
+      ]
+    },
+    "DirectCaller": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'direct'"
+        }
+      ]
+    },
+    "ImageBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "source",
+          "optional": false,
+          "type": "Base64ImageSource | URLImageSource | FileImageSource"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'image'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "transformations",
+          "optional": true,
+          "type": "ImageTransformationsParam | null"
+        }
+      ]
+    },
+    "ServerToolCaller": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20250825'"
+        }
+      ]
+    },
+    "ServerToolCaller20260120": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'code_execution_20260120'"
+        }
+      ]
+    },
+    "ToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "content",
+          "optional": true,
+          "type": "string | Array<TextBlockParam | ImageBlockParam | SearchResultBlockParam | DocumentBlockParam | ToolReferenceBlockParam | BrowserStateBlockParam>"
+        },
+        {
+          "name": "is_error",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "toolset_name",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "caller",
+          "optional": false,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        },
+        {
+          "name": "toolset_name",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ToolUseBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'tool_use'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "CacheControlEphemeral | null"
+        },
+        {
+          "name": "caller",
+          "optional": true,
+          "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+        },
+        {
+          "name": "toolset_name",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ToolUseCaller": {
+      "kind": "alias",
+      "type": "DirectCaller | ServerToolCaller | ServerToolCaller20260120"
+    },
+    "URLImageSource": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'url'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

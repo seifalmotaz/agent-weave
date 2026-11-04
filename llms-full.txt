@@ -117,6 +117,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
+- [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
 - [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)
 - [Together Chat Completions](docs/together.md)
@@ -145,8 +146,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Independent developer agents must write and run consumer applications across
   multiple scenarios and score discoverability, clarity, type safety, debugging,
   and testing. Record failures and rerun after fixes. Use GPT-6.1 Terra with low
-  or medium reasoning. The latest general review is 8.0/10, and the native Anthropic path is
-  provisionally 7.8/10. Neither is an acceptance pass.
+  or medium reasoning. The latest general review is 8.0/10. The native Anthropic transport path scored
+  8.4/10 and its computer-tool path scored 7.8/10. Neither is an acceptance pass.
 - Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
   Vercel AI Gateway, and Cloudflare, with a documented custom-provider contract.
   Track each endpoint, nested parameter, tool/event union, query, header, cache
@@ -154,7 +155,9 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   An OpenAI-compatible URL or SDK export does not establish native parity.
 - Selected OpenAI Responses computer calls now have explicit native events,
   application-controlled execution, approval/safety handling, private replay,
-  PostgreSQL and client fixtures. Real driver/model behavior and other native
+  PostgreSQL and client fixtures. Anthropic computer toolset actions now have
+  equivalent native approval, persistence and batch-failure contracts. Real
+  driver/model behavior and other native
   tool continuations remain open; this is not complete computer-use parity.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
@@ -683,6 +686,31 @@ Using the pinned Dart 3.12.2 SDK, `dart analyze examples/anthropic_demo.dart exa
 The first run exposed two native client compile errors; implementation owner corrected them before the passing run. Provider error details are retained after credential scrubbing, so callers should treat error details as sensitive; other private response text is not generally redacted. The guide's executable demo was analyzed, not run, because it makes a billable request. No live provider, operating system, or browser behavior was tested. Unknown block types and deltas remain unsupported by the normalized agent loop. The fixture validates a selected cache-control request shape, not a provider cache hit or exhaustive native options.
 
 
+
+
+## Round 12: Anthropic computer consumer review
+
+Initial assessment: 3/10 for this specific path. The native Messages client and general tool approval pattern are discoverable from `anthropic_native.dart`, but no computer tool exists in the provider package at the start of this round. A consumer cannot safely represent toolset actions, execute them, or resume their results through this API yet. This is not an SDK-wide score.
+
+Review environment: local loopback HTTP, `MemoryRunStore`, fixture credentials and app-owned fake executor. No provider calls, real desktop driver, or paid usage.
+
+Initial integration run: the 17 documented members passed in consecutive batches of up to three; error batch halting, environment change, decline, unknown member/input/caller, disabled member, incomplete stream, invalid stop, cancellation, typed image result and ID matching also passed. An ordinary function mixed with a computer action ran before the computer approval and its result was serialized before the preceding computer call. Reported both to the implementation owner. The implementation was then changed to pause the entire mixed batch and sort the result blocks.
+
+Final assessment: **7.8/10 for this Anthropic computer path**, not an SDK-wide grade. The typed action/result API and stable environment ID make the executor understandable and prevent accidental replay to a changed environment. Defaults require approval, and the private provider data is separated from the safe callback and hydration. A consumer still needs to implement and secure all real desktop operations, resize screenshots, choose a stable environment identity, and understand how a failed action halts the rest of a batch. Debugging is helped by typed actions and the loopback fixture, but there is no real driver or model evidence here.
+
+Final run with Dart 3.12.2: `dart run examples/review_cases/anthropic_computer.dart` passed all 12 modes, including mixed function/computer approval and continuation ordering after the fix. `dart analyze examples/review_cases/anthropic_computer.dart` passed on the final fixture. These are fixture-backed observations only: no live Anthropic request, actual image capture, desktop effects, or persisted database restart was tested.
+
+The official JavaScript client also passed a mixed three-interrupt scenario against an actual `AnthropicComputerTool` with a scripted model. Before approval both executors had zero effects; response schemas excluded native argument edits. After approval, the first computer error skipped the second computer call, the ordinary function was initially allowed to run, result IDs reached the model in order, and hydration excluded private replay and the environment binding. The full existing interop script passed all 17 cases. This does not exercise a real Anthropic model or native desktop.
+
+The guide explains the HTTPS driver contract, approvals, idempotency, error behavior and security boundaries clearly. The standalone example analyzes cleanly. Its live network and console behavior remain untested. The 7.8/10 assessment stands: the entry point is usable and safer, while the application still owns substantial driver and operational work.
+
+After the final API freeze, the guide's first Dart block matched the executable example byte-for-byte, and Dart 3.12.2 analysis passed for that example, the consumer fixture and interop server. All 12 consumer modes and all 17 JavaScript interop scenarios passed again. The guide now states the default approval policy accurately and documents typed coordinates and scroll directions.
+
+A subsequent safety fix stops all later executors in the same mixed turn after a computer error. The final rerun passed all 13 consumer modes, including mixed error and no regular effect, and all 17 JavaScript interop scenarios, with one computer effect and zero ordinary effects. Analysis remained clean.
+
+Final guide review: the mixed-turn failure wording now matches the verified halt behavior, and its Dart block still matches the executable example exactly. The scoped 7.8/10 assessment remains unchanged.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -711,8 +739,8 @@ operation.
 
 `NativeModelTool` and `NativeToolCall` distinguish provider-native definitions
 and calls from function tools, using a provider namespace to match the adapter.
-The selected OpenAI Responses computer implementation registers one native
-server tool. The application owns action execution and the resulting screenshot;
+The selected OpenAI Responses computer implementation and Anthropic computer
+toolset each register one native server tool. The application owns action execution and the resulting screenshot;
 the runtime owns approval, sequencing, and continuation. Other native tool
 kinds and client-executed native tools are unsupported.
 
@@ -723,6 +751,20 @@ failure closes the native continuation while retaining its audit history. Start
 a new thread after inspecting the environment; never synthesize a screenshot or
 acknowledgement. Provider continuation data is private, separate from UI history.
 See [computer use](computer-use.md) for the application contract.
+
+## Ordered native batches
+
+`SequentialNativeTool` defines provider-valid failure and skipped-result policy.
+After its first failed result, later executors in the same model turn stop.
+Sequential native tools return their provider-valid skipped results and ordinary
+functions return generic skipped errors. A native tool that cannot represent a
+skipped result closes the continuation. The policy resets for
+the next model turn and is included in the persisted definition binding.
+
+When one sequential native call requires approval, the entire mixed turn pauses
+before any executor runs. All answers are validated before execution, and approved
+calls retain model order. A computer failure stops later mixed-turn effects; the
+next model turn can recover from the error results.
 
 ## Anthropic normalization
 
@@ -945,6 +987,19 @@ submission, document that limit rather than silently promising cancellation.
 The fixture providers in `packages/agent_weave/test` and the offline example
 demonstrate custom implementations without any OpenAI dependency.
 
+## Native tools
+
+Use `NativeModelTool` and `NativeToolCallReady` for provider-native protocols,
+with matching provider namespaces and stable execution bindings. Preserve the
+original provider continuation privately; UI tool names can differ from native
+toolset member names. Validate the full native turn before exposing executable
+calls. Native approvals are read-only, and changed definitions cannot resume.
+
+Implement `SequentialNativeTool` only when the provider supports valid skipped
+results after a failed action. Its `skippedResult` must never perform an action.
+OpenAI computer calls have no such denial result; Anthropic's computer toolset
+uses its documented error results. See the provider guides for each contract.
+
 
 # Source: docs/documents.md
 
@@ -1026,8 +1081,10 @@ providers. Your application obtains the ID separately.
 
 - OpenAI Responses accepts URLs, inline data, and file IDs with
   `provider: 'openai'`.
-- Anthropic Messages accepts URLs, inline PDF, and inline plain text. File IDs
-  are blocked until the pinned SDK supports them.
+- Anthropic Messages accepts URLs, inline PDF/plain text, and file IDs scoped
+  with `provider: 'anthropic'` through the raw/native agent path. The pinned SDK's
+  typed `configure` callback cannot decode file handles; use native JSON configuration.
+  This does not verify account permissions or provider acceptance.
 - OpenAI Chat Completions and the OpenRouter adapter reject document inputs.
 
 These are adapter contracts tested offline. The provider and selected model can
@@ -2670,11 +2727,12 @@ out of user-facing hydration or logs. The normalized agent currently handles
 text, thinking, redacted thinking and client tool-use blocks with supported
 text, thinking, signature and input JSON deltas. Citation deltas are retained
 privately on text blocks for replay; there is no normalized UI citation event. Unknown block types or deltas
-fail explicitly. Hosted tools, client computer-use workflows, audio/video and
-pause-turn continuations are not integrated into the agent loop; use raw native
-access only when implementing those protocols yourself. File-ID document parts
-remain unsupported by the typed SDK path and agent document mapping; URL and
-supported inline documents are available.
+fail explicitly. Hosted tools, audio/video and pause-turn continuations are not integrated into
+the agent loop; use raw native access when implementing those protocols yourself.
+For client computer use, see the [computer-use guide](anthropic-computer.md).
+File-ID document parts are supported by the native agent path; the typed SDK
+configuration path cannot yet decode them. URL and supported inline documents
+are also available.
 
 See the [request field inventory](anthropic-parameters.md) for the pinned
 contract and disposition of each field. Fixtures exercise selected behavior;
@@ -2720,6 +2778,220 @@ These dispositions describe top-level access only. Arbitrary native JSON does no
 | workspace_id | native-json | Native JSON accepts this field; SDK configure support depends on the Dart SDK version. Agent semantics are not established. |
 
 The inventory follows selected local type references for Messages requests, responses and stream events. Imported declarations and unrelated endpoints are outside its scope. Review protocol behavior and provider documentation separately.
+
+
+# Source: docs/anthropic-computer.md
+
+# Anthropic computer use
+
+`AnthropicComputerTool` connects Anthropic's `computer_toolset_20260801` calls
+to a desktop driver you provide. AgentWeave does not provide the desktop or
+operate it itself. The [executable example](https://github.com/seifalmotaz/agent-weave/blob/main/examples/anthropic_computer_demo.dart)
+uses the native Messages client, an application-owned HTTPS driver and a console
+approval for each requested turn. It makes billable Anthropic requests when run.
+Choose a model that supports the toolset using the [official computer-use
+documentation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool).
+
+Set `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `COMPUTER_DRIVER_URL`,
+`COMPUTER_DRIVER_TOKEN` and `COMPUTER_ENVIRONMENT_ID` in the backend
+environment. Run `dart run examples/anthropic_computer_demo.dart "your task"`.
+The sample uses the default in-memory run store and fixed local owner and thread
+identifiers; it is a single-process demonstration, not durable or multi-user
+storage. Production applications must authenticate owners, protect private
+conversation state, and configure a suitable store and approval interface.
+The console prints action arguments for review, which may contain sensitive data.
+
+## Complete CLI example
+
+Optionally set `ANTHROPIC_VERSION` to select a supported API version.
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
+import 'package:agent_weave_http/agent_weave_http.dart';
+
+String environment(String name) {
+  final value = Platform.environment[name];
+  if (value == null || value.trim().isEmpty) throw StateError('Set $name.');
+  return value;
+}
+
+Future<void> main(List<String> args) async {
+  if (args.isEmpty) throw ArgumentError('Pass the task as command arguments.');
+  final driverUrl = environment('COMPUTER_DRIVER_URL');
+  if (Uri.parse(driverUrl).scheme != 'https') {
+    throw ArgumentError('COMPUTER_DRIVER_URL must use HTTPS.');
+  }
+  final driverToken = environment('COMPUTER_DRIVER_TOKEN');
+  final environmentId = environment('COMPUTER_ENVIRONMENT_ID');
+  final driver = JsonHttpClient(
+    baseUrl: driverUrl,
+    requestTimeout: const Duration(seconds: 30),
+  );
+  final client = anthropic.AnthropicNativeClient.withApiKey(
+    apiKey: environment('ANTHROPIC_API_KEY'),
+    apiVersion: Platform.environment['ANTHROPIC_VERSION'] ?? '2023-06-01',
+  );
+  try {
+    final agent = AiAgent<void>(
+      model: client.chatModel(model: environment('ANTHROPIC_MODEL')),
+      tools: [
+        anthropic.AnthropicComputerTool<void>(
+          environmentId: environmentId,
+          needsApproval: true,
+          allowedCallers: const ['direct'],
+          execute: (call, context) async {
+            final response = await driver.sendJson(
+              '/execute',
+              cancellation: context.cancellation,
+              prepare: () => JsonHttpRequest(
+                headers: {'Authorization': 'Bearer $driverToken'},
+                body: {
+                  'environment_id': environmentId,
+                  'tool_call_id': context.toolCallId,
+                  'idempotency_key': context.idempotencyKey,
+                  'call': call.raw,
+                },
+              ),
+            );
+            final value = jsonDecode(response.body);
+            if (value is! Map<String, dynamic>) {
+              throw const FormatException('Expected a driver result object.');
+            }
+            return anthropic.AnthropicComputerResult.fromJson(value);
+          },
+        ),
+      ],
+    );
+    var sequence = 0;
+    var result = await agent.generate(
+      ChatRequest(
+        threadId: 'computer-demo',
+        runId: 'run-${sequence++}',
+        messages: [ChatMessage.user(args.join(' '), id: 'user')],
+      ),
+      ownerId: 'local-user',
+      context: null,
+    );
+    while (result.status == RunStatus.interrupted) {
+      stdout.writeln('Requested actions:');
+      for (final interrupt in result.interrupts) {
+        stdout.writeln(jsonEncode(interrupt.call.toJson()));
+      }
+      stdout.write('Approve this turn? [y/N] ');
+      final approve = stdin.readLineSync()?.trim().toLowerCase() == 'y';
+      final previous = result;
+      result = await agent.generate(
+        ChatRequest(
+          threadId: previous.threadId,
+          runId: 'run-${sequence++}',
+          parentRunId: previous.runId,
+          resume: [
+            for (final interrupt in previous.interrupts)
+              approve ? interrupt.approve() : interrupt.reject(),
+          ],
+        ),
+        ownerId: 'local-user',
+        context: null,
+      );
+    }
+    stdout.writeln(result.text);
+  } finally {
+    driver.close();
+    client.close();
+  }
+}
+```
+
+## Typed actions
+
+The callback receives a sealed `AnthropicComputerAction`. Points are named
+Dart records with `x` and `y`; regions have `x0`, `y0`, `x1`, and `y1`.
+Scroll direction and click/empty-action kinds are enums. `call.raw` retains the
+validated wire shape for a remote driver. Unknown input fields fail before execution.
+
+| Action type | Values |
+| --- | --- |
+| `AnthropicComputerKey` | `text`, optional `repeat` |
+| `AnthropicComputerHoldKey` | `text`, `duration` |
+| `AnthropicComputerType` | `text` |
+| `AnthropicComputerEmptyAction` | Screenshot, cursor position, mouse down/up `kind` |
+| `AnthropicComputerMove` | `coordinate` point |
+| `AnthropicComputerClickAction` | Click `kind`, optional `coordinate` and modifier `text` |
+| `AnthropicComputerDrag` | `startCoordinate`, `coordinate`, optional modifier `text` |
+| `AnthropicComputerScroll` | `amount`, `direction`, optional `coordinate` and modifier `text` |
+| `AnthropicComputerWait` | `duration` |
+| `AnthropicComputerZoom` | `region` |
+
+Success from screenshot or zoom requires an image result; cursor position
+requires nonempty text. Return a typed error for an action that failed. Image
+contents and the truth of reported coordinates remain the driver's responsibility.
+
+## Driver contract
+
+The sample sends a JSON POST to `/execute` on your HTTPS driver. It sends a
+bearer token, uses a 30-second timeout and passes the run cancellation token;
+redirects and automatic retries are disabled. The request contains:
+
+```json
+{
+  "environment_id": "desktop-1",
+  "tool_call_id": "toolu_example",
+  "idempotency_key": "stable-per-owner-thread-and-call",
+  "call": {"type":"tool_use","id":"toolu_example","toolset_name":"computer","name":"screenshot","input":{}}
+}
+```
+
+Your driver must authenticate the request, bind `environment_id` to the
+approved isolated desktop, validate inputs and deduplicate effects using the
+idempotency key. Cancellation or timeout does not undo an action already
+accepted by the driver. The driver returns an object with `content`, a list of
+Anthropic text and image blocks, and optional boolean `is_error`. For example,
+`{"content":[{"type":"text","text":"Clicked."}]}` is an acknowledgement;
+a failure can be `{"content":[{"type":"text","text":"Action failed."}],"is_error":true}`.
+For screenshot and zoom, return an image block, for example with a base64 PNG
+source. `AnthropicComputerResult.fromJson` validates this response before the
+runtime forwards it. A thrown driver/transport/decoding exception fails the
+run; returning `is_error: true` reports a tool failure to Claude so it can
+continue.
+
+The runtime executes computer actions in order. After a computer result marks
+an error, later executors in that turn do not run. Computer members receive the
+prescribed skipped error; ordinary functions receive a generic skipped error.
+The next model turn can recover from those results. By default, a turn containing a
+computer action requires approval for the whole batch; native call arguments
+are read-only. If approval is declined, the application must start a new thread
+rather than execute the rejected native turn.
+
+After a pause, recheck the target and current screen before applying approved actions.
+
+The driver owns coordinate validation and conversion, screenshot capture,
+image sizing and desktop isolation. Coordinates refer to full screenshots,
+including after zoom; AgentWeave does not scale them. Check bounds against the
+actual screenshot and enforce action limits before operating the desktop.
+For documented action fields, limits, result rules and the pinned SDK projection,
+see the [computer contract inventory](anthropic-computer-parameters.md).
+
+Raw native Messages document blocks support provider file IDs in the agent;
+the SDK-backed typed `configure` path still cannot decode those IDs until the
+upstream SDK change is released. Neither the example nor the contract inventory
+establishes live model compatibility or verifies your driver.
+
+
+# Source: docs/anthropic-computer-parameters.md
+
+# Anthropic computer toolset contract
+
+Generated from the [inventory](anthropic-computer-inventory.json), pinned to official TypeScript SDK commit `ea8d7de0e47614ae71044fbf7bf12041318ba37e`. Run `node tool/interop/anthropic-computer-inventory.mjs --write` after review. See the [computer use documentation](https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool) and [SDK driver guidance](https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-sdk).
+
+The 17 member calls use `toolset_name: computer`, the member name, and member-specific input with no action field. Dispatch by both names. Configs are sparse: each member defaults to enabled with defer_loading false. The toolset accepts cache_control. The documentation additionally permits allowed_callers with only ["direct"]; the pinned SDK declaration omits that field.
+
+Run a batch sequentially. On failure, return an error for that action and for every subsequent unexecuted action, with the exact halt text in the inventory. Return one result for every call with its tool_use_id and toolset_name. Screenshot and zoom return an image; cursor_position returns coordinates as text. Coordinates always refer to the full screenshot, including after zoom.
+
+The driver owns validation, coordinate conversion, image sizing, environment isolation and approval policy. Documentation specifies key repeat 1–100 (default 1), and hold_key and wait duration up to 300 seconds; the official driver guidance leaves these checks to applications. AgentWeave validates selected repeat and duration bounds before invoking the executor. These declarations and offline fixtures do not demonstrate model acceptance, desktop execution, or live behavior.
 
 
 # Source: docs/openai-options-audit.md
@@ -2819,7 +3091,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; Responses also supports the application-executed native computer tool. | See [OpenAI audit](openai-options-audit.md): other native tool continuations, events, transport, media and complete field-by-field coverage remain open. Computer model and driver behavior require separate live verification. |
-| Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. Complete nested semantics, hosted tools, native computer, pause-turn and other endpoint workflows remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
+| Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Complete nested semantics, hosted/browser tools, pause-turn and other endpoint workflows remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
 | OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, all hosted tools/media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
@@ -2875,9 +3147,10 @@ not a claim of full TanStack AI core parity.
 
 ## Current limits
 
-- Native computer use is limited to the OpenAI Responses adapter. Native
-  client-executed tools and other native tool kinds are unsupported. Approval
-  does not allow edited native arguments.
+- Selected native computer use is implemented for OpenAI Responses and the
+  Anthropic computer toolset. The application provides the actual driver. Native
+  client-executed tools and other native tool kinds are unsupported; native
+  approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
   and provider-hosted tool event normalization are not implemented.
 - Server tools execute sequentially. Applications can perform concurrency
@@ -2896,7 +3169,8 @@ not a claim of full TanStack AI core parity.
   remain unfinished.
 - Document support varies by adapter. Responses accepts URLs, inline data, and
   OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
-  file IDs are blocked by the pinned SDK. Gateway Responses accepts URLs and
+  native file IDs use `provider: 'anthropic'`; typed SDK configuration still
+  cannot decode those handles. Gateway Responses accepts URLs and
   inline data but blocks file IDs. OpenRouter Responses also accepts URL/inline
   documents and rejects foreign file IDs. OpenRouter Chat, OpenAI Chat
   Completions, and Together reject document parts. See [documents](documents.md) for storage
@@ -2906,8 +3180,9 @@ not a claim of full TanStack AI core parity.
   provider/cost metadata have offline fixtures. Complete management, background,
   hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
-  chat handles selected block and delta types. Hosted tools, native computer
-  use, pause-turn and complete nested field semantics remain unfinished. The
+  chat handles selected block/delta types and the 17-member computer toolset.
+  Hosted tools, browser toolsets, pause-turn and complete nested field semantics
+  remain unfinished. The
   SDK-backed facade retains its pinned SDK transport cancellation limits.
   See [Anthropic](anthropic.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter
@@ -3095,6 +3370,24 @@ Review field and union drift before changing the pin. Update the native client,
 normalizer, SDK patch preservation, request fixtures and disposition together.
 New raw JSON fields do not imply the agent supports their continuation protocol.
 
+## Anthropic computer toolset
+
+The selected computer projection uses the existing Anthropic source pin. Its
+Dart fixture serializes the actual helper, typed configs, all action parameters,
+scroll enum values and result payloads. The check runs `dart` from PATH; CI uses
+the selected minimum or stable SDK. The upstream-only check does not require Dart.
+
+```sh
+node --test tool/interop/anthropic-computer-inventory.test.mjs
+node tool/interop/anthropic-computer-inventory.mjs --check
+node tool/interop/anthropic-computer-inventory.mjs --upstream
+```
+
+Review documentation-only constraints separately, including direct callers,
+numeric limits and stopping a batch after failure. The official SDK declaration
+currently omits the documented `allowed_callers` field. Parameter forwarding is
+not evidence of real desktop operation or complete provider support.
+
 
 # Source: docs/validation.md
 
@@ -3121,18 +3414,18 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native Anthropic increment was checked on Dart 3.12.2. The prior
+The latest Anthropic computer increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 318 Dart unit and regression tests: tool validation, approvals, client tools,
+- 333 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 14 Serverpod integration tests with a real isolated PostgreSQL database:
+- 15 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 16 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 17 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
   generation, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
@@ -3439,10 +3732,53 @@ repository bootstrap and live tests were not run. The PR is submitted, not merge
 or released, and AgentWeave's native client does not depend on it.
 
 No live Anthropic requests or cache hits were tested, and no paid requests or
-package publications were made. Hosted/native computer tools, pause-turn,
-file-ID agent documents and complete endpoint/nested-option parity remain
-unfinished. Provider error details retain private content after credential
+package publications were made. Hosted/browser tools, pause-turn and complete
+endpoint/nested-option parity remain unfinished. Selected computer and native
+file-ID integration are verified in the increment below. Provider error details retain private content after credential
 scrubbing and must not be exposed directly to UI or logs.
+
+## Anthropic computer toolset and scoped files
+
+Six core tests cover sequential native result policies, stopping mixed-turn
+executors after failure, resetting policy for the next model turn, forced and
+configured whole-turn approvals, and binding the result policy across resumes.
+Six typed-helper tests cover all 17 input field sets, named coordinate records,
+scroll enums, direct callers, configs, selected limits, safe call snapshots and
+text/image/error results. Successful screenshots and zoom require an image;
+cursor position requires nonempty text. Decoded image contents remain unchecked.
+Protocol regressions also verify block-index order and native file-ID documents,
+including a clear failure for unsupported typed SDK configuration.
+
+The independent consumer passes 13 loopback modes, including all actions,
+approval and recreation, mixed failure stopping, disabled/unknown actions,
+malformed calls, truncation, cancellation and hydration privacy. Its targeted
+score is recorded in [the review](dx-review.md). The complete guide matches its
+example and was checked without invoking a live provider or driver. The new
+pinned official JavaScript client case resolves all three mixed-turn approvals,
+rejects editable native arguments, verifies ordered results and no later effects
+after the computer error, and hides private provider/environment state.
+
+A real PostgreSQL test uses the native client's loopback HTTP transport. It
+persists both approvals, rejects a changed environment, recreates the agent and
+store, executes the first action once, skips the second after error, verifies
+full private replay and matching result IDs/toolset names on the next HTTP
+request, excludes private state from UI hydration and rejects duplicate resume.
+This is recreated-instance persistence, not a computer-specific process-crash test.
+
+Two AST mutation tests and an executable Dart fixture compare 68 selected
+computer/caller/result/image declarations, actual helper/config serialization,
+all input fields and requiredness, scroll values and result payloads with the
+pinned official SDK. The current upstream projection matched. Documentation-only
+overrides, including direct callers, are explicit. PostgreSQL suites run one file
+at a time to bound test database disk use; contention tests still issue concurrent
+requests. A first parallel local run exhausted disk and was discarded before the
+clean rerun.
+
+No real desktop effects, image capture, live model support or provider permissions
+were verified, and no paid requests or package publication occurred. Browser and
+other native toolsets remain unfinished. SDK PR #431 is still needed for its
+published typed decoder to represent file-ID sources; native normalization does
+not require that unreleased change.
 
 
 # Source: CONTRIBUTING.md

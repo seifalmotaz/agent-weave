@@ -22,6 +22,8 @@ const documents = [
   'docs/together-options.md',
   'docs/anthropic.md',
   'docs/anthropic-parameters.md',
+  'docs/anthropic-computer.md',
+  'docs/anthropic-computer-parameters.md',
   'docs/openai-options-audit.md',
   'docs/provider-coverage.md',
   'docs/compatibility.md',
