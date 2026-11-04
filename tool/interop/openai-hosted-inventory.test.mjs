@@ -30,3 +30,19 @@ test('Chat URL annotation declarations have a separate reviewed contract', () =>
   const changed = chat.replace('export namespace ChatCompletionMessage {', 'export namespace ChatCompletionMessage { export interface FutureAnnotation { extra: string; }');
   assert.throws(() => validateChat(projectChat(changed)), /Review changed Chat/);
 });
+
+test('MCP configuration and stream changes require review', () => {
+  const changed = source.replaceAll('export interface Mcp {', 'export interface Mcp { future?: string;');
+  assert.throws(() => validate(project(changed), fixture), /Review changed hosted/);
+  const stream = source.replace('  | ResponseMcpCallArgumentsDeltaEvent\n', '  | ResponseMcpCallArgumentsDeltaEvent\n  | FutureMcpEvent\n');
+  assert.throws(() => validate(project(stream), fixture), /Review changed hosted/);
+});
+test('MCP executable snapshots exclude credentials', () => {
+  for (const value of Object.values(fixture.Mcp)) {
+    assert.equal('authorization' in value, false);
+    assert.equal('headers' in value, false);
+  }
+  const copy = structuredClone(fixture);
+  delete copy.Mcp.server.allowed_tools.read_only;
+  assert.throws(() => validate(project(source), copy), /Missing executable field/);
+});

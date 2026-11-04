@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add provider-owned approval events, trusted decision history, optional reasons, mixed-batch validation and indeterminate provider-execution checkpoints without local executors.
+- Add `ProviderApprovalCall` to the sealed call family; exhaustive call switches must handle it.
+
 - Add `SchemaValidationException` with immutable backend-only field/schema diagnostics while preserving generic public failure messages and `FormatException` compatibility.
 - Validate edited approval arguments separately from the envelope so nested diagnostics and local references retain the original schema context; keep public approval hashes unchanged.
 

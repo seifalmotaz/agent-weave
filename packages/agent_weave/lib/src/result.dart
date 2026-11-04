@@ -75,30 +75,42 @@ final class ToolInterrupt {
     required this.clientExecuted,
   });
 
-  ResumeAnswer approve({JsonObject? editedArgs}) {
+  ResumeAnswer approve({JsonObject? editedArgs, String? reason}) {
     if (clientExecuted) {
       throw StateError(
         'Client tools resolve an output instead of an approval.',
       );
     }
-    if (call is NativeToolCall && editedArgs != null) {
+    if ((call is NativeToolCall || call is ProviderApprovalCall) &&
+        editedArgs != null) {
       throw StateError('Native tool arguments cannot be edited.');
+    }
+    if (reason != null && call is! ProviderApprovalCall) {
+      throw StateError('Reasons require a provider approval.');
     }
     return ResumeAnswer(
       interruptId: id,
-      value: editedArgs == null
+      value: reason != null
+          ? {'approved': true, 'reason': reason}
+          : editedArgs == null
           ? true
           : {'approved': true, 'editedArgs': editedArgs},
     );
   }
 
-  ResumeAnswer reject() {
+  ResumeAnswer reject({String? reason}) {
     if (clientExecuted) {
       throw StateError(
         'Cancel a client tool instead of rejecting an approval.',
       );
     }
-    return ResumeAnswer(interruptId: id, value: false);
+    if (reason != null && call is! ProviderApprovalCall) {
+      throw StateError('Reasons require a provider approval.');
+    }
+    return ResumeAnswer(
+      interruptId: id,
+      value: reason == null ? false : {'approved': false, 'reason': reason},
+    );
   }
 
   ResumeAnswer resolve(Object? output) {

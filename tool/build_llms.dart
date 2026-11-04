@@ -17,6 +17,7 @@ const documents = [
   'docs/computer-parameters.md',
   'docs/openai.md',
   'docs/openai-hosted.md',
+  'docs/openai-mcp.md',
   'docs/openai-hosted-parameters.md',
   'docs/openrouter.md',
   'docs/openrouter-images.md',

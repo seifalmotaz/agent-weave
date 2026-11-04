@@ -80,6 +80,44 @@ Future<void> main() async {
     for (final entry in values.entries)
       entry.key: api.OpenAIHostedTool.fromJson(entry.value).definition,
   };
+  final mcp = <String, Map<String, Object?>>{
+    'server': {
+      'type': 'mcp',
+      'server_label': 'server',
+      'server_url': 'https://example.com/mcp',
+      'server_description': 'Docs',
+      'allowed_callers': ['direct'],
+      'defer_loading': true,
+      'allowed_tools': {
+        'read_only': true,
+        'tool_names': ['read'],
+      },
+      'require_approval': {
+        'always': {
+          'read_only': false,
+          'tool_names': ['write'],
+        },
+        'never': {
+          'read_only': true,
+          'tool_names': ['read'],
+        },
+      },
+    },
+    'connector': {
+      'type': 'mcp',
+      'server_label': 'connector',
+      'connector_id': 'connector_gmail',
+    },
+    'tunnel': {
+      'type': 'mcp',
+      'server_label': 'tunnel',
+      'tunnel_id': 'tunnel_00000000000000000000000000000000',
+    },
+  };
+  serialized['Mcp'] = {
+    for (final entry in mcp.entries)
+      entry.key: api.OpenAIMcpTool.fromJson(entry.value).definition,
+  };
   await File(
     '.dart_tool/openai-hosted-options.json',
   ).writeAsString(jsonEncode(serialized));

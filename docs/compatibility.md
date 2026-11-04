@@ -18,6 +18,7 @@ override only after checking the published package and rerunning interop tests.
 - Ordered completed media parts in assistant history, client snapshots and hydration.
 - Selected OpenAI Responses hosted search, code, image and server tool-search
   output with private replay; see [hosted tools](openai-hosted.md).
+- OpenAI Responses remote MCP configuration, private discovery/replay and provider-owned approval/denial through generic client interrupts; see [MCP approvals](openai-mcp.md).
 - Configured server tools, client-tool pauses, and default tool approvals.
 - Selected OpenAI Responses native computer calls with application-owned
   execution, safety approvals, screenshots, and continuation; see
@@ -48,7 +49,7 @@ and retain the old history. Public client bindings remain unchanged. See
   Anthropic computer toolset. The application provides the actual driver. Native
   client-executed tools and other native tool kinds are unsupported; native
   approval arguments cannot be edited.
-- Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
+- Custom approval payload schemas, application-defined generic interrupts, subagents, client-owned MCP discovery,
   and general provider-hosted progress are not implemented. Citation normalization
   covers the five pinned Anthropic variants. OpenAI references retain opaque
   provider coordinates; precise OpenAI highlights and other providers remain open.

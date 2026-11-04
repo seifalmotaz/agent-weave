@@ -80,7 +80,7 @@ final events = agent.run(
 ```
 
 Close the provider client when your application shuts down. Keep OpenAI keys
-on the backend. Use the provider import prefix because provider SDK types can
+on the backend. For remote tool approvals and owner-bound credentials, see [MCP approvals](docs/openai-mcp.md). Use the provider import prefix because provider SDK types can
 share names with core types.
 
 ## Connect Flutter through Serverpod

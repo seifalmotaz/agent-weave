@@ -87,3 +87,31 @@ text highlight. Supply the known UTF-16 enclosing `partStart`/`partEnd` separate
 Keep provider positions opaque and use typed source fields. Scoped file handles
 are deliberate public data and require application authorization.
 See [output references](output-references.md).
+
+
+## Provider-owned approvals
+
+Implement `ProviderApprovalModel` when the provider executes tools remotely and
+can request a human decision. Emit `ProviderApprovalReady` with a
+`ProviderApprovalCall`. Generate a distinct local call ID for public display;
+keep `providerRequestId` in backend state. Do not register a dummy `AgentTool`
+or emit a local tool result for a remote approval.
+
+`approvalContract(call)` returns an immutable, versioned configuration snapshot
+for resume checks. Bind all relevant remote tools and authorization identities;
+resolve secrets at request time. Approval and denial arrive as trusted
+`ModelRequest.providerApprovalDecisions` across the saved conversation. Preserve
+their native correlation and order. Reject a different provider's decision
+history before dispatch. Never accept raw continuation state from a client.
+
+Emit `ProviderExecutionStarting` immediately before a request that can cause
+provider-managed effects, after preflight and credential resolution. The runtime
+checkpoints an indeterminate marker before advancing your stream. A known
+terminal checkpoint clears it; failure or cancellation cannot automatically
+resend the request. Omitting this event on an initial remotely executing request
+would leave that failure boundary unprotected. Include it even when no approval
+has occurred, such as a server configured to execute without asking.
+
+The [OpenAI MCP adapter](openai-mcp.md) demonstrates this contract. Its pinned
+clients use generic approval payloads. Native computer execution remains a
+separate local-driver contract with different denial behavior.

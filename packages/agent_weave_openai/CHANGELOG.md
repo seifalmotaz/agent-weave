@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add native Responses MCP configuration, per-request credentials, multiple servers, private replay, approval/denial continuation and correlated approval echoes.
+- Preserve MCP raw options independently of the pinned SDK and require stable credential authority bindings.
+
 - Publish typed Responses references and buffered Chat URL annotations while keeping provider metadata private.
 - Use raw native Chat events and reject unknown/inconsistent finish reasons before tools; compatible-provider adapters retain their own contracts.
 

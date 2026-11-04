@@ -74,7 +74,7 @@ The adapter currently recognizes these hosted tool families:
 | `tool_search` with `execution: server` | Retain server search calls and loaded definitions; ordinary executors must still be registered by the application |
 
 One definition per family is allowed. Hosted tools do not add local executors.
-Client tool search, MCP, shell, custom-tool and patch lifecycles are not
+Client tool search, shell, custom-tool and patch lifecycles are not
 integrated and fail explicitly. Computer use has its own
 [application-controlled contract](computer-use.md).
 
@@ -142,3 +142,8 @@ Completed Responses annotations now produce typed sources and native positions.
 See [output references](output-references.md) for all four forms, persistence,
 file authorization and the distinction between native indexes and UTF-16 text.
 Partial images, hosted progress and artifact hosting remain open.
+
+
+## MCP approvals
+
+Remote MCP uses a separate provider-owned approval lifecycle. See [MCP approvals](openai-mcp.md) for configuration, owner-bound credentials, generic client interrupts, denial and indeterminate continuations.

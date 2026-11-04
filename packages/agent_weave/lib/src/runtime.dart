@@ -152,6 +152,7 @@ final class AiAgent<C> {
     );
     late final List<ChatMessage> messages;
     late final int generation;
+    late final List<ProviderApprovalDecision> providerDecisions;
     String? nativeContinuationClosed;
     try {
       messages = <ChatMessage>[
@@ -162,6 +163,29 @@ final class AiAgent<C> {
             ChatMessage.fromJson(Map<String, Object?>.from(raw as Map)),
       ];
       generation = (previous['generation'] as int? ?? 0) + 1;
+      providerDecisions = [
+        for (final raw in previous['providerApprovalDecisions'] as List? ?? [])
+          ProviderApprovalDecision.fromJson(
+            Map<String, Object?>.from(raw as Map),
+          ),
+      ];
+      final approvals = [
+        for (final message in messages)
+          ...message.toolCalls.whereType<ProviderApprovalCall>(),
+      ];
+      final ids = <String>{};
+      for (final call in approvals) {
+        if (!ids.add(jsonEncode([call.provider, call.providerRequestId]))) {
+          throw const FormatException('Duplicate provider approval request.');
+        }
+      }
+      final decisionsSeen = <String>{};
+      for (final decision in providerDecisions) {
+        final key = jsonEncode([decision.provider, decision.providerRequestId]);
+        if (!ids.contains(key) || !decisionsSeen.add(key)) {
+          throw const FormatException('Invalid stored provider decision.');
+        }
+      }
       nativeContinuationClosed =
           previous['nativeContinuationClosed'] as String?;
     } catch (error, stack) {
@@ -191,6 +215,10 @@ final class AiAgent<C> {
     var accepted = false;
     var providerContinuationPending =
         previous['providerContinuationPending'] == true;
+    var providerApprovalIndeterminate =
+        previous['providerApprovalIndeterminate'] == true;
+    final stagedCalls = <ToolCall>[];
+    final stagedContracts = <JsonObject>[];
     String? partialMessageId;
     StringBuffer? partialText;
     List<TextCitation>? partialCitations;
@@ -237,6 +265,13 @@ final class AiAgent<C> {
       'pending': pending,
       if (providerContinuationPending) 'providerContinuationPending': true,
       'nativeContinuationClosed': ?nativeContinuationClosed,
+      if (providerApprovalIndeterminate) 'providerApprovalIndeterminate': true,
+      if (providerDecisions.isNotEmpty)
+        'providerApprovalDecisions': [
+          for (final d in providerDecisions) d.toJson(),
+        ],
+      if (stagedContracts.isNotEmpty)
+        'providerApprovalStagedCalls': stagedContracts,
     };
     Future<AgentEvent> event(
       String type, [
@@ -279,6 +314,11 @@ final class AiAgent<C> {
     }
 
     try {
+      if (providerApprovalIndeterminate) {
+        throw const FormatException(
+          'Provider approval outcome is uncertain; start a new conversation.',
+        );
+      }
       if (nativeContinuationClosed != null) {
         throw const FormatException(
           'Native continuation closed; start a new thread.',
@@ -330,6 +370,35 @@ final class AiAgent<C> {
         for (final raw in previous['pending'] as List? ?? [])
           Map<String, Object?>.from(raw as Map),
       ];
+      final unresolvedProviderApprovals = [
+        for (final message in messages)
+          for (final call
+              in message.toolCalls.whereType<ProviderApprovalCall>())
+            if (!providerDecisions.any(
+              (d) =>
+                  d.provider == call.provider &&
+                  d.providerRequestId == call.providerRequestId,
+            ))
+              call,
+      ];
+      final pendingProviderApprovals = [
+        for (final item in waiting)
+          if ((item['call'] as Map)['kind'] == 'provider_approval')
+            ToolCall.fromJson(Map<String, Object?>.from(item['call'] as Map)),
+      ];
+      if (unresolvedProviderApprovals.length !=
+              pendingProviderApprovals.length ||
+          unresolvedProviderApprovals.any(
+            (call) =>
+                pendingProviderApprovals
+                    .where((item) => jsonEquals(item.toJson(), call.toJson()))
+                    .length !=
+                1,
+          )) {
+        throw const FormatException(
+          'Unresolved provider approval cannot be continued.',
+        );
+      }
       if (request.resume.length != waiting.length ||
           !waiting.every(
             (p) => request.resume.any((r) => r.interruptId == p['id']),
@@ -343,6 +412,44 @@ final class AiAgent<C> {
         final call = ToolCall.fromJson(
           Map<String, Object?>.from(item['call'] as Map),
         );
+        if (call is ProviderApprovalCall) {
+          final matches = [
+            for (final message in messages)
+              ...message.toolCalls.whereType<ProviderApprovalCall>().where(
+                (saved) => jsonEquals(saved.toJson(), call.toJson()),
+              ),
+          ];
+          if (matches.length != 1 ||
+              providerDecisions.any(
+                (d) =>
+                    d.provider == call.provider &&
+                    d.providerRequestId == call.providerRequestId,
+              )) {
+            throw const FormatException('Invalid pending provider approval.');
+          }
+          final recorded = item['toolContract'];
+          if (model is! ProviderApprovalModel ||
+              recorded is! Map<String, Object?> ||
+              !jsonEquals(
+                recorded,
+                (model as ProviderApprovalModel).approvalContract(call),
+              )) {
+            throw const _ToolContractException(
+              'Tool configuration changed. Start a new conversation.',
+            );
+          }
+          final resolution = request.resume.singleWhere(
+            (r) => r.interruptId == item['id'],
+          );
+          if (resolution.cancelled) throw const RunCancelled();
+          final value = resolution.value;
+          if (value is bool) continue;
+          if (value is! Map<String, Object?>) {
+            throw const FormatException('Expected an approval decision.');
+          }
+          validateSchema(_providerApprovalSchema, value);
+          continue;
+        }
         final recorded = item['toolContract'];
         if (!item.containsKey('toolContract')) {
           throw const _ToolContractException(
@@ -404,6 +511,37 @@ final class AiAgent<C> {
           }
         }
       }
+      if (waiting.any(
+        (item) => (item['call'] as Map)['kind'] == 'provider_approval',
+      )) {
+        for (final raw
+            in previous['providerApprovalStagedCalls'] as List? ?? []) {
+          final item = Map<String, Object?>.from(raw as Map);
+          final call = ToolCall.fromJson(
+            Map<String, Object?>.from(item['call'] as Map),
+          );
+          if (call is ProviderApprovalCall) {
+            throw const FormatException('Invalid staged tool.');
+          }
+          final tool = _tool(call.name);
+          if (!jsonEquals(item['toolContract'], _toolContract(tool)) ||
+              messages
+                      .where(
+                        (m) => m.toolCalls.any(
+                          (c) => jsonEquals(c.toJson(), call.toJson()),
+                        ),
+                      )
+                      .length !=
+                  1) {
+            throw const _ToolContractException(
+              'Tool configuration changed. Start a new conversation.',
+            );
+          }
+          _validateToolKind(call, tool.definition);
+          stagedCalls.add(call);
+          stagedContracts.add(item);
+        }
+      }
       final nativeDeclined = waiting.any((item) {
         final call = ToolCall.fromJson(
           Map<String, Object?>.from(item['call'] as Map),
@@ -430,6 +568,32 @@ final class AiAgent<C> {
         });
         return;
       }
+      if (waiting.any(
+        (item) => (item['call'] as Map)['kind'] == 'provider_approval',
+      )) {
+        for (final item in waiting) {
+          final call = ToolCall.fromJson(
+            Map<String, Object?>.from(item['call'] as Map),
+          );
+          if (call is ProviderApprovalCall) {
+            final answer = request.resume
+                .singleWhere((r) => r.interruptId == item['id'])
+                .value;
+            providerDecisions.add(
+              ProviderApprovalDecision(
+                provider: call.provider,
+                providerRequestId: call.providerRequestId,
+                approved: answer is bool
+                    ? answer
+                    : (answer as Map)['approved'] as bool,
+                reason: answer is Map ? answer['reason'] as String? : null,
+              ),
+            );
+          }
+        }
+        providerApprovalIndeterminate = true;
+        providerContinuationPending = false;
+      }
       await store.save(
         ownerId: ownerId,
         threadId: request.threadId,
@@ -445,6 +609,7 @@ final class AiAgent<C> {
         final call = ToolCall.fromJson(
           Map<String, Object?>.from(item['call'] as Map),
         );
+        if (call is ProviderApprovalCall) continue;
         final tool = _tool(call.name);
         final resolution = request.resume.singleWhere(
           (r) => r.interruptId == item['id'],
@@ -485,6 +650,23 @@ final class AiAgent<C> {
         messages.add(_result(call, result));
         yield await event('TOOL_CALL_RESULT', _resultFields(call, result));
       }
+      for (final call in stagedCalls) {
+        final tool = _tool(call.name);
+        phase = 'tool';
+        final result = await _invokeInBatch(
+          failedNativeBatches,
+          tool,
+          call,
+          request,
+          ownerId,
+          context,
+          token,
+        );
+        messages.add(_result(call, result));
+        yield await event('TOOL_CALL_RESULT', _resultFields(call, result));
+      }
+      stagedCalls.clear();
+      stagedContracts.clear();
       for (var step = 0; step < maxSteps; step++) {
         failedNativeBatches.clear();
         phase = 'provider';
@@ -509,6 +691,7 @@ final class AiAgent<C> {
         await for (final item in model.stream(
           ModelRequest(
             messages: messages,
+            providerApprovalDecisions: providerDecisions,
             tools: tools.map((t) => t.definition),
             instructions: instructions,
             outputSchema: outputSchema,
@@ -521,6 +704,15 @@ final class AiAgent<C> {
             throw StateError('Provider emitted events after completion.');
           }
           switch (item) {
+            case ProviderExecutionStarting():
+              providerApprovalIndeterminate = true;
+              await store.save(
+                ownerId: ownerId,
+                threadId: request.threadId,
+                runId: request.runId,
+                state: state(),
+                release: false,
+              );
             case TextDelta(text: final delta):
               if (!textStarted) {
                 textStarted = true;
@@ -585,10 +777,13 @@ final class AiAgent<C> {
               }
               media.add((offset: offset, part: part));
               hasMedia = true;
-            case ToolCallReady() || NativeToolCallReady():
+            case ProviderApprovalReady() ||
+                ToolCallReady() ||
+                NativeToolCallReady():
               final call = switch (item) {
                 ToolCallReady(:final call) => call,
                 NativeToolCallReady(:final call) => call,
+                ProviderApprovalReady(:final call) => call,
                 _ => throw StateError('Unexpected tool call event.'),
               };
               if (calls.any((c) => c.id == call.id) ||
@@ -599,13 +794,38 @@ final class AiAgent<C> {
                   'Provider reused a tool call identifier.',
                 );
               }
-              final tool = _tool(call.name);
-              if ((item is ToolCallReady && call is! FunctionToolCall) ||
-                  (item is NativeToolCallReady && call is! NativeToolCall)) {
-                throw const FormatException('Tool call event kind mismatch.');
+              if (call is ProviderApprovalCall) {
+                if (item is! ProviderApprovalReady) {
+                  throw const FormatException('Tool call event kind mismatch.');
+                }
+                if ([
+                  ...calls.whereType<ProviderApprovalCall>(),
+                  for (final message in messages)
+                    ...message.toolCalls.whereType<ProviderApprovalCall>(),
+                ].any(
+                  (old) =>
+                      old.provider == call.provider &&
+                      old.providerRequestId == call.providerRequestId,
+                )) {
+                  throw const FormatException(
+                    'Duplicate provider approval request.',
+                  );
+                }
+                if (model is! ProviderApprovalModel) {
+                  throw const FormatException(
+                    'Provider approval model required.',
+                  );
+                }
+                (model as ProviderApprovalModel).approvalContract(call);
+              } else {
+                final tool = _tool(call.name);
+                if ((item is ToolCallReady && call is! FunctionToolCall) ||
+                    (item is NativeToolCallReady && call is! NativeToolCall)) {
+                  throw const FormatException('Tool call event kind mismatch.');
+                }
+                _validateToolKind(call, tool.definition);
+                validateSchema(tool.definition.inputSchema, call.arguments);
               }
-              _validateToolKind(call, tool.definition);
-              validateSchema(tool.definition.inputSchema, call.arguments);
               calls.add(call);
               yield await event('TOOL_CALL_START', {
                 'toolCallId': call.id,
@@ -651,7 +871,8 @@ final class AiAgent<C> {
             'Cannot execute tools from a truncated model invocation.',
           );
         }
-        providerContinuationPending = continueTurn;
+        providerContinuationPending =
+            continueTurn || calls.any((call) => call is ProviderApprovalCall);
         final content = <ContentPart>[];
         final fullText = text.toString();
         var cursor = 0;
@@ -681,13 +902,20 @@ final class AiAgent<C> {
         partialCitations = null;
         partialReferences = null;
         // Checkpoint before executing tools; event deltas use an append-only log.
-        await store.save(
-          ownerId: ownerId,
-          threadId: request.threadId,
-          runId: request.runId,
-          state: state(),
-          release: false,
-        );
+        final wasIndeterminate = providerApprovalIndeterminate;
+        providerApprovalIndeterminate = false;
+        try {
+          await store.save(
+            ownerId: ownerId,
+            threadId: request.threadId,
+            runId: request.runId,
+            state: state(),
+            release: false,
+          );
+        } catch (_) {
+          providerApprovalIndeterminate = wasIndeterminate;
+          rethrow;
+        }
         if (textStarted) {
           yield await event('TEXT_MESSAGE_END', {'messageId': messageId});
         }
@@ -749,14 +977,62 @@ final class AiAgent<C> {
           });
         }
         final interrupts = <JsonObject>[];
+        final hasProviderApproval = calls.any(
+          (call) => call is ProviderApprovalCall,
+        );
         final sequentialApprovals = {
           for (final call in calls)
-            if (_tool(call.name) is SequentialNativeTool<C> &&
+            if (call is! ProviderApprovalCall &&
+                _tool(call.name) is SequentialNativeTool<C> &&
                 (_tool(call.name).needsApproval ||
                     (call is NativeToolCall && call.requiresApproval)))
               call.name,
         };
         for (final call in calls) {
+          if (call is ProviderApprovalCall) {
+            final id = _newId();
+            final contract = immutableJson(
+              (model as ProviderApprovalModel).approvalContract(call),
+            );
+            pending.add({
+              'id': id,
+              'call': call.toJson(),
+              'toolContract': contract,
+            });
+            final binding = <String, Object?>{
+              'v': 1,
+              'interruptId': id,
+              'interruptedRunId': request.runId,
+              'generation': generation,
+              'toolName': call.name,
+              'toolCallId': call.id,
+              'kind': 'tool-approval',
+              'originalArgs': call.arguments,
+              'inputSchemaHash': schemaHash(const {'type': 'object'}),
+              'approvalSchemaHash': schemaHash({
+                'approve': null,
+                'reject': null,
+              }),
+              'responseSchemaHash': schemaHash(_providerApprovalSchema),
+            };
+            interrupts.add({
+              'id': id,
+              'toolCallId': call.id,
+              'reason': 'tool_call',
+              'metadata': {
+                'kind': 'approval',
+                'toolName': call.name,
+                'input': call.arguments,
+                'providerApproval': {
+                  'provider': call.provider,
+                  'serverLabel': call.serverLabel,
+                },
+                'tanstack:interruptBinding': binding,
+              },
+              'responseSchema': _providerApprovalSchema,
+            });
+            continue;
+          }
           final tool = _tool(call.name);
           if (tool.needsApproval ||
               tool.clientExecuted ||
@@ -811,6 +1087,12 @@ final class AiAgent<C> {
                   tool.definition.inputSchema,
                 ),
             });
+          } else if (hasProviderApproval) {
+            stagedCalls.add(call);
+            stagedContracts.add({
+              'call': call.toJson(),
+              'toolContract': _toolContract(tool),
+            });
           } else {
             phase = 'tool';
             final result = await _invokeInBatch(
@@ -857,11 +1139,14 @@ final class AiAgent<C> {
             ? 'Invalid input or provider output.'
             : 'The AI run could not complete.',
       );
-      status = token.isCancelled ? RunStatus.cancelled : RunStatus.failed;
+      status = token.isCancelled || error is RunCancelled
+          ? RunStatus.cancelled
+          : RunStatus.failed;
       reportError(onError, error, stack);
       preservePartial();
       if (accepted) {
         for (final call in unresolvedCalls()) {
+          if (call is ProviderApprovalCall) continue;
           if (call is NativeToolCall) {
             nativeContinuationClosed =
                 'Native tool execution failed; start a new thread.';
@@ -893,7 +1178,7 @@ final class AiAgent<C> {
         );
         released = true;
       }
-      if (!token.isCancelled) {
+      if (!token.isCancelled && error is! RunCancelled) {
         final fields = <String, Object?>{
           'code': failure.code,
           'message': failure.message,
@@ -912,6 +1197,7 @@ final class AiAgent<C> {
       preservePartial();
       if (accepted && status == RunStatus.cancelled) {
         for (final call in unresolvedCalls()) {
+          if (call is ProviderApprovalCall) continue;
           if (call is NativeToolCall) {
             nativeContinuationClosed =
                 'Native tool execution cancelled; start a new thread.';
@@ -954,9 +1240,12 @@ final class AiAgent<C> {
                 call: ToolCall.fromJson(
                   Map<String, Object?>.from(item['call'] as Map),
                 ),
-                clientExecuted: _tool(
-                  (item['call'] as Map)['name'] as String,
-                ).clientExecuted,
+                clientExecuted:
+                    (item['call'] as Map)['kind'] == 'provider_approval'
+                    ? false
+                    : _tool(
+                        (item['call'] as Map)['name'] as String,
+                      ).clientExecuted,
               ),
           ],
         ),
@@ -1118,3 +1407,13 @@ typedef _RunFailure = ({
   String code,
   String message,
 });
+
+const JsonObject _providerApprovalSchema = {
+  'type': 'object',
+  'properties': {
+    'approved': {'type': 'boolean'},
+    'reason': {'type': 'string'},
+  },
+  'required': ['approved'],
+  'additionalProperties': false,
+};

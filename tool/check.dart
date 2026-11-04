@@ -99,6 +99,7 @@ Future<void> main() async {
     await run('dart', ['run', ...example]);
   }
   for (final consumer in [
+    'openai_mcp',
     'support_app',
     'schema_diagnostics',
     'ollama',

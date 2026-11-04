@@ -258,6 +258,36 @@ try {
       console.log(`PASS official JS client: native ${approved ? 'approval' : 'denial'} and private history`);
     } finally { chat.dispose(); }
   }
+  for (const approved of [true, false]) {
+    const threadId = `mcp-${approved}`;
+    const chat = new ChatClient({ threadId, connection: fetchServerSentEvents(`${base}/mcp`) });
+    try {
+      const before = await (await fetch(`${base}/mcp-state`)).json();
+      await chat.sendMessage('Escalate');
+      assert.equal(chat.getError(), undefined);
+      const [interrupt] = chat.getInterrupts();
+      assert.equal(interrupt.kind, 'generic');
+      assert.equal(interrupt.canResolve, true);
+      assert.equal((await (await fetch(`${base}/mcp-state`)).json()).length, before.length + 1);
+      const pending = await (await fetch(`${base}/mcp-history?threadId=${threadId}`)).json();
+      for (const secret of ['PRIVATE-MCP-ID', 'PRIVATE-MCP-CONFIG', 'PRIVATE-MCP-REPLAY']) assert.equal(JSON.stringify(pending).includes(secret), false);
+      interrupt.resolveInterrupt({ approved });
+      for (let i = 0; i < 100; i++) {
+        if (chat.getError() || chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'MCP completed'))) break;
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      assert.equal(chat.getError(), undefined);
+      assert.ok(chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'MCP completed')));
+      const requests = await (await fetch(`${base}/mcp-state`)).json();
+      assert.equal(requests.length, before.length + 2);
+      const input = requests.at(-1).input;
+      assert.deepEqual(input.filter(item => item.type === 'mcp_approval_response'), [{type: 'mcp_approval_response', approval_request_id: 'PRIVATE-MCP-ID', approve: approved}]);
+      assert.equal(input.some(item => item.type === 'function_call_output'), false);
+      const history = await (await fetch(`${base}/mcp-history?threadId=${threadId}`)).json();
+      for (const secret of ['PRIVATE-MCP-ID', 'PRIVATE-MCP-CONFIG', 'PRIVATE-MCP-REPLAY']) assert.equal(JSON.stringify(history).includes(secret), false);
+      console.log(`PASS official JS client: generic MCP ${approved ? 'approval' : 'denial'}`);
+    } finally { chat.dispose(); }
+  }
   {
     const threadId = 'mixed-computer';
     const chat = new ChatClient({ threadId, connection: fetchServerSentEvents(`${base}/mixed`) });

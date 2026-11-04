@@ -4,22 +4,26 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:openai_dart/openai_dart.dart' as api;
 import 'computer_tool.dart';
 import 'hosted_tool.dart';
+import 'mcp_tool.dart';
+import 'mcp_output.dart';
 import 'output_references.dart';
 import 'platform_api.dart';
 
 /// Caller owns [client] and closes it when the application shuts down.
-final class OpenAIResponsesModel implements ChatModel {
+final class OpenAIResponsesModel implements ProviderApprovalModel {
   final api.OpenAIClient client;
   final String model;
   final api.CreateResponseRequest Function(api.CreateResponseRequest)?
   configure;
   final JsonObject Function(JsonObject)? _nativeConfigure;
   final List<OpenAIHostedTool> hostedTools;
+  final List<OpenAIMcpTool> mcpTools;
   const OpenAIResponsesModel({
     required this.client,
     required this.model,
     this.configure,
     this.hostedTools = const [],
+    this.mcpTools = const [],
   }) : _nativeConfigure = null;
 
   /// Native options preserve fields not represented by the installed SDK.
@@ -28,12 +32,14 @@ final class OpenAIResponsesModel implements ChatModel {
     required this.model,
     JsonObject Function(JsonObject)? configure,
     this.hostedTools = const [],
+    this.mcpTools = const [],
   }) : _nativeConfigure = configure,
        configure = null;
 
   ResponsesProtocolModel get _delegate => ResponsesProtocolModel.native(
     model: model,
     hostedTools: hostedTools,
+    mcpTools: mcpTools,
     configure:
         _nativeConfigure ??
         (configure == null
@@ -46,6 +52,9 @@ final class OpenAIResponsesModel implements ChatModel {
     ),
   );
   @override
+  JsonObject approvalContract(ProviderApprovalCall call) =>
+      _delegate.approvalContract(call);
+  @override
   ModelCapabilities get capabilities => _delegate.capabilities;
   @override
   Stream<ModelEvent> stream(
@@ -55,7 +64,7 @@ final class OpenAIResponsesModel implements ChatModel {
 }
 
 /// Responses serialization and normalization, shared by explicit protocol adapters.
-final class ResponsesProtocolModel implements ChatModel {
+final class ResponsesProtocolModel implements ProviderApprovalModel {
   final String model;
   final Stream<JsonObject> Function(JsonObject, CancellationToken) _transport;
   final JsonObject Function(JsonObject)? _configure;
@@ -63,6 +72,7 @@ final class ResponsesProtocolModel implements ChatModel {
   final String? fileIdProvider;
   final bool includeEncryptedReasoning;
   final List<OpenAIHostedTool> hostedTools;
+  final List<OpenAIMcpTool> mcpTools;
 
   ResponsesProtocolModel({
     required String model,
@@ -76,11 +86,13 @@ final class ResponsesProtocolModel implements ChatModel {
     String? fileIdProvider = 'openai',
     bool includeEncryptedReasoning = true,
     List<OpenAIHostedTool> hostedTools = const [],
+    List<OpenAIMcpTool> mcpTools = const [],
   }) : this.native(
          model: model,
          transport: (body, token) {
            final request = _responseRequest(body);
-           if (hostedTools.isNotEmpty && !jsonEquals(request.toJson(), body)) {
+           if ((hostedTools.isNotEmpty || mcpTools.isNotEmpty) &&
+               !jsonEquals(request.toJson(), body)) {
              throw UnsupportedError(
                'Typed transport cannot preserve these options. Use ResponsesProtocolModel.native.',
              );
@@ -94,6 +106,7 @@ final class ResponsesProtocolModel implements ChatModel {
          fileIdProvider: fileIdProvider,
          includeEncryptedReasoning: includeEncryptedReasoning,
          hostedTools: hostedTools,
+         mcpTools: mcpTools,
        );
 
   ResponsesProtocolModel.native({
@@ -105,12 +118,31 @@ final class ResponsesProtocolModel implements ChatModel {
     this.fileIdProvider = 'openai',
     this.includeEncryptedReasoning = true,
     List<OpenAIHostedTool> hostedTools = const [],
+    List<OpenAIMcpTool> mcpTools = const [],
   }) : // Public parameter names are stable; transport ownership stays internal.
        // ignore: prefer_initializing_formals
        _transport = transport,
        // ignore: prefer_initializing_formals
        _configure = configure,
-       hostedTools = List.unmodifiable(hostedTools);
+       hostedTools = List.unmodifiable(hostedTools),
+       mcpTools = List.unmodifiable(mcpTools) {
+    validateMcpTools(this.mcpTools);
+  }
+
+  @override
+  JsonObject approvalContract(ProviderApprovalCall call) {
+    if (providerDataKey != 'openai.responses' ||
+        call.provider != providerDataKey) {
+      throw const FormatException('MCP approval provider mismatch.');
+    }
+    mcpToolFor(mcpTools, call.serverLabel);
+    return immutableJson({
+      'v': 1,
+      'provider': providerDataKey,
+      'mcpTools': [for (final tool in mcpTools) tool.contract],
+      'hostedTools': [for (final tool in hostedTools) tool.definition],
+    });
+  }
 
   @override
   ModelCapabilities get capabilities => const ModelCapabilities(
@@ -135,7 +167,8 @@ final class ResponsesProtocolModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
-    if (providerDataKey != 'openai.responses' && hostedTools.isNotEmpty) {
+    if (providerDataKey != 'openai.responses' &&
+        (hostedTools.isNotEmpty || mcpTools.isNotEmpty)) {
       throw UnsupportedError(
         'OpenAI hosted tools require the OpenAI protocol namespace.',
       );
@@ -158,6 +191,7 @@ final class ResponsesProtocolModel implements ChatModel {
     }
     final nativeCalls = <String, NativeToolCall>{};
     final input = <JsonObject>[];
+    final mcpHistory = McpHistory(mcpTools, request.providerApprovalDecisions);
     for (final message in request.messages) {
       if (message.role == MessageRole.tool) {
         final call = nativeCalls[message.toolCallId];
@@ -239,7 +273,7 @@ final class ResponsesProtocolModel implements ChatModel {
             throw const FormatException('Computer replay does not match call.');
           }
         }
-        input.addAll(replay);
+        input.addAll(mcpHistory.replay(message, replay));
         continue;
       }
       if (message.content.isNotEmpty) {
@@ -279,7 +313,7 @@ final class ResponsesProtocolModel implements ChatModel {
         });
       }
       for (final call in message.toolCalls) {
-        if (call is NativeToolCall) {
+        if (call is NativeToolCall || call is ProviderApprovalCall) {
           throw const FormatException(
             'Native computer call requires provider replay.',
           );
@@ -292,6 +326,7 @@ final class ResponsesProtocolModel implements ChatModel {
         });
       }
     }
+    mcpHistory.finish();
     final canonical = immutableJson({
       'model': model,
       'input': input,
@@ -299,9 +334,12 @@ final class ResponsesProtocolModel implements ChatModel {
       if (includeEncryptedReasoning) 'include': ['reasoning.encrypted_content'],
       'max_output_tokens': request.maxOutputTokens,
       if (request.instructions != null) 'instructions': request.instructions,
-      if (request.tools.isNotEmpty || hostedTools.isNotEmpty)
+      if (request.tools.isNotEmpty ||
+          hostedTools.isNotEmpty ||
+          mcpTools.isNotEmpty)
         'tools': [
           for (final tool in hostedTools) tool.definition,
+          for (final tool in mcpTools) tool.definition,
           for (final tool in request.tools)
             switch (tool) {
               NativeModelTool() => tool.definition,
@@ -330,7 +368,8 @@ final class ResponsesProtocolModel implements ChatModel {
       Map<String, dynamic>.from(configured),
       owned: ['input', 'instructions', 'max_output_tokens', 'stream'],
       schemaField: 'text',
-      allowAdditionalTools: providerDataKey == 'openai.responses',
+      allowAdditionalTools:
+          providerDataKey == 'openai.responses' && mcpTools.isEmpty,
       functionDecorations: const [
         'strict',
         'defer_loading',
@@ -339,7 +378,7 @@ final class ResponsesProtocolModel implements ChatModel {
       ],
     );
     final configuredHosted = providerDataKey == 'openai.responses'
-        ? _responseHostedTools(options, request.tools)
+        ? _responseHostedTools(options, request.tools, mcpTools: mcpTools)
         : <OpenAIHostedTool>[];
     final configuredComputers = (options['tools'] as List? ?? [])
         .where(
@@ -365,6 +404,23 @@ final class ResponsesProtocolModel implements ChatModel {
       options['include'] = includes.toList();
     }
 
+    if (mcpTools.isNotEmpty) {
+      final definitions = <String, JsonObject>{};
+      for (final tool in mcpTools) {
+        cancellation.throwIfCancelled();
+        final resolved = await tool.resolveDefinition();
+        cancellation.throwIfCancelled();
+        definitions[tool.definition['server_label'] as String] = resolved;
+      }
+      options['tools'] = [
+        for (final raw in options['tools'] as List)
+          if ((raw as Map)['type'] == 'mcp')
+            definitions[raw['server_label']]!
+          else
+            raw,
+      ];
+    }
+
     JsonObject? terminalResponse;
     var incomplete = false;
     final completedItems = <JsonObject>[];
@@ -373,6 +429,9 @@ final class ResponsesProtocolModel implements ChatModel {
     String? actualModel;
     final streamedText = StringBuffer();
     final references = ResponsesReferences();
+    final mcpOutput = McpOutput(mcpTools, request.providerApprovalDecisions);
+    if (mcpTools.isNotEmpty) yield const ProviderExecutionStarting();
+    cancellation.throwIfCancelled();
     await for (final json in _transport(immutableJson(options), cancellation)) {
       cancellation.throwIfCancelled();
       if (terminalResponse != null) {
@@ -384,6 +443,7 @@ final class ResponsesProtocolModel implements ChatModel {
         }
       }
       if (providerDataKey == 'openai.responses') references.observe(json);
+      mcpOutput.observe(json);
       switch (json['type']) {
         case 'response.output_text.delta' || 'response.refusal.delta':
           final text = json['delta'] as String;
@@ -441,8 +501,11 @@ final class ResponsesProtocolModel implements ChatModel {
     ];
     if (incomplete &&
         (output.any(
-              (item) =>
-                  {'function_call', 'computer_call'}.contains(item['type']),
+              (item) => {
+                'function_call',
+                'computer_call',
+                'mcp_approval_request',
+              }.contains(item['type']),
             ) ||
             doneCalls.isNotEmpty ||
             doneComputers.isNotEmpty)) {
@@ -450,6 +513,7 @@ final class ResponsesProtocolModel implements ChatModel {
         'Incomplete response cannot execute local tools.',
       );
     }
+    mcpOutput.finish(output, completed: !incomplete);
     final calls = <ToolCall>[];
     final seen = <String>{};
     final functionIds = <String>{}, computerIds = <String>{};
@@ -498,14 +562,17 @@ final class ResponsesProtocolModel implements ChatModel {
             requiresApproval: call.safetyChecks.isNotEmpty,
           ),
         );
+      } else if (type == 'mcp_approval_request') {
+        calls.add(mcpOutput.approval(item));
+      } else if (type == 'mcp_call' ||
+          type == 'mcp_list_tools' ||
+          type == 'mcp_approval_response') {
+        // Validated provider execution data remains in private ordered replay.
       } else if ({
         'local_shell_call',
         'shell_call',
         'custom_tool_call',
         'apply_patch_call',
-        'mcp_approval_request',
-        'mcp_call',
-        'mcp_list_tools',
       }.contains(type)) {
         throw UnsupportedError(
           'OpenAI $type requires a separate native lifecycle handler.',
@@ -578,6 +645,7 @@ final class ResponsesProtocolModel implements ChatModel {
     for (final call in calls) {
       yield switch (call) {
         NativeToolCall() => NativeToolCallReady(call),
+        ProviderApprovalCall() => ProviderApprovalReady(call),
         FunctionToolCall() => ToolCallReady(call),
       };
     }
@@ -588,7 +656,10 @@ final class ResponsesProtocolModel implements ChatModel {
         items: [
           {
             for (final entry in response.entries)
-              if (entry.key != 'output') entry.key: entry.value,
+              if (entry.key != 'output')
+                entry.key: entry.key == 'tools'
+                    ? _withoutMcpCredentials(entry.value)
+                    : entry.value,
           },
         ],
       );
@@ -850,9 +921,12 @@ final class ChatCompletionsProtocolModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
-    if (request.tools.any((tool) => tool is NativeModelTool) ||
+    if (request.providerApprovalDecisions.isNotEmpty ||
+        request.tools.any((tool) => tool is NativeModelTool) ||
         request.messages.any(
-          (message) => message.toolCalls.any((call) => call is NativeToolCall),
+          (message) => message.toolCalls.any(
+            (call) => call is NativeToolCall || call is ProviderApprovalCall,
+          ),
         )) {
       throw UnsupportedError('Chat Completions does not support native tools.');
     }
@@ -1145,8 +1219,9 @@ JsonObject _configureResponse(
 
 List<OpenAIHostedTool> _responseHostedTools(
   JsonObject options,
-  Iterable<ModelTool> registered,
-) {
+  Iterable<ModelTool> registered, {
+  List<OpenAIMcpTool> mcpTools = const [],
+}) {
   if (options['background'] == true ||
       options['previous_response_id'] != null ||
       options['conversation'] != null) {
@@ -1194,6 +1269,14 @@ List<OpenAIHostedTool> _responseHostedTools(
           raw['defer_loading'] != null && raw['defer_loading'] is! bool) {
         throw ArgumentError('Invalid function tool options.');
       }
+    } else if (raw['type'] == 'mcp') {
+      final label = raw['server_label'];
+      if (label is! String ||
+          !jsonEquals(mcpToolFor(mcpTools, label).definition, raw)) {
+        throw ArgumentError(
+          'MCP tools must match configured mcpTools exactly.',
+        );
+      }
     } else if (!{'computer', 'computer_use_preview'}.contains(raw['type'])) {
       final tool = OpenAIHostedTool.fromJson(raw);
       final family = tool.type.startsWith('web_search')
@@ -1220,6 +1303,19 @@ List<OpenAIHostedTool> _responseHostedTools(
       return;
     }
     if (type == 'function' && functions.contains(value['name'])) return;
+    if (type == 'mcp') {
+      final label = value['server_label'];
+      if (label is! String ||
+          !mcpTools.any((tool) => tool.definition['server_label'] == label) ||
+          (value['name'] != null &&
+              (value['name'] is! String ||
+                  (value['name'] as String).isEmpty))) {
+        throw ArgumentError(
+          'MCP tool choice requires a configured server label.',
+        );
+      }
+      return;
+    }
     if ((tools ?? []).any((tool) => (tool as Map)['type'] == type)) {
       return;
     }
@@ -1315,3 +1411,16 @@ ImagePart? _hostedImage(JsonObject item, List<OpenAIHostedTool> configured) {
   }
   return null;
 }
+
+// Response metadata must not reintroduce credentials stripped from tool contracts.
+Object? _withoutMcpCredentials(Object? tools) => tools is List
+    ? [
+        for (final tool in tools)
+          if (tool is Map && tool['type'] == 'mcp')
+            Map<String, Object?>.from(tool)
+              ..remove('authorization')
+              ..remove('headers')
+          else
+            tool,
+      ]
+    : tools;

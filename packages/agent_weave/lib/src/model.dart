@@ -279,6 +279,14 @@ sealed class ToolCall {
     final arguments = Map<String, Object?>.from(json['arguments'] as Map);
     return switch (json['kind']) {
       null || 'function' => ToolCall(id: id, name: name, arguments: arguments),
+      'provider_approval' => ProviderApprovalCall(
+        id: id,
+        name: name,
+        arguments: arguments,
+        provider: json['provider'] as String,
+        serverLabel: json['serverLabel'] as String,
+        providerRequestId: json['providerRequestId'] as String,
+      ),
       'native' => NativeToolCall(
         id: id,
         name: name,
@@ -320,6 +328,70 @@ final class NativeToolCall extends ToolCall {
     'provider': provider,
     'requiresApproval': requiresApproval,
   };
+}
+
+/// A provider-owned approval, never a locally executable tool.
+final class ProviderApprovalCall extends ToolCall {
+  final String provider;
+  final String serverLabel;
+
+  /// Backend-only provider identifier. Do not include in UI projections.
+  final String providerRequestId;
+  ProviderApprovalCall({
+    required super.id,
+    required super.name,
+    required super.arguments,
+    required this.provider,
+    required this.serverLabel,
+    required this.providerRequestId,
+  }) : super._() {
+    if ([
+      id,
+      name,
+      provider,
+      serverLabel,
+      providerRequestId,
+    ].any((v) => v.trim().isEmpty)) {
+      throw const FormatException('Invalid provider approval.');
+    }
+  }
+  @override
+  JsonObject toJson() => {
+    'kind': 'provider_approval',
+    'id': id,
+    'name': name,
+    'arguments': arguments,
+    'provider': provider,
+    'serverLabel': serverLabel,
+    'providerRequestId': providerRequestId,
+  };
+}
+
+/// Private decision for provider continuation and ordered replay.
+final class ProviderApprovalDecision {
+  final String provider;
+  final String providerRequestId;
+  final bool approved;
+  final String? reason;
+  const ProviderApprovalDecision({
+    required this.provider,
+    required this.providerRequestId,
+    required this.approved,
+    this.reason,
+  });
+  JsonObject toJson() => {
+    'provider': provider,
+    'providerRequestId': providerRequestId,
+    'approved': approved,
+    'reason': ?reason,
+  };
+  factory ProviderApprovalDecision.fromJson(JsonObject json) =>
+      ProviderApprovalDecision(
+        provider: json['provider'] as String,
+        providerRequestId: json['providerRequestId'] as String,
+        approved: json['approved'] as bool,
+        reason: json['reason'] as String?,
+      );
 }
 
 final class AudioPart extends ContentPart {
@@ -557,16 +629,21 @@ final class NativeModelTool extends ModelTool {
 final class ModelRequest {
   final List<ChatMessage> messages;
   final List<ModelTool> tools;
+
+  /// Trusted backend-only decisions in conversation order; never expose to UI.
+  final List<ProviderApprovalDecision> providerApprovalDecisions;
   final String? instructions;
   final JsonObject? outputSchema;
   final int maxOutputTokens;
   ModelRequest({
     required Iterable<ChatMessage> messages,
     Iterable<ModelTool> tools = const [],
+    Iterable<ProviderApprovalDecision> providerApprovalDecisions = const [],
     this.instructions,
     JsonObject? outputSchema,
     this.maxOutputTokens = 1024,
   }) : messages = List.unmodifiable(messages),
+       providerApprovalDecisions = List.unmodifiable(providerApprovalDecisions),
        tools = List.unmodifiable(
          tools.map(
            (tool) => switch (tool) {
@@ -643,6 +720,16 @@ final class ToolCallReady extends ModelEvent {
   const ToolCallReady(this.call);
 }
 
+/// Private boundary immediately before a provider-managed effect may start.
+final class ProviderExecutionStarting extends ModelEvent {
+  const ProviderExecutionStarting();
+}
+
+final class ProviderApprovalReady extends ModelEvent {
+  final ProviderApprovalCall call;
+  const ProviderApprovalReady(this.call);
+}
+
 final class NativeToolCallReady extends ModelEvent {
   final NativeToolCall call;
   const NativeToolCallReady(this.call);
@@ -687,6 +774,12 @@ final class ProviderOutput extends ModelEvent {
   final List<JsonObject> items;
   ProviderOutput({required this.provider, required Iterable<JsonObject> items})
     : items = List.unmodifiable(items.map(immutableJson));
+}
+
+/// Models that can validate their current provider-owned approval configuration.
+abstract interface class ProviderApprovalModel implements ChatModel {
+  /// Secret-free exact configuration used to bind and validate this approval.
+  JsonObject approvalContract(ProviderApprovalCall call);
 }
 
 /// Optional provider capabilities use their own request/result types.

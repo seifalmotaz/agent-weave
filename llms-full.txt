@@ -82,7 +82,7 @@ final events = agent.run(
 ```
 
 Close the provider client when your application shuts down. Keep OpenAI keys
-on the backend. Use the provider import prefix because provider SDK types can
+on the backend. For remote tool approvals and owner-bound credentials, see [MCP approvals](docs/openai-mcp.md). Use the provider import prefix because provider SDK types can
 share names with core types.
 
 ## Connect Flutter through Serverpod
@@ -176,7 +176,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Selected OpenAI hosted Responses tools now have lossless native options,
   terminal validation, private replay and ordered completed image parts. Hosted
   progress, precise native-coordinate citation highlights, partial images,
-  MCP/shell/custom/patch and live provider
+  shell/custom/patch and live provider
   behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
@@ -195,6 +195,11 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   forms and completed Chat URL references, including empty segments and opaque
   native positions. Other provider references, live indexing conventions,
   authorized download recipes and device rendering remain open.
+- Native OpenAI Responses MCP now supports private discovery/call replay, multiple
+  server configurations, credential resolution and approval/denial decisions.
+  Generic client, loopback and durable fixtures do not establish live remote
+  execution, identity-provider integration, tunnel/connector availability or
+  exactly-once effects. These remain open.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.
@@ -1319,6 +1324,56 @@ resume is outside this round's coverage. The tools guide now shows the differing
 Dart and JavaScript edited-approval calls side by side.
 
 
+## Round 23: provider-owned MCP approvals
+
+The independent developer initially scored this journey **2/10**: configuration
+was rejected and an incoming approval failed without an interrupt. After
+implementation, the same offline journey scores **7.5/10**. This is a scoped
+MCP review, not a package-wide acceptance score or live provider certification.
+
+Reproduce the tracked consumer from the workspace root:
+
+```sh
+dart analyze examples/review_cases/openai_mcp.dart
+dart run examples/review_cases/openai_mcp.dart
+dart test packages/agent_weave_serverpod_client/test/interop_test.dart
+node tool/interop/test.mjs
+```
+
+The consumer uses a synthetic Responses SSE server with two labels and two
+requests in one output. It approves one and rejects the other through a
+recreated agent sharing the same MemoryRunStore. Changing the server URL fails
+before another provider request. Outgoing input includes ordered native
+`mcp_approval_response` items with the expected IDs and decisions, with no local
+function result. A credential callback refreshes on each invocation; private
+native IDs and credentials stay out of hydration. Another owner cannot load
+the conversation, and pre-cancellation sends no request.
+
+Both clients expose MCP decisions as resolvable **generic interrupts**. They use
+`resolveInterrupt({'approved': true})` in Dart and
+`resolveInterrupt({approved: true})` in JavaScript. Typed local-tool JS approval
+has a different signature. The guide now explains that distinction. Eight
+focused Dart client tests and 25 standalone official JavaScript scenarios pass,
+including MCP approval and denial. The first local JS probe deadlocked when its
+provider and client shared a serial request listener; a concurrent listener
+corrected that fixture before integration into the existing harness.
+
+The architecture review caught three additional defects: an approval echo could
+be replayed twice on a later turn, a Chat adapter could reinterpret MCP history
+as a local function call, and another server's configuration could change while
+an approval was pending. The final adapter has regressions for echo suppression,
+foreign-provider rejection before transport and binding the whole ordered MCP
+and hosted-tool configuration.
+
+The first code block in the MCP guide byte-matches the live CLI example. That
+example compiles without execution; the offline consumer also analyzes and runs.
+Cancellation wording distinguishes a pending decision from an uncertain request
+after dispatch. The independent reviewer did not run PostgreSQL, in-flight MCP
+cancellation, step limits, live OAuth/MCP, mobile rendering or real remote
+execution. The main verification suite separately exercises durable storage and
+synthetic failure boundaries. The score remains 7.5/10 for the reviewed scope.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -1847,6 +1902,34 @@ text highlight. Supply the known UTF-16 enclosing `partStart`/`partEnd` separate
 Keep provider positions opaque and use typed source fields. Scoped file handles
 are deliberate public data and require application authorization.
 See [output references](output-references.md).
+
+
+## Provider-owned approvals
+
+Implement `ProviderApprovalModel` when the provider executes tools remotely and
+can request a human decision. Emit `ProviderApprovalReady` with a
+`ProviderApprovalCall`. Generate a distinct local call ID for public display;
+keep `providerRequestId` in backend state. Do not register a dummy `AgentTool`
+or emit a local tool result for a remote approval.
+
+`approvalContract(call)` returns an immutable, versioned configuration snapshot
+for resume checks. Bind all relevant remote tools and authorization identities;
+resolve secrets at request time. Approval and denial arrive as trusted
+`ModelRequest.providerApprovalDecisions` across the saved conversation. Preserve
+their native correlation and order. Reject a different provider's decision
+history before dispatch. Never accept raw continuation state from a client.
+
+Emit `ProviderExecutionStarting` immediately before a request that can cause
+provider-managed effects, after preflight and credential resolution. The runtime
+checkpoints an indeterminate marker before advancing your stream. A known
+terminal checkpoint clears it; failure or cancellation cannot automatically
+resend the request. Omitting this event on an initial remotely executing request
+would leave that failure boundary unprotected. Include it even when no approval
+has occurred, such as a server configured to execute without asking.
+
+The [OpenAI MCP adapter](openai-mcp.md) demonstrates this contract. Its pinned
+clients use generic approval payloads. Native computer execution remains a
+separate local-driver contract with different denial behavior.
 
 
 # Source: docs/documents.md
@@ -2940,7 +3023,7 @@ The adapter currently recognizes these hosted tool families:
 | `tool_search` with `execution: server` | Retain server search calls and loaded definitions; ordinary executors must still be registered by the application |
 
 One definition per family is allowed. Hosted tools do not add local executors.
-Client tool search, MCP, shell, custom-tool and patch lifecycles are not
+Client tool search, shell, custom-tool and patch lifecycles are not
 integrated and fail explicitly. Computer use has its own
 [application-controlled contract](computer-use.md).
 
@@ -3010,13 +3093,209 @@ file authorization and the distinction between native indexes and UTF-16 text.
 Partial images, hosted progress and artifact hosting remain open.
 
 
+## MCP approvals
+
+Remote MCP uses a separate provider-owned approval lifecycle. See [MCP approvals](openai-mcp.md) for configuration, owner-bound credentials, generic client interrupts, denial and indeterminate continuations.
+
+
+# Source: docs/openai-mcp.md
+
+# Approve remote MCP tools
+
+Use `OpenAIResponsesModel` with `mcpTools` for provider-executed MCP calls.
+The runtime pauses on a returned approval request. Approval and denial both
+continue the provider conversation; neither invokes a local `AgentTool`.
+
+## Run the interactive example
+
+Set `OPENAI_API_KEY` and optionally `OPENAI_MODEL`, then run
+`dart run examples/openai_mcp_demo.dart`. This makes billable requests and
+contacts the configured MCP server. Repository checks compile this example;
+they do not run it. Each proposed tool call requires your CLI decision.
+The example uses in-process memory and bounds the number of approval rounds.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+Future<void> main() async {
+  final client = openai.OpenAIClient.fromEnvironment();
+  try {
+    final agent = AiAgent<void>(
+      model: openai.OpenAIResponsesModel.native(
+        client: client,
+        model: Platform.environment['OPENAI_MODEL'] ?? 'gpt-5.4-nano',
+        mcpTools: [
+          openai.OpenAIMcpTool.fromJson({
+            'type': 'mcp',
+            'server_label': 'openai_docs',
+            'server_url': 'https://developers.openai.com/mcp',
+            'require_approval': 'always',
+          }),
+        ],
+      ),
+    );
+    var result = await agent.generate(
+      ChatRequest(
+        threadId: 'docs',
+        runId: 'question',
+        messages: [
+          ChatMessage.user(
+            'Find the OpenAI Responses streaming guide.',
+            id: 'u',
+          ),
+        ],
+      ),
+      ownerId: 'local-demo',
+      context: null,
+    );
+    for (
+      var round = 0;
+      round < 4 && result.status == RunStatus.interrupted;
+      round++
+    ) {
+      final answers = <ResumeAnswer>[];
+      for (final interrupt in result.interrupts) {
+        final call = interrupt.call as ProviderApprovalCall;
+        print('${call.serverLabel}: ${call.name} ${call.arguments}');
+        stdout.write('Approve this request? Type yes, otherwise deny: ');
+        answers.add(
+          stdin.readLineSync() == 'yes'
+              ? interrupt.approve()
+              : interrupt.reject(reason: 'Declined in the CLI'),
+        );
+      }
+      result = await agent.generate(
+        ChatRequest(
+          threadId: result.threadId,
+          runId: 'decision-$round',
+          parentRunId: result.runId,
+          resume: answers,
+        ),
+        ownerId: 'local-demo',
+        context: null,
+      );
+    }
+    print('${result.status.name}: ${result.text}');
+  } finally {
+    client.close();
+  }
+}
+```
+
+For an offline fixture, run `dart run examples/review_cases/openai_mcp.dart`.
+It exercises two configured servers, approval and denial, recreated agents,
+credential rotation, owner isolation, changed configuration and a real Dart
+client over loopback HTTP. It does not execute a remote tool.
+
+## Configure servers and credentials
+
+Each tool has a unique `server_label`. Use a `server_url`, `tunnel_id`, or
+legacy `connector_id`. The provider and model determine address availability.
+`OpenAIMcpTool` accepts the pinned SDK's `McpTool`; `fromJson` preserves native
+options not represented by that SDK, including allowed-tool filters,
+`require_approval` policies, deferred loading and future JSON fields.
+Configured MCP tools cannot be injected or replaced through `configure`.
+When using MCP, declare other hosted tools through `hostedTools` as well;
+`configure` cannot add extra tools. Pending approvals bind the whole ordered
+MCP configuration and hosted-tool set, including credential identities.
+
+Keep credentials separate from the persisted configuration. Construct the model
+for the authenticated owner and resolve that owner's credential on each request:
+
+```dart
+final mcp = openai.OpenAIMcpTool.fromJson(
+  {
+    'type': 'mcp',
+    'server_label': 'support',
+    'server_url': 'https://support.example.com/mcp',
+    'require_approval': 'always',
+  },
+  credentialBindingId: account.stableAuthorizationIdentity,
+  credentials: () async => openai.OpenAIMcpCredentials(
+    authorization: await tokens.accessTokenFor(authenticatedOwner, account),
+  ),
+);
+```
+
+`account` and `tokens` are application services. Derive the owner from backend
+authentication. The binding identifies the account and authorization scope;
+change it when that authority changes. Refreshing a token for the same binding
+is allowed. Literal `authorization` and `headers` are also accepted with a
+binding ID and extracted into private request-time credentials.
+
+`definition` and `contract` omit these credentials. Known MCP credentials are
+also removed from response configuration metadata. Keep secrets out of URLs,
+unknown options and application logs. Call arguments and native results can
+contain private data and remain in backend history; only use `chatHydration`
+for a client snapshot. The backend `AgentResult` includes private replay.
+
+## Resume a saved decision
+
+Use `ServerpodRunStore(session)` for durable history, recreating the agent with
+the same nonsecret configuration and credential binding on each request.
+For complete database setup, see the [Serverpod example](../examples/serverpod/README.md).
+The approved or rejected run supplies a new run ID and the interrupted parent.
+Resolve every pending interrupt once. `approve(reason: ...)` and
+`reject(reason: ...)` accept an optional string; editing provider arguments is
+unsupported. A changed server or policy fails before local effects or provider
+continuation. Cancelling a pending approval before continuation preserves it and does not
+send denial. Cancellation after dispatch can instead leave the run indeterminate.
+
+Both pinned clients expose these as **generic interrupts** without registering
+a fake local tool. Use the same payload shape in Dart and JavaScript:
+
+```dart
+final interrupt = chat.getInterrupts().single;
+interrupt.resolveInterrupt({'approved': false, 'reason': 'Outside the scope'});
+```
+
+```javascript
+const [interrupt] = chat.getInterrupts();
+interrupt.resolveInterrupt({approved: false, reason: 'Outside the scope'});
+```
+
+Read `metadata.providerApproval` for the provider and server label. This differs
+from the [typed local-tool JavaScript approval API](tools.md#edit-tool-arguments-in-a-client).
+Never send raw provider request IDs or replay from a client. The runtime maps
+its public local call IDs to private MCP approval IDs.
+
+## Failure and continuation boundaries
+
+The adapter reconciles terminal MCP discovery, calls, approvals and matching
+approval-response echoes before exposing a call or executing a local tool.
+Echoes must match the saved decision and are retained for audit without sending
+the same approval response twice on later turns.
+Native approval responses follow their source output in ordered, stateless
+replay with `store: false`. See the [official MCP guide](https://developers.openai.com/api/docs/guides/tools-connectors-mcp)
+for the provider protocol; fixture coverage does not establish live acceptance.
+
+Provider continuations consume normal model steps. In a mixed local/provider
+turn, local calls wait for the complete approval batch to validate before effects.
+The runtime checkpoints before a possible provider execution. If a request fails,
+is cancelled, or loses its authoritative checkpoint after it might have started,
+the thread becomes indeterminate and cannot automatically resend. This guard
+is conservative once a decision batch is accepted, even if the failure occurs
+before a network send can be confirmed. Preserve its
+history, reconcile external effects, and start a new thread when needed.
+A denial continues normally. The SDK's streaming path does not automatically retry.
+
+Explicitly setting `require_approval: never` or selective policies can authorize
+remote execution without a pause. Neither the runtime nor a cancelled network
+request can undo a remote effect. Live MCP servers, OAuth, tunnel/connector
+availability, remote idempotency and provider execution quality remain unverified.
+See [validation](validation.md) for offline and durable test evidence.
+
+
 # Source: docs/openai-hosted-parameters.md
 
 # OpenAI hosted tool inventory
 
 Generated from the pinned [official Node SDK declarations](openai-hosted-inventory.json). See [the usage guide](openai-hosted.md) and [output references](output-references.md).
 
-Selected hosted Responses and output-reference declarations, with executable hosted request fields; not a claim of complete nested semantics, live behavior or endpoint parity. Four annotation forms have typed public reference projections. Native positions remain opaque, distinct from enclosing UTF-16 text segments. Scoped file handles are deliberately public references; unknown fields and native replay stay private. Completed image bytes become public ImagePart content. Partial images, precise native-coordinate highlights, hosted progress and downloaded container files remain open. External type references are retained, not expanded. Other tools, local executors and unselected declarations are excluded.
+Selected hosted Responses, MCP and output-reference declarations, with executable hosted request fields; MCP uses provider-owned approval continuation and private replay. Credentials resolve separately at request time and require a stable binding identity; credential fields are excluded from executable configuration snapshots. Provider approval response echoes must match a trusted decision and do not create a new approval. This does not establish complete MCP protocol, model or live parity; not a claim of complete nested semantics, live behavior or endpoint parity. Four annotation forms have typed public reference projections. Native positions remain opaque, distinct from enclosing UTF-16 text segments. Scoped file handles are deliberately public references; unknown fields and native replay stay private. Completed image bytes become public ImagePart content. Partial images, precise native-coordinate highlights, hosted progress and downloaded container files remain open. External type references are retained, not expanded. Other tools, local executors and unselected declarations are excluded.
 
 ## FileSearchTool
 
@@ -3048,6 +3327,41 @@ Disposition: raw-native-options
 | --- | --- |
 | embedding_weight | `number` |
 | text_weight | `number` |
+
+## McpToolCallError
+
+Disposition: validated-private-mcp-replay
+
+`McpToolCallError.McpProtocolError | McpToolCallError.McpToolExecutionError | McpToolCallError.HTTPError`
+
+## McpToolCallError.McpProtocolError
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| code | `number` |
+| message | `string` |
+| type | `'mcp_protocol_error'` |
+
+## McpToolCallError.McpToolExecutionError
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| content | `unknown` |
+| type | `'mcp_tool_execution_error'` |
+
+## McpToolCallError.HTTPError
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| code | `number` |
+| message | `string` |
+| type | `'http_error'` |
 
 ## ResponseCodeInterpreterToolCall
 
@@ -3200,6 +3514,108 @@ Disposition: private-replay
 | type | `'find_in_page'` |
 | url | `string` |
 
+## ResponseInputItem.McpApprovalResponse
+
+Disposition: integrated-private-approval-decision
+
+| Field | Source type |
+| --- | --- |
+| approval_request_id | `string` |
+| approve | `boolean` |
+| type | `'mcp_approval_response'` |
+| id? | `string \| null` |
+| reason? | `string \| null` |
+
+## ResponseMcpCallArgumentsDeltaEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| delta | `string` |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_call_arguments.delta'` |
+
+## ResponseMcpCallArgumentsDoneEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| arguments | `string` |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_call_arguments.done'` |
+
+## ResponseMcpCallCompletedEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_call.completed'` |
+
+## ResponseMcpCallFailedEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_call.failed'` |
+
+## ResponseMcpCallInProgressEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_call.in_progress'` |
+
+## ResponseMcpListToolsCompletedEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_list_tools.completed'` |
+
+## ResponseMcpListToolsFailedEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_list_tools.failed'` |
+
+## ResponseMcpListToolsInProgressEvent
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.mcp_list_tools.in_progress'` |
+
 ## ResponseOutputItem.ImageGenerationCall
 
 Disposition: private-replay
@@ -3238,6 +3654,69 @@ Disposition: private-replay
 | --- | --- |
 | categories | `Array<string>` |
 | moderation_stage | `'input' \| 'output' \| 'unknown'` |
+
+## ResponseOutputItem.McpCall
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| arguments | `string` |
+| name | `string` |
+| server_label | `string` |
+| type | `'mcp_call'` |
+| approval_request_id? | `string \| null` |
+| error? | `ResponsesAPI.McpToolCallError \| null` |
+| output? | `string \| null` |
+| status? | `'in_progress' \| 'completed' \| 'incomplete' \| 'calling' \| 'failed'` |
+
+## ResponseOutputItem.McpListTools
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| server_label | `string` |
+| tools | `Array<McpListTools.Tool>` |
+| type | `'mcp_list_tools'` |
+| error? | `string \| null` |
+
+## ResponseOutputItem.McpListTools.Tool
+
+Disposition: validated-private-mcp-replay
+
+| Field | Source type |
+| --- | --- |
+| input_schema | `unknown` |
+| name | `string` |
+| annotations? | `unknown \| null` |
+| description? | `string \| null` |
+
+## ResponseOutputItem.McpApprovalRequest
+
+Disposition: integrated-provider-approval
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| arguments | `string` |
+| name | `string` |
+| server_label | `string` |
+| type | `'mcp_approval_request'` |
+
+## ResponseOutputItem.McpApprovalResponse
+
+Disposition: validated-private-approval-echo
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| approval_request_id | `string` |
+| approve | `boolean` |
+| type | `'mcp_approval_response'` |
+| reason? | `string \| null` |
 
 ## ResponseOutputMessage
 
@@ -3390,6 +3869,12 @@ Disposition: reviewed-reference-output
 | index | `number` |
 | type | `'file_path'` |
 
+## ResponseStreamEvent
+
+Disposition: reviewed-stream-union
+
+`ResponseAudioDeltaEvent | ResponseAudioDoneEvent | ResponseAudioTranscriptDeltaEvent | ResponseAudioTranscriptDoneEvent | ResponseCodeInterpreterCallCodeDeltaEvent | ResponseCodeInterpreterCallCodeDoneEvent | ResponseCodeInterpreterCallCompletedEvent | ResponseCodeInterpreterCallInProgressEvent | ResponseCodeInterpreterCallInterpretingEvent | ResponseCompactionCompactingEvent | ResponseCompletedEvent | ResponseContentPartAddedEvent | ResponseContentPartDoneEvent | ResponseCreatedEvent | ResponseErrorEvent | ResponseFileSearchCallCompletedEvent | ResponseFileSearchCallInProgressEvent | ResponseFileSearchCallSearchingEvent | ResponseFunctionCallArgumentsDeltaEvent | ResponseFunctionCallArgumentsDoneEvent | ResponseShellCallCommandAddedEvent | ResponseShellCallCommandDeltaEvent | ResponseShellCallCommandDoneEvent | ResponseShellCallOutputContentDeltaEvent | ResponseShellCallOutputContentDoneEvent | ResponseInProgressEvent | ResponseFailedEvent | ResponseIncompleteEvent | ResponseOutputItemAddedEvent | ResponseOutputItemDoneEvent | ResponseReasoningSummaryPartAddedEvent | ResponseReasoningSummaryPartDoneEvent | ResponseReasoningSummaryTextDeltaEvent | ResponseReasoningSummaryTextDoneEvent | ResponseReasoningTextDeltaEvent | ResponseReasoningTextDoneEvent | ResponseRefusalDeltaEvent | ResponseRefusalDoneEvent | ResponseTextDeltaEvent | ResponseTextDoneEvent | ResponseWebSearchCallCompletedEvent | ResponseWebSearchCallInProgressEvent | ResponseWebSearchCallSearchingEvent | ResponseImageGenCallCompletedEvent | ResponseImageGenCallGeneratingEvent | ResponseImageGenCallInProgressEvent | ResponseImageGenCallPartialImageEvent | ResponseMcpCallArgumentsDeltaEvent | ResponseMcpCallArgumentsDoneEvent | ResponseMcpCallCompletedEvent | ResponseMcpCallFailedEvent | ResponseMcpCallInProgressEvent | ResponseMcpListToolsCompletedEvent | ResponseMcpListToolsFailedEvent | ResponseMcpListToolsInProgressEvent | ResponseOutputTextAnnotationAddedEvent | ResponseQueuedEvent | ResponseCustomToolCallInputDeltaEvent | ResponseCustomToolCallInputDoneEvent`
+
 ## ResponseToolSearchCall
 
 Disposition: private-replay
@@ -3417,6 +3902,63 @@ Disposition: private-replay
 | tools | `Array<Tool>` |
 | type | `'tool_search_output'` |
 | created_by? | `string` |
+
+## Tool.Mcp
+
+Disposition: integrated-mcp-configuration
+
+| Field | Source type |
+| --- | --- |
+| server_label | `string` |
+| type | `'mcp'` |
+| allowed_callers? | `Array<'direct' \| 'programmatic'> \| null` |
+| allowed_tools? | `Array<string> \| Mcp.McpToolFilter \| null` |
+| authorization? | `string` |
+| connector_id? | `'connector_dropbox' \| 'connector_gmail' \| 'connector_googlecalendar' \| 'connector_googledrive' \| 'connector_microsoftteams' \| 'connector_outlookcalendar' \| 'connector_outlookemail' \| 'connector_sharepoint'` |
+| defer_loading? | `boolean` |
+| headers? | `{
+    [key: string]: string;
+} \| null` |
+| require_approval? | `Mcp.McpToolApprovalFilter \| 'always' \| 'never' \| null` |
+| server_description? | `string` |
+| server_url? | `string` |
+| tunnel_id? | `string` |
+
+## Tool.Mcp.McpToolFilter
+
+Disposition: integrated-mcp-configuration
+
+| Field | Source type |
+| --- | --- |
+| read_only? | `boolean` |
+| tool_names? | `Array<string>` |
+
+## Tool.Mcp.McpToolApprovalFilter
+
+Disposition: integrated-mcp-configuration
+
+| Field | Source type |
+| --- | --- |
+| always? | `McpToolApprovalFilter.Always` |
+| never? | `McpToolApprovalFilter.Never` |
+
+## Tool.Mcp.McpToolApprovalFilter.Always
+
+Disposition: integrated-mcp-configuration
+
+| Field | Source type |
+| --- | --- |
+| read_only? | `boolean` |
+| tool_names? | `Array<string>` |
+
+## Tool.Mcp.McpToolApprovalFilter.Never
+
+Disposition: integrated-mcp-configuration
+
+| Field | Source type |
+| --- | --- |
+| read_only? | `boolean` |
+| tool_names? | `Array<string>` |
 
 ## Tool.CodeInterpreter
 
@@ -5550,7 +6092,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
-| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. | See [OpenAI audit](openai-options-audit.md): MCP/shell/custom/patch continuations, public citations, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
+| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. Remote MCP approval/denial and private replay have offline coverage; see [MCP approvals](openai-mcp.md). | See [OpenAI audit](openai-options-audit.md): shell/custom/patch continuations, precise public highlights, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
 | Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Complete nested semantics, browser/MCP tools, other endpoint workflows and live hosted behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
 | OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Selected completed Chat image output, private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, hosted tools, dedicated Images API, other media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
@@ -5596,6 +6138,7 @@ override only after checking the published package and rerunning interop tests.
 - Ordered completed media parts in assistant history, client snapshots and hydration.
 - Selected OpenAI Responses hosted search, code, image and server tool-search
   output with private replay; see [hosted tools](openai-hosted.md).
+- OpenAI Responses remote MCP configuration, private discovery/replay and provider-owned approval/denial through generic client interrupts; see [MCP approvals](openai-mcp.md).
 - Configured server tools, client-tool pauses, and default tool approvals.
 - Selected OpenAI Responses native computer calls with application-owned
   execution, safety approvals, screenshots, and continuation; see
@@ -5626,7 +6169,7 @@ and retain the old history. Public client bindings remain unchanged. See
   Anthropic computer toolset. The application provides the actual driver. Native
   client-executed tools and other native tool kinds are unsupported; native
   approval arguments cannot be edited.
-- Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
+- Custom approval payload schemas, application-defined generic interrupts, subagents, client-owned MCP discovery,
   and general provider-hosted progress are not implemented. Citation normalization
   covers the five pinned Anthropic variants. OpenAI references retain opaque
   provider coordinates; precise OpenAI highlights and other providers remain open.
@@ -5985,17 +6528,17 @@ and interoperability with the pinned official JavaScript client.
 The latest schema-diagnostics and offline-onboarding increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 493 Dart unit and regression tests: tool validation, approvals, client tools,
+- 536 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 22 Serverpod integration tests with a real isolated PostgreSQL database:
+- 25 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 23 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 25 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
+  generation, provider-owned MCP approval/denial, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
   replay, and eight media/history cases, including ordered output images. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
@@ -6671,6 +7214,52 @@ The independent scoped score remains 8.5/10.
 The new cases reuse existing fixture harnesses and add no runtime API changes.
 They do not cover other reference shapes, retry after an invalid submission,
 new durable scenarios, live providers or rendering. No paid calls were made.
+
+
+## Native OpenAI Responses MCP approvals
+
+The MCP increment adds provider-owned approval events and decision history,
+multiple configured servers, native discovery/call/approval/echo normalization,
+per-request credentials, exact configuration guards and indeterminate-execution
+checkpoints. It does not run a local executor for a remote MCP decision.
+
+The initial full offline check passed 532 unit tests and 25 real
+PostgreSQL/Serverpod tests. Subsequent review added third-turn echo deduplication,
+whole-configuration binding and cross-provider rejection regressions. The final
+unit total is 536, including cancellation at the pre-dispatch checkpoint. Client tests cover generic approval and denial in both pinned
+clients; the standalone official JavaScript suite now reports 25 scenarios.
+
+Durable MCP tests recreate agents against PostgreSQL, verify approval and denial,
+owner isolation, changed-configuration rejection and private journal/hydration
+boundaries, and preserve an indeterminate initial execution across recreation.
+The first fixture failed because its changed-configuration request omitted the
+required parent run ID; supplying the parent corrected the fixture. This is
+agent recreation against a durable store, not a new OS process-restart test.
+
+Core and adapter regressions cover mixed batches before effects, reasons,
+invalid answers and retry, cancellation, initial effects without prior approvals,
+orphan/duplicate/private IDs, exact terminal reconciliation and credential
+projection. A default-config SDK 503 fixture confirms one streaming HTTP attempt
+and no automatic resend on a recreated thread. Approval echoes are correlated
+with saved decisions and removed from subsequent input duplication while
+retained in private audit. Chat/Anthropic reject foreign approval state before
+transport. The expanded inventory reviews selected pinned MCP declarations and
+executable nonsecret request fields; it does not establish all nested semantics.
+
+The independent MCP score improved from 2/10 unsupported to 7.5/10 for the
+executed offline journeys. No paid call, OAuth flow, live MCP server, actual
+remote effect, tunnel/connector availability or mobile rendering was tested.
+Indeterminate threads require external reconciliation and a new conversation;
+no exactly-once remote execution claim is made.
+
+## Upstream merge status checked on 2026-11-04
+
+The citation file-ID fix in [PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441)
+and stalled-stream cancellation fix in [PR #432](https://github.com/davidmigloz/ai_clients_dart/pull/432)
+are approved and merged upstream. The live pub.dev API still reported
+`anthropic_sdk_dart 9.0.1`, published before these fixes, at this check.
+AgentWeave keeps that published dependency pin; a merged PR does not establish
+a published SDK release or an upgraded consumer dependency.
 
 
 # Source: CONTRIBUTING.md

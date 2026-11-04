@@ -83,6 +83,7 @@ nav:
       - OpenAI computer use: computer-use.md
       - OpenAI capabilities: openai.md
       - OpenAI hosted tools: openai-hosted.md
+      - OpenAI MCP approvals: openai-mcp.md
       - OpenRouter: openrouter.md
       - OpenRouter Chat images: openrouter-images.md
       - Cloudflare Workers AI and AI Gateway: cloudflare.md

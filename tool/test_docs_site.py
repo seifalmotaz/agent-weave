@@ -15,6 +15,9 @@ spec.loader.exec_module(hook)
 
 class DocumentationTest(unittest.TestCase):
     def test_hosted_guide_uses_the_runnable_example(self):
+        guide = (ROOT / 'docs/openai-mcp.md').read_text()
+        sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
+        self.assertEqual(sample, (ROOT / 'examples/openai_mcp_demo.dart').read_text())
         guide = (ROOT / 'docs/offline-support.md').read_text()
         sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
         self.assertEqual(sample, (ROOT / 'examples/offline_support.dart').read_text())
@@ -44,7 +47,7 @@ class DocumentationTest(unittest.TestCase):
             build(config)
             target = Path(output)
             for path in ['index.html', 'getting-started/serverpod/index.html',
-                         'getting-started/dart/index.html', 'tools/index.html', 'offline-support/index.html',
+                         'getting-started/dart/index.html', 'tools/index.html', 'offline-support/index.html', 'openai-mcp/index.html',
                          'providers/index.html', 'compatibility/index.html', 'approval-contracts/index.html',
                          'documents/index.html', 'citations/index.html', 'output-references/index.html', 'openrouter/index.html', 'openrouter-images/index.html',
                          'openai-hosted/index.html', 'openai-hosted-parameters/index.html', 'openai-hosted-inventory.json',
@@ -69,6 +72,7 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('Tool.ImageGeneration', hosted['declarations'])
             self.assertIn('tools/', locations)
             self.assertIn('offline-support/', locations)
+            self.assertIn('openai-mcp/', locations)
             self.assertIn('approval-contracts/', locations)
             self.assertIn('documents/', locations)
             self.assertIn('citations/', locations)

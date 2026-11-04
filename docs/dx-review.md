@@ -581,3 +581,53 @@ and effect counts; Dart also checks schema and approval hashes. These harnesses
 avoid adding another standalone test server. Retry after an invalid submitted
 resume is outside this round's coverage. The tools guide now shows the differing
 Dart and JavaScript edited-approval calls side by side.
+
+
+## Round 23: provider-owned MCP approvals
+
+The independent developer initially scored this journey **2/10**: configuration
+was rejected and an incoming approval failed without an interrupt. After
+implementation, the same offline journey scores **7.5/10**. This is a scoped
+MCP review, not a package-wide acceptance score or live provider certification.
+
+Reproduce the tracked consumer from the workspace root:
+
+```sh
+dart analyze examples/review_cases/openai_mcp.dart
+dart run examples/review_cases/openai_mcp.dart
+dart test packages/agent_weave_serverpod_client/test/interop_test.dart
+node tool/interop/test.mjs
+```
+
+The consumer uses a synthetic Responses SSE server with two labels and two
+requests in one output. It approves one and rejects the other through a
+recreated agent sharing the same MemoryRunStore. Changing the server URL fails
+before another provider request. Outgoing input includes ordered native
+`mcp_approval_response` items with the expected IDs and decisions, with no local
+function result. A credential callback refreshes on each invocation; private
+native IDs and credentials stay out of hydration. Another owner cannot load
+the conversation, and pre-cancellation sends no request.
+
+Both clients expose MCP decisions as resolvable **generic interrupts**. They use
+`resolveInterrupt({'approved': true})` in Dart and
+`resolveInterrupt({approved: true})` in JavaScript. Typed local-tool JS approval
+has a different signature. The guide now explains that distinction. Eight
+focused Dart client tests and 25 standalone official JavaScript scenarios pass,
+including MCP approval and denial. The first local JS probe deadlocked when its
+provider and client shared a serial request listener; a concurrent listener
+corrected that fixture before integration into the existing harness.
+
+The architecture review caught three additional defects: an approval echo could
+be replayed twice on a later turn, a Chat adapter could reinterpret MCP history
+as a local function call, and another server's configuration could change while
+an approval was pending. The final adapter has regressions for echo suppression,
+foreign-provider rejection before transport and binding the whole ordered MCP
+and hosted-tool configuration.
+
+The first code block in the MCP guide byte-matches the live CLI example. That
+example compiles without execution; the offline consumer also analyzes and runs.
+Cancellation wording distinguishes a pending decision from an uncertain request
+after dispatch. The independent reviewer did not run PostgreSQL, in-flight MCP
+cancellation, step limits, live OAuth/MCP, mobile rendering or real remote
+execution. The main verification suite separately exercises durable storage and
+synthetic failure boundaries. The score remains 7.5/10 for the reviewed scope.

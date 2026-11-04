@@ -4,11 +4,15 @@
   "path": "src/resources/responses/responses.ts",
   "license": "Apache-2.0",
   "sha256": "096f8b75836632e8ee67636367c98621a7eaa9ca6eb106c400eea0d6a5ce5dc7",
-  "meaning": "Selected hosted Responses and output-reference declarations, with executable hosted request fields; not a claim of complete nested semantics, live behavior or endpoint parity. Four annotation forms have typed public reference projections. Native positions remain opaque, distinct from enclosing UTF-16 text segments. Scoped file handles are deliberately public references; unknown fields and native replay stay private. Completed image bytes become public ImagePart content. Partial images, precise native-coordinate highlights, hosted progress and downloaded container files remain open. External type references are retained, not expanded. Other tools, local executors and unselected declarations are excluded.",
+  "meaning": "Selected hosted Responses, MCP and output-reference declarations, with executable hosted request fields; MCP uses provider-owned approval continuation and private replay. Credentials resolve separately at request time and require a stable binding identity; credential fields are excluded from executable configuration snapshots. Provider approval response echoes must match a trusted decision and do not create a new approval. This does not establish complete MCP protocol, model or live parity; not a claim of complete nested semantics, live behavior or endpoint parity. Four annotation forms have typed public reference projections. Native positions remain opaque, distinct from enclosing UTF-16 text segments. Scoped file handles are deliberately public references; unknown fields and native replay stay private. Completed image bytes become public ImagePart content. Partial images, precise native-coordinate highlights, hosted progress and downloaded container files remain open. External type references are retained, not expanded. Other tools, local executors and unselected declarations are excluded.",
   "dispositions": {
     "FileSearchTool": "raw-native-options",
     "FileSearchTool.RankingOptions": "raw-native-options",
     "FileSearchTool.RankingOptions.HybridSearch": "raw-native-options",
+    "McpToolCallError": "validated-private-mcp-replay",
+    "McpToolCallError.McpProtocolError": "validated-private-mcp-replay",
+    "McpToolCallError.McpToolExecutionError": "validated-private-mcp-replay",
+    "McpToolCallError.HTTPError": "validated-private-mcp-replay",
     "ResponseCodeInterpreterToolCall": "private-replay",
     "ResponseCodeInterpreterToolCall.Logs": "private-replay",
     "ResponseCodeInterpreterToolCall.Image": "private-replay",
@@ -23,9 +27,23 @@
     "ResponseFunctionWebSearch.Search.Source": "private-replay",
     "ResponseFunctionWebSearch.OpenPage": "private-replay",
     "ResponseFunctionWebSearch.Find": "private-replay",
+    "ResponseInputItem.McpApprovalResponse": "integrated-private-approval-decision",
+    "ResponseMcpCallArgumentsDeltaEvent": "validated-private-mcp-replay",
+    "ResponseMcpCallArgumentsDoneEvent": "validated-private-mcp-replay",
+    "ResponseMcpCallCompletedEvent": "validated-private-mcp-replay",
+    "ResponseMcpCallFailedEvent": "validated-private-mcp-replay",
+    "ResponseMcpCallInProgressEvent": "validated-private-mcp-replay",
+    "ResponseMcpListToolsCompletedEvent": "validated-private-mcp-replay",
+    "ResponseMcpListToolsFailedEvent": "validated-private-mcp-replay",
+    "ResponseMcpListToolsInProgressEvent": "validated-private-mcp-replay",
     "ResponseOutputItem.ImageGenerationCall": "private-replay",
     "ResponseOutputItem.ImageGenerationCall.Error": "private-replay",
     "ResponseOutputItem.ImageGenerationCall.Error.ModerationDetails": "private-replay",
+    "ResponseOutputItem.McpCall": "validated-private-mcp-replay",
+    "ResponseOutputItem.McpListTools": "validated-private-mcp-replay",
+    "ResponseOutputItem.McpListTools.Tool": "validated-private-mcp-replay",
+    "ResponseOutputItem.McpApprovalRequest": "integrated-provider-approval",
+    "ResponseOutputItem.McpApprovalResponse": "validated-private-approval-echo",
     "ResponseOutputMessage": "private-replay",
     "ResponseOutputText": "reviewed-reference-output",
     "ResponseOutputText.FileCitation": "reviewed-reference-output",
@@ -39,8 +57,14 @@
     "ResponseOutputTextAnnotationAddedEvent.URLCitation": "reviewed-reference-output",
     "ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation": "reviewed-reference-output",
     "ResponseOutputTextAnnotationAddedEvent.FilePath": "reviewed-reference-output",
+    "ResponseStreamEvent": "reviewed-stream-union",
     "ResponseToolSearchCall": "private-replay",
     "ResponseToolSearchOutputItem": "private-replay",
+    "Tool.Mcp": "integrated-mcp-configuration",
+    "Tool.Mcp.McpToolFilter": "integrated-mcp-configuration",
+    "Tool.Mcp.McpToolApprovalFilter": "integrated-mcp-configuration",
+    "Tool.Mcp.McpToolApprovalFilter.Always": "integrated-mcp-configuration",
+    "Tool.Mcp.McpToolApprovalFilter.Never": "integrated-mcp-configuration",
     "Tool.CodeInterpreter": "raw-native-options",
     "Tool.CodeInterpreter.CodeInterpreterToolAuto": "raw-native-options",
     "Tool.ImageGeneration": "raw-native-options",
@@ -118,6 +142,68 @@
           "name": "text_weight",
           "optional": false,
           "type": "number"
+        }
+      ]
+    },
+    "McpToolCallError": {
+      "kind": "alias",
+      "type": "McpToolCallError.McpProtocolError | McpToolCallError.McpToolExecutionError | McpToolCallError.HTTPError"
+    },
+    "McpToolCallError.McpProtocolError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "message",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_protocol_error'"
+        }
+      ]
+    },
+    "McpToolCallError.McpToolExecutionError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_tool_execution_error'"
+        }
+      ]
+    },
+    "McpToolCallError.HTTPError": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "code",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "message",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'http_error'"
         }
       ]
     },
@@ -460,6 +546,255 @@
         }
       ]
     },
+    "ResponseInputItem.McpApprovalResponse": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "approval_request_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "approve",
+          "optional": false,
+          "type": "boolean"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_approval_response'"
+        },
+        {
+          "name": "id",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "reason",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ResponseMcpCallArgumentsDeltaEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "delta",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_call_arguments.delta'"
+        }
+      ]
+    },
+    "ResponseMcpCallArgumentsDoneEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "arguments",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_call_arguments.done'"
+        }
+      ]
+    },
+    "ResponseMcpCallCompletedEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_call.completed'"
+        }
+      ]
+    },
+    "ResponseMcpCallFailedEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_call.failed'"
+        }
+      ]
+    },
+    "ResponseMcpCallInProgressEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_call.in_progress'"
+        }
+      ]
+    },
+    "ResponseMcpListToolsCompletedEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_list_tools.completed'"
+        }
+      ]
+    },
+    "ResponseMcpListToolsFailedEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_list_tools.failed'"
+        }
+      ]
+    },
+    "ResponseMcpListToolsInProgressEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.mcp_list_tools.in_progress'"
+        }
+      ]
+    },
     "ResponseOutputItem.ImageGenerationCall": {
       "kind": "interface",
       "extends": [],
@@ -565,6 +900,176 @@
           "name": "moderation_stage",
           "optional": false,
           "type": "'input' | 'output' | 'unknown'"
+        }
+      ]
+    },
+    "ResponseOutputItem.McpCall": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "arguments",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "server_label",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_call'"
+        },
+        {
+          "name": "approval_request_id",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "error",
+          "optional": true,
+          "type": "ResponsesAPI.McpToolCallError | null"
+        },
+        {
+          "name": "output",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "status",
+          "optional": true,
+          "type": "'in_progress' | 'completed' | 'incomplete' | 'calling' | 'failed'"
+        }
+      ]
+    },
+    "ResponseOutputItem.McpListTools": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "server_label",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "tools",
+          "optional": false,
+          "type": "Array<McpListTools.Tool>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_list_tools'"
+        },
+        {
+          "name": "error",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ResponseOutputItem.McpListTools.Tool": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "input_schema",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "annotations",
+          "optional": true,
+          "type": "unknown | null"
+        },
+        {
+          "name": "description",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ResponseOutputItem.McpApprovalRequest": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "arguments",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "server_label",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_approval_request'"
+        }
+      ]
+    },
+    "ResponseOutputItem.McpApprovalResponse": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "approval_request_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "approve",
+          "optional": false,
+          "type": "boolean"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_approval_response'"
+        },
+        {
+          "name": "reason",
+          "optional": true,
+          "type": "string | null"
         }
       ]
     },
@@ -946,6 +1451,10 @@
         }
       ]
     },
+    "ResponseStreamEvent": {
+      "kind": "alias",
+      "type": "ResponseAudioDeltaEvent | ResponseAudioDoneEvent | ResponseAudioTranscriptDeltaEvent | ResponseAudioTranscriptDoneEvent | ResponseCodeInterpreterCallCodeDeltaEvent | ResponseCodeInterpreterCallCodeDoneEvent | ResponseCodeInterpreterCallCompletedEvent | ResponseCodeInterpreterCallInProgressEvent | ResponseCodeInterpreterCallInterpretingEvent | ResponseCompactionCompactingEvent | ResponseCompletedEvent | ResponseContentPartAddedEvent | ResponseContentPartDoneEvent | ResponseCreatedEvent | ResponseErrorEvent | ResponseFileSearchCallCompletedEvent | ResponseFileSearchCallInProgressEvent | ResponseFileSearchCallSearchingEvent | ResponseFunctionCallArgumentsDeltaEvent | ResponseFunctionCallArgumentsDoneEvent | ResponseShellCallCommandAddedEvent | ResponseShellCallCommandDeltaEvent | ResponseShellCallCommandDoneEvent | ResponseShellCallOutputContentDeltaEvent | ResponseShellCallOutputContentDoneEvent | ResponseInProgressEvent | ResponseFailedEvent | ResponseIncompleteEvent | ResponseOutputItemAddedEvent | ResponseOutputItemDoneEvent | ResponseReasoningSummaryPartAddedEvent | ResponseReasoningSummaryPartDoneEvent | ResponseReasoningSummaryTextDeltaEvent | ResponseReasoningSummaryTextDoneEvent | ResponseReasoningTextDeltaEvent | ResponseReasoningTextDoneEvent | ResponseRefusalDeltaEvent | ResponseRefusalDoneEvent | ResponseTextDeltaEvent | ResponseTextDoneEvent | ResponseWebSearchCallCompletedEvent | ResponseWebSearchCallInProgressEvent | ResponseWebSearchCallSearchingEvent | ResponseImageGenCallCompletedEvent | ResponseImageGenCallGeneratingEvent | ResponseImageGenCallInProgressEvent | ResponseImageGenCallPartialImageEvent | ResponseMcpCallArgumentsDeltaEvent | ResponseMcpCallArgumentsDoneEvent | ResponseMcpCallCompletedEvent | ResponseMcpCallFailedEvent | ResponseMcpCallInProgressEvent | ResponseMcpListToolsCompletedEvent | ResponseMcpListToolsFailedEvent | ResponseMcpListToolsInProgressEvent | ResponseOutputTextAnnotationAddedEvent | ResponseQueuedEvent | ResponseCustomToolCallInputDeltaEvent | ResponseCustomToolCallInputDoneEvent"
+    },
     "ResponseToolSearchCall": {
       "kind": "interface",
       "extends": [],
@@ -1025,6 +1534,136 @@
           "name": "created_by",
           "optional": true,
           "type": "string"
+        }
+      ]
+    },
+    "Tool.Mcp": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "server_label",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp'"
+        },
+        {
+          "name": "allowed_callers",
+          "optional": true,
+          "type": "Array<'direct' | 'programmatic'> | null"
+        },
+        {
+          "name": "allowed_tools",
+          "optional": true,
+          "type": "Array<string> | Mcp.McpToolFilter | null"
+        },
+        {
+          "name": "authorization",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "connector_id",
+          "optional": true,
+          "type": "'connector_dropbox' | 'connector_gmail' | 'connector_googlecalendar' | 'connector_googledrive' | 'connector_microsoftteams' | 'connector_outlookcalendar' | 'connector_outlookemail' | 'connector_sharepoint'"
+        },
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "headers",
+          "optional": true,
+          "type": "{\n    [key: string]: string;\n} | null"
+        },
+        {
+          "name": "require_approval",
+          "optional": true,
+          "type": "Mcp.McpToolApprovalFilter | 'always' | 'never' | null"
+        },
+        {
+          "name": "server_description",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "server_url",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "tunnel_id",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "Tool.Mcp.McpToolFilter": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "read_only",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "tool_names",
+          "optional": true,
+          "type": "Array<string>"
+        }
+      ]
+    },
+    "Tool.Mcp.McpToolApprovalFilter": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "always",
+          "optional": true,
+          "type": "McpToolApprovalFilter.Always"
+        },
+        {
+          "name": "never",
+          "optional": true,
+          "type": "McpToolApprovalFilter.Never"
+        }
+      ]
+    },
+    "Tool.Mcp.McpToolApprovalFilter.Always": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "read_only",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "tool_names",
+          "optional": true,
+          "type": "Array<string>"
+        }
+      ]
+    },
+    "Tool.Mcp.McpToolApprovalFilter.Never": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "read_only",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "tool_names",
+          "optional": true,
+          "type": "Array<string>"
         }
       ]
     },

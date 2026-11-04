@@ -106,6 +106,15 @@ final class AnthropicProtocolModel implements ChatModel {
     ModelRequest request, {
     required CancellationToken cancellation,
   }) async* {
+    if (request.providerApprovalDecisions.isNotEmpty ||
+        request.messages.any(
+          (message) =>
+              message.toolCalls.any((call) => call is ProviderApprovalCall),
+        )) {
+      throw UnsupportedError(
+        'Provider approval history requires its native adapter.',
+      );
+    }
     cancellation.throwIfCancelled();
     final hosted = List<AnthropicHostedTool>.unmodifiable(hostedTools);
     final names = request.tools.map((tool) => tool.name).toSet();
@@ -650,6 +659,9 @@ final class AnthropicProtocolModel implements ChatModel {
       yield switch (call) {
         NativeToolCall() => NativeToolCallReady(call),
         FunctionToolCall() => ToolCallReady(call),
+        ProviderApprovalCall() => throw UnsupportedError(
+          'Provider approvals require their native adapter.',
+        ),
       };
     }
     final ordered = blocks.keys.toList()..sort();

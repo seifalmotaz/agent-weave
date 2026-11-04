@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave/testing.dart';
 import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
 
 const inputSchema = <String, Object?>{
   'type': 'object',
@@ -26,6 +27,100 @@ const refSchema = <String, Object?>{
 };
 
 Future<void> main() async {
+  final providerRequests = <Map<String, dynamic>>[];
+  final providerServer = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  providerServer.listen((request) async {
+    final body =
+        jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>;
+    providerRequests.add(body);
+    final decisions = (body['input'] as List)
+        .whereType<Map<dynamic, dynamic>>()
+        .where((item) => item['type'] == 'mcp_approval_response')
+        .toList();
+    final output = decisions.isEmpty
+        ? <Object?>[
+            {
+              'id': 'PRIVATE-MCP-ID',
+              'type': 'mcp_approval_request',
+              'name': 'escalate',
+              'server_label': 'support',
+              'arguments': '{"ticket":42}',
+              'private_future': 'PRIVATE-MCP-REPLAY',
+            },
+          ]
+        : <Object?>[
+            {
+              'id': 'answer',
+              'type': 'message',
+              'role': 'assistant',
+              'status': 'completed',
+              'content': [
+                {
+                  'type': 'output_text',
+                  'text': 'MCP completed',
+                  'annotations': <Object?>[],
+                },
+              ],
+            },
+          ];
+    request.response.headers.contentType = ContentType(
+      'text',
+      'event-stream',
+      charset: 'utf-8',
+    );
+    void send(Object event) =>
+        request.response.write('data: ${jsonEncode(event)}\n\n');
+    for (var i = 0; i < output.length; i++) {
+      send({
+        'type': 'response.output_item.done',
+        'output_index': i,
+        'item': output[i],
+      });
+    }
+    if (decisions.isNotEmpty) {
+      send({
+        'type': 'response.output_text.delta',
+        'item_id': 'answer',
+        'output_index': 0,
+        'content_index': 0,
+        'delta': 'MCP completed',
+      });
+    }
+    send({
+      'type': 'response.completed',
+      'response': {
+        'id': 'fixture-response',
+        'object': 'response',
+        'created_at': 0,
+        'status': 'completed',
+        'model': 'fixture',
+        'output': output,
+      },
+    });
+    request.response.write('data: [DONE]\n\n');
+    await request.response.close();
+  });
+  final mcpClient = openai.OpenAIClient(
+    config: openai.OpenAIConfig(
+      baseUrl: 'http://127.0.0.1:${providerServer.port}/v1',
+      authProvider: openai.ApiKeyProvider('fixture'),
+    ),
+  );
+  final mcpAgent = AiAgent<void>(
+    model: openai.OpenAIResponsesModel.native(
+      client: mcpClient,
+      model: 'fixture',
+      mcpTools: [
+        openai.OpenAIMcpTool.fromJson({
+          'type': 'mcp',
+          'server_label': 'support',
+          'server_url': 'https://PRIVATE-MCP-CONFIG.invalid/mcp',
+          'require_approval': 'always',
+        }),
+      ],
+    ),
+  );
   final refEffects = <int>[];
   final agent = AiAgent<void>(
     model: const InteropModel(),
@@ -180,6 +275,8 @@ Future<void> main() async {
       request.response.statusCode = 204;
       await request.response.close();
       await server.close(force: true);
+      mcpClient.close();
+      await providerServer.close(force: true);
       break;
     }
     try {
@@ -202,6 +299,11 @@ Future<void> main() async {
         )) {
           request.response.write(AgentEvent(json).toSse());
         }
+        continue;
+      }
+      if (request.method == 'GET' && request.uri.path == '/mcp-state') {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode(providerRequests));
         continue;
       }
       if (request.method == 'GET' && request.uri.path == '/ref-state') {
@@ -227,6 +329,7 @@ Future<void> main() async {
             '/structured-history',
             '/native-history',
             '/mixed-history',
+            '/mcp-history',
           }.contains(request.uri.path)) {
         request.response.headers.contentType = ContentType.json;
         request.response.write(
@@ -234,6 +337,8 @@ Future<void> main() async {
             chatHydration(
               await (request.uri.path == '/media-history'
                       ? mediaAgent
+                      : request.uri.path == '/mcp-history'
+                      ? mcpAgent
                       : request.uri.path == '/citations-history'
                       ? citationsAgent
                       : request.uri.path == '/native-history'
@@ -277,7 +382,9 @@ Future<void> main() async {
             );
       } else {
         source =
-            (request.uri.path == '/media'
+            (request.uri.path == '/mcp'
+                    ? mcpAgent
+                    : request.uri.path == '/media'
                     ? mediaAgent
                     : request.uri.path == '/citations'
                     ? citationsAgent

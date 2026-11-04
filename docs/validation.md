@@ -24,17 +24,17 @@ and interoperability with the pinned official JavaScript client.
 The latest schema-diagnostics and offline-onboarding increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 493 Dart unit and regression tests: tool validation, approvals, client tools,
+- 536 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 22 Serverpod integration tests with a real isolated PostgreSQL database:
+- 25 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 23 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 25 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
+  generation, provider-owned MCP approval/denial, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
   replay, and eight media/history cases, including ordered output images. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
@@ -710,3 +710,49 @@ The independent scoped score remains 8.5/10.
 The new cases reuse existing fixture harnesses and add no runtime API changes.
 They do not cover other reference shapes, retry after an invalid submission,
 new durable scenarios, live providers or rendering. No paid calls were made.
+
+
+## Native OpenAI Responses MCP approvals
+
+The MCP increment adds provider-owned approval events and decision history,
+multiple configured servers, native discovery/call/approval/echo normalization,
+per-request credentials, exact configuration guards and indeterminate-execution
+checkpoints. It does not run a local executor for a remote MCP decision.
+
+The initial full offline check passed 532 unit tests and 25 real
+PostgreSQL/Serverpod tests. Subsequent review added third-turn echo deduplication,
+whole-configuration binding and cross-provider rejection regressions. The final
+unit total is 536, including cancellation at the pre-dispatch checkpoint. Client tests cover generic approval and denial in both pinned
+clients; the standalone official JavaScript suite now reports 25 scenarios.
+
+Durable MCP tests recreate agents against PostgreSQL, verify approval and denial,
+owner isolation, changed-configuration rejection and private journal/hydration
+boundaries, and preserve an indeterminate initial execution across recreation.
+The first fixture failed because its changed-configuration request omitted the
+required parent run ID; supplying the parent corrected the fixture. This is
+agent recreation against a durable store, not a new OS process-restart test.
+
+Core and adapter regressions cover mixed batches before effects, reasons,
+invalid answers and retry, cancellation, initial effects without prior approvals,
+orphan/duplicate/private IDs, exact terminal reconciliation and credential
+projection. A default-config SDK 503 fixture confirms one streaming HTTP attempt
+and no automatic resend on a recreated thread. Approval echoes are correlated
+with saved decisions and removed from subsequent input duplication while
+retained in private audit. Chat/Anthropic reject foreign approval state before
+transport. The expanded inventory reviews selected pinned MCP declarations and
+executable nonsecret request fields; it does not establish all nested semantics.
+
+The independent MCP score improved from 2/10 unsupported to 7.5/10 for the
+executed offline journeys. No paid call, OAuth flow, live MCP server, actual
+remote effect, tunnel/connector availability or mobile rendering was tested.
+Indeterminate threads require external reconciliation and a new conversation;
+no exactly-once remote execution claim is made.
+
+## Upstream merge status checked on 2026-11-04
+
+The citation file-ID fix in [PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441)
+and stalled-stream cancellation fix in [PR #432](https://github.com/davidmigloz/ai_clients_dart/pull/432)
+are approved and merged upstream. The live pub.dev API still reported
+`anthropic_sdk_dart 9.0.1`, published before these fixes, at this check.
+AgentWeave keeps that published dependency pin; a merged PR does not establish
+a published SDK release or an upgraded consumer dependency.

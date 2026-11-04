@@ -47,6 +47,39 @@ final class TestModel implements ChatModel {
   }
 }
 
+final class ProviderModel implements ProviderApprovalModel {
+  final requests = <ModelRequest>[];
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities();
+  @override
+  JsonObject approvalContract(ProviderApprovalCall call) => {
+    'identity': 'PRIVATE-CONTRACT',
+  };
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) async* {
+    requests.add(request);
+    if (request.providerApprovalDecisions.isEmpty) {
+      yield ProviderApprovalReady(
+        ProviderApprovalCall(
+          id: 'public-call',
+          name: 'remote',
+          arguments: {'ticket': 42},
+          provider: 'fixture',
+          serverLabel: 'support',
+          providerRequestId: 'PRIVATE-ID',
+        ),
+      );
+    } else {
+      yield const ProviderExecutionStarting();
+      yield const TextDelta('Provider completed');
+    }
+    yield const ModelFinished();
+  }
+}
+
 client.ConnectionAdapter connect(
   AiAgent<void> agent, {
   void Function(AgentEvent)? onEvent,
@@ -199,6 +232,55 @@ void main() {
         expect(events.last.json['code'], 'INVALID_INPUT');
         expect(calls, isEmpty);
       }
+    });
+  }
+
+  for (final approved in [true, false]) {
+    test('Dart generic provider approval $approved', () async {
+      final model = ProviderModel();
+      final agent = AiAgent<void>(model: model);
+      final events = <AgentEvent>[];
+      final chat = client.ChatClient(
+        connection: connect(agent, onEvent: events.add),
+        threadId: 'provider',
+      );
+      addTearDown(chat.dispose);
+      await chat.sendText('Start');
+      expect(chat.error, isNull);
+      final interrupt = chat.getInterrupts().single;
+      expect(interrupt.kind, 'generic');
+      expect(interrupt.canResolve, isTrue);
+      expect(model.requests, hasLength(1));
+      interrupt.resolveInterrupt({'approved': approved});
+      for (
+        var i = 0;
+        i < 100 &&
+            chat.error == null &&
+            !chat.messages.any((m) => m.answer == 'Provider completed');
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      expect(chat.error, isNull);
+      expect(chat.messages.last.answer, 'Provider completed');
+      expect(model.requests, hasLength(2));
+      expect(
+        model.requests.last.providerApprovalDecisions.single.approved,
+        approved,
+      );
+      final history = chatHydration(
+        await agent.store.load(ownerId: 'owner', threadId: 'provider'),
+      );
+      final public = jsonEncode({
+        'history': history,
+        'events': events.map((e) => e.json).toList(),
+      });
+      expect(public, isNot(contains('PRIVATE-ID')));
+      expect(public, isNot(contains('PRIVATE-CONTRACT')));
+      expect(
+        await agent.store.load(ownerId: 'other', threadId: 'provider'),
+        isNull,
+      );
     });
   }
 
