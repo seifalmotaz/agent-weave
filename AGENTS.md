@@ -38,6 +38,9 @@ Streams. Prefer typed provider options and schema-validated tool inputs.
 Use prefixes for provider imports to avoid collisions such as `Tool`.
 Use `jsonEquals` for Dart-owned JSON guards; `canonicalJson` deliberately uses
 JavaScript numeric semantics for protocol hashing and is not a guard comparison.
+Pending tool contracts are private versioned snapshots. Never reconstruct an
+older contract from current definitions or use wire schema hashes as server
+authorization guards. Validate the entire resume batch before effects.
 Completed media is public content; native output/replay metadata stays private.
 Keep credentials on the backend and outside source control.
 

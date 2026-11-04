@@ -39,6 +39,15 @@ client version, which must be resolved before publishing that package.
 Create a reviewed tag and release notes that identify the tested upstream pins
 and the remaining limits. A Git push is not a pub.dev publication.
 
+## Pending approval contract migration
+
+Private pending state now records `toolContract` version 1 with full declared
+tool configuration. Preserve it as opaque JSON, including native integer values.
+Do not derive missing contracts from current tools or public client hashes.
+Older checkpoints lack the original exact contract and fail closed; keep their
+history and start a new conversation. No database table migration is needed.
+See [approval contracts](approval-contracts.md).
+
 ## Custom store migration
 
 `RunStore.complete` must atomically append the terminal event, save the final

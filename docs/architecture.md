@@ -198,3 +198,12 @@ Successful structured responses retain parsed data with the original JSON in
 Hydration preserves completed structured parts; a structured pause emits a
 sanitized message snapshot so intermediate progress cannot remain an errored
 answer in either client. Private provider replay never enters that snapshot.
+
+
+## Approval identity belongs to the Dart runtime
+
+Private pending tool contracts preserve declared configuration and Dart numeric
+values. The runtime validates the whole batch before any execution. Public
+TanStack schema hashes retain their protocol semantics and do not decide whether
+a server-owned contract changed. This keeps native Dart validation independent
+of client numeric conversion; see [approval contracts](approval-contracts.md).

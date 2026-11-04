@@ -36,7 +36,7 @@ class DocumentationTest(unittest.TestCase):
             target = Path(output)
             for path in ['index.html', 'getting-started/serverpod/index.html',
                          'getting-started/dart/index.html', 'tools/index.html',
-                         'providers/index.html', 'compatibility/index.html',
+                         'providers/index.html', 'compatibility/index.html', 'approval-contracts/index.html',
                          'documents/index.html', 'openrouter/index.html', 'openrouter-images/index.html',
                          'openai-hosted/index.html', 'openai-hosted-parameters/index.html', 'openai-hosted-inventory.json',
                          'together/index.html', 'together-options/index.html', 'together-chat-inventory.json',
@@ -59,6 +59,7 @@ class DocumentationTest(unittest.TestCase):
             hosted = json.loads((target / 'openai-hosted-inventory.json').read_text())
             self.assertIn('Tool.ImageGeneration', hosted['declarations'])
             self.assertIn('tools/', locations)
+            self.assertIn('approval-contracts/', locations)
             self.assertIn('documents/', locations)
             self.assertIn('openrouter/', locations)
             self.assertIn('openrouter-images/', locations)

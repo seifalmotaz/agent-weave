@@ -443,3 +443,16 @@ Chat image contract is completed messages, not assumed streaming fragments.
 
 
 Final guide review: the first Dart block in `docs/openrouter-images.md` byte-matches `examples/openrouter_images_demo.dart`. The demo and both consumer files analyze cleanly, and the demo compiles to a Dart kernel without executing a billable request. The guide matches the inspected API and explains the buffered boundary, model support, ordering, privacy and `result.images` scope. The consumer verifies that `result.images` includes the interrupted tool step's two images and excludes those images from the resumed run. Both independent loopback consumers passed again after the guide/API changes. No paid call, image rendering, or live provider verification was performed.
+
+
+## Round 17: exact persisted approval contracts
+
+# Round 17 independent approval contract review
+
+**9/10 for the tested approval path.** After the fix, `dart run examples/review_cases/approval_contract.dart` passes and Dart analysis reports no issues. Before the fix, the same loopback-free consumer demonstrated six failures: colliding large-integer input and output schemas, a native definition, client-to-server executor change, a batch with a changed second tool, and a legacy checkpoint without a contract all allowed execution. Those cases now fail closed before side effects. Equivalent schemas with reordered keys resume; a rejected changed contract can retry with the original; a different owner cannot resume; and legacy rejection retains history.
+
+The consumer confirms public `run()` error events for both changed and legacy contracts say “Start a new conversation.” It also checks that hydration and public events do not expose `toolContract`. The public `schemaHash` still collides for the tested adjacent integers, as required for JS interoperability, while private contract comparisons distinguish them. No provider, network, database, or paid calls were used.
+
+Future-only consumers can now use `AgentRunException.message` to present the same safe changed-contract recovery instruction as the stream; `toString()` includes it. The independent consumer also confirms a provider exception's private marker is absent from both public message and `toString()` while remaining in the explicitly private cause. Legacy approvals need a new conversation, not automatic migration. The consumer tests native definition changes, but not each native sequential policy variant; broader database persistence and external client behavior were not checked here.
+
+Final round 17 verification also passes the malformed native-continuation checkpoint regression: a decode failure preserves the snapshot, does not invoke the model, and releases the reservation. The independent reviewer reran the consumer and regression; the scoped score remains 9/10.

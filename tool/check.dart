@@ -94,6 +94,7 @@ Future<void> main() async {
     'ollama',
     'dart_frog',
     'provider_options',
+    'approval_contract',
     'openrouter_images',
     'cloudflare_streaming',
     'openai_hosted',

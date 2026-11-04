@@ -236,3 +236,13 @@ Provider-owned pauses count against `maxSteps`. A paused intermediate response
 can contain progress text; only the final response is validated against the
 output schema. The streaming protocol replaces that intermediate structured UI
 state with a sanitized message snapshot before continuing.
+
+
+## Safe failure messages
+
+`AgentRunException.code` classifies a failed Future-based run. Its `message` is
+the same sanitized explanation sent in a `RUN_ERROR` event and can be displayed
+to the user. Its `cause` and `causeStackTrace` are private backend diagnostics.
+For example, changed or legacy pending tool contracts provide a recovery
+instruction without exposing schemas or native configuration. See
+[approval contract migration](approval-contracts.md).

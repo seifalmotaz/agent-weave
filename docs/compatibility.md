@@ -31,6 +31,13 @@ round trips against a Dart HTTP server. The Dart tests exercise the client again
 the runtime and a generated Serverpod endpoint over a real WebSocket. This is
 not a claim of full TanStack AI core parity.
 
+## Pending checkpoint migration
+
+Approvals now require a private exact tool contract. Pending records written by
+older revisions without that snapshot cannot resume; start a new conversation
+and retain the old history. Public client bindings remain unchanged. See
+[approval contracts](approval-contracts.md) for the migration and diagnostics.
+
 ## Current limits
 
 - Selected native computer use is implemented for OpenAI Responses and the

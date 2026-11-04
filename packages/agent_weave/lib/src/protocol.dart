@@ -192,6 +192,7 @@ ChatMessage _wireMessage(JsonObject json) {
 
 /// Stable schema identity used by TanStack interrupt bindings.
 /// Derived from TanStack AI's MIT-licensed interrupt serialization contract.
+/// Uses JavaScript number semantics; not a server-side schema equality check.
 String schemaHash(JsonObject? schema) =>
     'sha256:${sha256.convert(utf8.encode(schema == null ? 'undefined' : canonicalJson(schema)))}';
 

@@ -116,6 +116,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Ollama local models](docs/ollama.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Typed tools and approvals](docs/tools.md)
+- [Persisted approval contracts and migration](docs/approval-contracts.md)
 - [Provider author guide](docs/providers.md)
 - [Documents](docs/documents.md)
 - [OpenAI native computer use](docs/computer-use.md)
@@ -207,7 +208,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 Implemented: typed `generateText`, `generateObject`, and `AiAgent.generate`;
 immutable run results and usage; typed approval resolutions; scripted test
 providers; atomic final event/checkpoint/release; safer observer handling;
-separate caller/model/output/tool/step-limit errors; guarded provider request
+separate caller/model/output/tool/step-limit errors with safe Future messages;
+exact versioned pending tool contracts independent of client schema hashes; guarded provider request
 configuration; canonical reasoning replay includes; actual provider model usage.
 
 Tests now exercise the same storage contract against memory and PostgreSQL,
@@ -456,6 +458,16 @@ Provider-owned pauses count against `maxSteps`. A paused intermediate response
 can contain progress text; only the final response is validated against the
 output schema. The streaming protocol replaces that intermediate structured UI
 state with a sanitized message snapshot before continuing.
+
+
+## Safe failure messages
+
+`AgentRunException.code` classifies a failed Future-based run. Its `message` is
+the same sanitized explanation sent in a `RUN_ERROR` event and can be displayed
+to the user. Its `cause` and `causeStackTrace` are private backend diagnostics.
+For example, changed or legacy pending tool contracts provide a recovery
+instruction without exposing schemas or native configuration. See
+[approval contract migration](approval-contracts.md).
 
 
 # Source: docs/dx-review.md
@@ -907,6 +919,19 @@ Chat image contract is completed messages, not assumed streaming fragments.
 Final guide review: the first Dart block in `docs/openrouter-images.md` byte-matches `examples/openrouter_images_demo.dart`. The demo and both consumer files analyze cleanly, and the demo compiles to a Dart kernel without executing a billable request. The guide matches the inspected API and explains the buffered boundary, model support, ordering, privacy and `result.images` scope. The consumer verifies that `result.images` includes the interrupted tool step's two images and excludes those images from the resumed run. Both independent loopback consumers passed again after the guide/API changes. No paid call, image rendering, or live provider verification was performed.
 
 
+## Round 17: exact persisted approval contracts
+
+# Round 17 independent approval contract review
+
+**9/10 for the tested approval path.** After the fix, `dart run examples/review_cases/approval_contract.dart` passes and Dart analysis reports no issues. Before the fix, the same loopback-free consumer demonstrated six failures: colliding large-integer input and output schemas, a native definition, client-to-server executor change, a batch with a changed second tool, and a legacy checkpoint without a contract all allowed execution. Those cases now fail closed before side effects. Equivalent schemas with reordered keys resume; a rejected changed contract can retry with the original; a different owner cannot resume; and legacy rejection retains history.
+
+The consumer confirms public `run()` error events for both changed and legacy contracts say “Start a new conversation.” It also checks that hydration and public events do not expose `toolContract`. The public `schemaHash` still collides for the tested adjacent integers, as required for JS interoperability, while private contract comparisons distinguish them. No provider, network, database, or paid calls were used.
+
+Future-only consumers can now use `AgentRunException.message` to present the same safe changed-contract recovery instruction as the stream; `toString()` includes it. The independent consumer also confirms a provider exception's private marker is absent from both public message and `toString()` while remaining in the explicitly private cause. Legacy approvals need a new conversation, not automatic migration. The consumer tests native definition changes, but not each native sequential policy variant; broader database persistence and external client behavior were not checked here.
+
+Final round 17 verification also passes the malformed native-continuation checkpoint regression: a decode failure preserves the snapshot, does not invoke the model, and releases the reservation. The independent reviewer reran the consumer and regression; the scoped score remains 9/10.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -1111,6 +1136,15 @@ sanitized message snapshot so intermediate progress cannot remain an errored
 answer in either client. Private provider replay never enters that snapshot.
 
 
+## Approval identity belongs to the Dart runtime
+
+Private pending tool contracts preserve declared configuration and Dart numeric
+values. The runtime validates the whole batch before any execution. Public
+TanStack schema hashes retain their protocol semantics and do not decide whether
+a server-owned contract changed. This keeps native Dart validation independent
+of client numeric conversion; see [approval contracts](approval-contracts.md).
+
+
 # Source: docs/tools.md
 
 # Typed tools and approvals
@@ -1172,6 +1206,100 @@ Pass `context.idempotencyKey` as an idempotency key to services that support it.
 If a process crashes after an external service commits an effect, inspect that
 service before retrying. Database history cannot make an unrelated external
 service execute exactly once.
+
+
+## Resume the original contract
+
+Persisted approvals bind a private exact tool contract, including schemas and
+execution kind. Recreated agents must preserve it. Older checkpoints without
+this snapshot require a new conversation; their history remains readable.
+See [approval contracts](approval-contracts.md) for recovery and custom-store
+migration. Public client schema hashes remain a separate wire contract.
+
+
+# Source: docs/approval-contracts.md
+
+# Persisted tool approvals
+
+An approval applies to the tool contract that produced the pending call.
+Recreating an agent must not reinterpret a client result as a server approval
+or execute a call under changed schemas or native bindings.
+
+AgentWeave records a versioned `toolContract` snapshot in private pending state.
+Before resuming, it compares the complete resolution batch with the current
+tool definitions. No executor or subsequent model request runs until every
+pending contract and answer has been validated.
+
+## What the contract binds
+
+The snapshot contains the tool's name, description, input and output schemas,
+function/native kind, client execution and approval flags, and sequential
+failure-policy trait. Native tools also bind their provider, execution binding
+and declared native definition.
+
+Comparison retains Dart integers and ignores JSON object-key order. Equivalent
+integer and integral-double values compare equally when their values are
+exactly equal. Adjacent large integers and rounded doubles do not become equal
+through JavaScript conversion. Memory and PostgreSQL tests exercise these rules.
+
+The contract does not serialize Dart closures, application permissions or live
+driver state. If an executor's meaning changes without changes to its declared
+configuration, version the tool name or native binding. Keep authorization and
+idempotency checks in the application service.
+
+## Private contracts and public client hashes
+
+| Data | Purpose | Where it belongs |
+| --- | --- | --- |
+| `toolContract` | Exact declared tool contract for server-side resume validation | Private pending checkpoint |
+| `schemaHash` | Existing TanStack interrupt-binding compatibility, including JavaScript number semantics | Public protocol binding |
+
+The public binding format and hashes remain unchanged. A protocol-compatible
+hash is not proof that two Dart schemas are identical. Server-owned approval
+checks do not rely on it.
+
+Contracts contain full schemas and native configuration. They stay out of
+public events and `chatHydration`, like other private continuation data. Custom
+stores must round-trip the complete opaque checkpoint without dropping fields
+or converting native integers to doubles.
+
+JavaScript clients still have JavaScript's numeric limits. This change does not
+make cross-language JSON integers above the safe JavaScript range exact; use
+strings for identifiers that must survive such clients without rounding.
+
+## Recovery and migration
+
+Changed, missing, malformed or unsupported contracts fail with `INVALID_INPUT`
+before side effects. The original pending state and history are preserved.
+For a changed configuration, retrying with the original complete contract can
+resume the original approval.
+
+Checkpoints written before exact contracts were introduced cannot prove the
+original contract. Their old hashes cannot reconstruct it. The SDK rejects
+those approvals rather than inventing a snapshot from the current tool.
+Start a new conversation; retain the old one for history. This is a pending
+checkpoint migration, not a database-table migration. Do not automatically
+replay an old call or copy its unfinished tool state into a new conversation.
+
+Both `run()` error events and `AgentRunException.message` provide a safe recovery
+instruction. Future callers can display `message` and inspect `code`.
+`cause` and `causeStackTrace` remain backend diagnostics and must not be returned
+to a client. Provider exception text is not used as the public message.
+
+## Reproduce the checks
+
+```sh
+dart run examples/review_cases/approval_contract.dart
+dart test packages/agent_weave/test/approval_contract_test.dart
+dart run tool/check.dart
+```
+
+The independent consumer tests input/output schema collisions, native
+definitions, client/server execution changes, whole-batch validation, owner
+isolation, equivalent schema ordering, original-contract retry and legacy
+recovery. PostgreSQL tests recreate agents and verify exact integer persistence
+and rejection before model or executor invocation. Ordinary client approval
+flows continue through the existing JavaScript and Dart interoperability suite.
 
 
 # Source: docs/providers.md
@@ -4344,6 +4472,13 @@ round trips against a Dart HTTP server. The Dart tests exercise the client again
 the runtime and a generated Serverpod endpoint over a real WebSocket. This is
 not a claim of full TanStack AI core parity.
 
+## Pending checkpoint migration
+
+Approvals now require a private exact tool contract. Pending records written by
+older revisions without that snapshot cannot resume; start a new conversation
+and retain the old history. Public client bindings remain unchanged. See
+[approval contracts](approval-contracts.md) for the migration and diagnostics.
+
 ## Current limits
 
 - Selected native computer use is implemented for OpenAI Responses and the
@@ -4455,6 +4590,15 @@ their dependants. The native client currently depends on an unpublished Dart
 client version, which must be resolved before publishing that package.
 Create a reviewed tag and release notes that identify the tested upstream pins
 and the remaining limits. A Git push is not a pub.dev publication.
+
+## Pending approval contract migration
+
+Private pending state now records `toolContract` version 1 with full declared
+tool configuration. Preserve it as opaque JSON, including native integer values.
+Do not derive missing contracts from current tools or public client hashes.
+Older checkpoints lack the original exact contract and fail closed; keep their
+history and start a new conversation. No database table migration is needed.
+See [approval contracts](approval-contracts.md).
 
 ## Custom store migration
 
@@ -4681,13 +4825,13 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native-provider media and streaming increment was checked on Dart 3.12.2. The prior
-147-test baseline was also checked on Dart 3.13.3.
+The latest approval-contract and checkpoint-recovery increment was checked on
+Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 437 Dart unit and regression tests: tool validation, approvals, client tools,
+- 445 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 18 Serverpod integration tests with a real isolated PostgreSQL database:
+- 20 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -5195,6 +5339,39 @@ current-run tool steps and excludes prior runs. No paid calls were made; live
 provider/model acceptance, billing and device rendering remain unverified.
 
 
+## Exact approval contracts and checkpoint recovery
+
+With Dart 3.12.2, the full local check passes 445 unit/regression tests and 20
+real PostgreSQL/Serverpod tests, plus the official JavaScript client scenarios,
+provider contract checks and native Dart consumers.
+
+Private pending approvals now bind exact versioned snapshots of the declared
+tool configuration. Regressions cover adjacent large-integer input/output
+schemas and native definitions, execution-kind and policy changes, equivalent
+numeric values and key ordering, all-before-effects batch validation, owner
+isolation, public-state privacy and original-contract retry. Real PostgreSQL
+checks preserve the exact integers through agent recreation and reject changed
+input/output schemas before model or executor invocation. The initial database
+test expected a raw exception; correcting it to the public `AgentRunException`
+contract made the intended assertions pass.
+
+Legacy, malformed and unsupported pending contracts fail closed while retaining
+the original history. Older pending approvals require a new conversation; they
+are not reconstructed from current tools or lossy client hashes. Public protocol
+hashes retain JavaScript number semantics. This does not remove JavaScript's
+numeric limits or bind application closures and live permissions.
+
+A separately reproduced malformed native-continuation checkpoint previously
+stranded the thread reservation. The regression now verifies sanitized decode
+failure, unchanged stored state, an unused model and a successfully reacquired
+reservation. Future-based run errors expose the same safe recovery message as
+streamed errors while retaining private diagnostic causes.
+
+The independent developer reran the approval consumer and checkpoint regression
+and scores this scoped path 9/10. No paid calls were made. This is not evidence
+of complete native provider coverage or arbitrary-crash recovery.
+
+
 # Source: CONTRIBUTING.md
 
 # Contribute to AgentWeave
@@ -5261,6 +5438,9 @@ Streams. Prefer typed provider options and schema-validated tool inputs.
 Use prefixes for provider imports to avoid collisions such as `Tool`.
 Use `jsonEquals` for Dart-owned JSON guards; `canonicalJson` deliberately uses
 JavaScript numeric semantics for protocol hashing and is not a guard comparison.
+Pending tool contracts are private versioned snapshots. Never reconstruct an
+older contract from current definitions or use wire schema hashes as server
+authorization guards. Validate the entire resume batch before effects.
 Completed media is public content; native output/replay metadata stays private.
 Keep credentials on the backend and outside source control.
 

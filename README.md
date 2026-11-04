@@ -114,6 +114,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Ollama local models](docs/ollama.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Typed tools and approvals](docs/tools.md)
+- [Persisted approval contracts and migration](docs/approval-contracts.md)
 - [Provider author guide](docs/providers.md)
 - [Documents](docs/documents.md)
 - [OpenAI native computer use](docs/computer-use.md)

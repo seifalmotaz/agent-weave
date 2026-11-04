@@ -74,6 +74,7 @@ nav:
   - Guides:
       - Dart API and recipes: dart-api.md
       - Tools and approvals: tools.md
+      - Persisted approval contracts: approval-contracts.md
       - Custom providers: providers.md
       - Documents: documents.md
       - OpenAI computer use: computer-use.md

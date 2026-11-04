@@ -10,6 +10,7 @@ Development version. Read compatibility and validation before making support cla
 - [docs/dx-review.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/dx-review.md)
 - [docs/architecture.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/architecture.md)
 - [docs/tools.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/tools.md)
+- [docs/approval-contracts.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/approval-contracts.md)
 - [docs/providers.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/providers.md)
 - [docs/documents.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/documents.md)
 - [docs/computer-use.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/computer-use.md)

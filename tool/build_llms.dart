@@ -7,6 +7,7 @@ const documents = [
   'docs/dx-review.md',
   'docs/architecture.md',
   'docs/tools.md',
+  'docs/approval-contracts.md',
   'docs/providers.md',
   'docs/documents.md',
   'docs/computer-use.md',

@@ -21,13 +21,13 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native-provider media and streaming increment was checked on Dart 3.12.2. The prior
-147-test baseline was also checked on Dart 3.13.3.
+The latest approval-contract and checkpoint-recovery increment was checked on
+Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 437 Dart unit and regression tests: tool validation, approvals, client tools,
+- 445 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 18 Serverpod integration tests with a real isolated PostgreSQL database:
+- 20 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -533,3 +533,36 @@ selected path 8/10. The OpenRouter guide byte-matches its example, which analyze
 and compiles without execution. `result.images` includes images produced during
 current-run tool steps and excludes prior runs. No paid calls were made; live
 provider/model acceptance, billing and device rendering remain unverified.
+
+
+## Exact approval contracts and checkpoint recovery
+
+With Dart 3.12.2, the full local check passes 445 unit/regression tests and 20
+real PostgreSQL/Serverpod tests, plus the official JavaScript client scenarios,
+provider contract checks and native Dart consumers.
+
+Private pending approvals now bind exact versioned snapshots of the declared
+tool configuration. Regressions cover adjacent large-integer input/output
+schemas and native definitions, execution-kind and policy changes, equivalent
+numeric values and key ordering, all-before-effects batch validation, owner
+isolation, public-state privacy and original-contract retry. Real PostgreSQL
+checks preserve the exact integers through agent recreation and reject changed
+input/output schemas before model or executor invocation. The initial database
+test expected a raw exception; correcting it to the public `AgentRunException`
+contract made the intended assertions pass.
+
+Legacy, malformed and unsupported pending contracts fail closed while retaining
+the original history. Older pending approvals require a new conversation; they
+are not reconstructed from current tools or lossy client hashes. Public protocol
+hashes retain JavaScript number semantics. This does not remove JavaScript's
+numeric limits or bind application closures and live permissions.
+
+A separately reproduced malformed native-continuation checkpoint previously
+stranded the thread reservation. The regression now verifies sanitized decode
+failure, unchanged stored state, an unused model and a successfully reacquired
+reservation. Future-based run errors expose the same safe recovery message as
+streamed errors while retaining private diagnostic causes.
+
+The independent developer reran the approval consumer and checkpoint regression
+and scores this scoped path 9/10. No paid calls were made. This is not evidence
+of complete native provider coverage or arbitrary-crash recovery.

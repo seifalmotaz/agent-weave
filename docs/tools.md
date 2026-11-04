@@ -57,3 +57,12 @@ Pass `context.idempotencyKey` as an idempotency key to services that support it.
 If a process crashes after an external service commits an effect, inspect that
 service before retrying. Database history cannot make an unrelated external
 service execute exactly once.
+
+
+## Resume the original contract
+
+Persisted approvals bind a private exact tool contract, including schemas and
+execution kind. Recreated agents must preserve it. Older checkpoints without
+this snapshot require a new conversation; their history remains readable.
+See [approval contracts](approval-contracts.md) for recovery and custom-store
+migration. Public client schema hashes remain a separate wire contract.

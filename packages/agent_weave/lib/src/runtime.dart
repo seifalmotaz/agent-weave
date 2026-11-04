@@ -95,33 +95,29 @@ final class AiAgent<C> {
     CancellationToken? cancellation,
   }) async {
     AgentResult? result;
-    Object? cause;
-    StackTrace? causeStack;
-    String? code;
+    _RunFailure? failure;
     await _run(
       request,
       ownerId: ownerId,
       context: context,
       cancellation: cancellation,
-      onResult: (value, error, stack, errorCode) {
+      onResult: (value, error) {
         result = value;
-        cause = error;
-        causeStack = stack;
-        code = errorCode;
+        failure = error;
       },
     ).drain<void>();
     final value = result!;
     if (value.status == RunStatus.cancelled) throw const RunCancelled();
-    if (cause case final error?) {
-      final stack = causeStack!;
+    if (failure case final error?) {
       Error.throwWithStackTrace(
         AgentRunException(
-          code: code!,
+          code: error.code,
+          message: error.message,
           result: value,
-          cause: error,
-          causeStackTrace: stack,
+          cause: error.cause,
+          causeStackTrace: error.stack,
         ),
-        stack,
+        error.stack,
       );
     }
     return value;
@@ -132,7 +128,7 @@ final class AiAgent<C> {
     required String ownerId,
     required C context,
     CancellationToken? cancellation,
-    void Function(AgentResult, Object?, StackTrace?, String?)? onResult,
+    void Function(AgentResult, _RunFailure?)? onResult,
   }) => (cancellation ?? CancellationToken()).bindStream(
     (token) => _execute(request, ownerId, context, token, onResult),
   );
@@ -142,7 +138,7 @@ final class AiAgent<C> {
     String ownerId,
     C context,
     CancellationToken token,
-    void Function(AgentResult, Object?, StackTrace?, String?)? onResult,
+    void Function(AgentResult, _RunFailure?)? onResult,
   ) async* {
     if (ownerId.isEmpty) throw ArgumentError.value(ownerId, 'ownerId');
     token.throwIfCancelled();
@@ -154,6 +150,7 @@ final class AiAgent<C> {
     );
     late final List<ChatMessage> messages;
     late final int generation;
+    String? nativeContinuationClosed;
     try {
       messages = <ChatMessage>[
         if (!previous.containsKey('messages'))
@@ -163,6 +160,8 @@ final class AiAgent<C> {
             ChatMessage.fromJson(Map<String, Object?>.from(raw as Map)),
       ];
       generation = (previous['generation'] as int? ?? 0) + 1;
+      nativeContinuationClosed =
+          previous['nativeContinuationClosed'] as String?;
     } catch (error, stack) {
       // A newer or corrupt snapshot must not strand the acquired reservation.
       await store.save(
@@ -178,9 +177,7 @@ final class AiAgent<C> {
       );
     }
     final previousIds = messages.map((m) => m.id).toSet();
-    Object? failure;
-    StackTrace? failureStack;
-    String? failureCode;
+    _RunFailure? failure;
     var phase = 'input';
     String? lastFinishReason;
     Object? structuredOutput;
@@ -192,8 +189,6 @@ final class AiAgent<C> {
     var accepted = false;
     var providerContinuationPending =
         previous['providerContinuationPending'] == true;
-    String? nativeContinuationClosed =
-        previous['nativeContinuationClosed'] as String?;
     String? partialMessageId;
     StringBuffer? partialText;
     void preservePartial() {
@@ -342,21 +337,26 @@ final class AiAgent<C> {
         final call = ToolCall.fromJson(
           Map<String, Object?>.from(item['call'] as Map),
         );
-        final tool = _tool(call.name);
+        final recorded = item['toolContract'];
+        if (!item.containsKey('toolContract')) {
+          throw const _ToolContractException(
+            'This approval predates exact tool contract checks. Start a new conversation.',
+          );
+        }
+        if (recorded is! Map<String, Object?> || recorded['v'] != 1) {
+          throw const _ToolContractException(
+            'This approval uses an unsupported tool contract. Start a new conversation.',
+          );
+        }
+        final tool = tools
+            .where((tool) => tool.definition.name == call.name)
+            .firstOrNull;
+        if (tool == null || !jsonEquals(recorded, _toolContract(tool))) {
+          throw const _ToolContractException(
+            'Tool configuration changed. Start a new conversation.',
+          );
+        }
         _validateToolKind(call, tool.definition);
-        if (call is NativeToolCall &&
-            item['definitionHash'] != _nativeDefinitionHash(tool)) {
-          throw const FormatException(
-            'Native tool definition changed since the run paused.',
-          );
-        }
-        if (schemaHash(tool.definition.inputSchema) !=
-                item['inputSchemaHash'] ||
-            schemaHash(tool.outputSchema) != item['outputSchemaHash']) {
-          throw const FormatException(
-            'Tool schema changed since the run paused.',
-          );
-        }
         final resolution = request.resume.singleWhere(
           (r) => r.interruptId == item['id'],
         );
@@ -717,10 +717,7 @@ final class AiAgent<C> {
             pending.add({
               'id': id,
               'call': call.toJson(),
-              'inputSchemaHash': schemaHash(tool.definition.inputSchema),
-              'outputSchemaHash': schemaHash(tool.outputSchema),
-              if (call is NativeToolCall)
-                'definitionHash': _nativeDefinitionHash(tool),
+              'toolContract': _toolContract(tool),
             });
             final binding = <String, Object?>{
               'v': 1,
@@ -791,17 +788,26 @@ final class AiAgent<C> {
       phase = 'step_limit';
       throw StateError('The agent reached its step limit.');
     } catch (error, stack) {
-      failure = error;
-      failureStack = stack;
-      failureCode = switch (phase) {
-        'input' => 'INVALID_INPUT',
-        'output' => 'INVALID_OUTPUT',
-        'provider' =>
-          error is FormatException ? 'INVALID_OUTPUT' : 'MODEL_FAILED',
-        'tool' => 'TOOL_FAILED',
-        'step_limit' => 'STEP_LIMIT',
-        _ => 'RUN_FAILED',
-      };
+      failure = (
+        cause: error,
+        stack: stack,
+        code: switch (phase) {
+          'input' => 'INVALID_INPUT',
+          'output' => 'INVALID_OUTPUT',
+          'provider' =>
+            error is FormatException ? 'INVALID_OUTPUT' : 'MODEL_FAILED',
+          'tool' => 'TOOL_FAILED',
+          'step_limit' => 'STEP_LIMIT',
+          _ => 'RUN_FAILED',
+        },
+        message: previous['nativeContinuationClosed'] != null
+            ? 'Native continuation closed. Start a new thread.'
+            : error is _ToolContractException
+            ? error.message
+            : error is FormatException
+            ? 'Invalid input or provider output.'
+            : 'The AI run could not complete.',
+      );
       status = token.isCancelled ? RunStatus.cancelled : RunStatus.failed;
       reportError(onError, error, stack);
       preservePartial();
@@ -840,12 +846,8 @@ final class AiAgent<C> {
       }
       if (!token.isCancelled) {
         final fields = <String, Object?>{
-          'code': failureCode,
-          'message': previous['nativeContinuationClosed'] != null
-              ? 'Native continuation closed. Start a new thread.'
-              : error is FormatException
-              ? 'Invalid input or provider output.'
-              : 'The AI run could not complete.',
+          'code': failure.code,
+          'message': failure.message,
         };
         yield accepted
             ? await event('RUN_ERROR', fields)
@@ -910,8 +912,6 @@ final class AiAgent<C> {
           ],
         ),
         failure,
-        failureStack,
-        failureCode,
       );
     }
   }
@@ -1023,17 +1023,32 @@ void _validateToolKind(ToolCall call, ModelTool definition) {
   );
 }
 
-String _nativeDefinitionHash<C>(AgentTool<C> tool) {
-  final definition = tool.definition as NativeModelTool;
-  return schemaHash({
+// Private resume state must retain Dart integers; wire hashes use JS semantics.
+JsonObject _toolContract<C>(AgentTool<C> tool) {
+  final definition = tool.definition;
+  return immutableJson({
+    'v': 1,
+    'kind': switch (definition) {
+      FunctionModelTool() => 'function',
+      NativeModelTool() => 'native',
+    },
     'name': definition.name,
-    'provider': definition.provider,
-    'bindingId': definition.bindingId,
-    'definition': definition.definition,
+    'description': definition.description,
     'inputSchema': definition.inputSchema,
     'outputSchema': tool.outputSchema,
-    if (tool is SequentialNativeTool<C>) 'sequential': true,
+    'clientExecuted': tool.clientExecuted,
+    'needsApproval': tool.needsApproval,
+    'sequential': tool is SequentialNativeTool<C>,
+    if (definition is NativeModelTool) ...{
+      'provider': definition.provider,
+      'bindingId': definition.bindingId,
+      'definition': definition.definition,
+    },
   });
+}
+
+final class _ToolContractException extends FormatException {
+  const _ToolContractException(super.message);
 }
 
 JsonObject _approvalSchema(ToolCall call, JsonObject inputSchema) =>
@@ -1047,3 +1062,10 @@ JsonObject _approvalSchema(ToolCall call, JsonObject inputSchema) =>
         'additionalProperties': false,
       }
     : approvalResponseSchema(inputSchema);
+
+typedef _RunFailure = ({
+  Object cause,
+  StackTrace stack,
+  String code,
+  String message,
+});

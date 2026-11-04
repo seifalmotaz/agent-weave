@@ -114,18 +114,21 @@ final class ToolInterrupt {
 /// A failed Future-based agent run. Never serialize [cause] to a UI client.
 final class AgentRunException implements Exception {
   final String code;
+
+  /// Public-safe explanation, matching the streamed RUN_ERROR message.
+  final String message;
   final AgentResult result;
   final Object cause;
   final StackTrace causeStackTrace;
   const AgentRunException({
     required this.code,
+    this.message = 'The AI run could not complete.',
     required this.result,
     required this.cause,
     required this.causeStackTrace,
   });
   @override
-  String toString() =>
-      'AgentRunException($code): The AI run could not complete.';
+  String toString() => 'AgentRunException($code): $message';
 }
 
 final class ObjectResult<T> {

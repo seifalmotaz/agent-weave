@@ -64,7 +64,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 Implemented: typed `generateText`, `generateObject`, and `AiAgent.generate`;
 immutable run results and usage; typed approval resolutions; scripted test
 providers; atomic final event/checkpoint/release; safer observer handling;
-separate caller/model/output/tool/step-limit errors; guarded provider request
+separate caller/model/output/tool/step-limit errors with safe Future messages;
+exact versioned pending tool contracts independent of client schema hashes; guarded provider request
 configuration; canonical reasoning replay includes; actual provider model usage.
 
 Tests now exercise the same storage contract against memory and PostgreSQL,

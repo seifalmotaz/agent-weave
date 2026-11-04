@@ -1,5 +1,10 @@
 # Unreleased
 
+- Bind resumed approvals to versioned exact tool snapshots, including input/output schemas, execution kind, policies and native definitions; retain public TanStack hashes for wire compatibility.
+- Reject older pending checkpoints without exact contracts while preserving history; start a new conversation rather than reconstructing contracts from lossy hashes.
+- Expose sanitized `AgentRunException.message` consistently with streamed error messages; retain private causes and stacks for backend diagnostics.
+- Release reservations when a stored native-continuation field cannot be decoded, preserving the original checkpoint.
+
 - Add `AgentResult.images` for assistant images produced during the current run, including intermediate tool steps.
 
 - Add ordered completed media parts, sanitized client snapshots and hydration.
