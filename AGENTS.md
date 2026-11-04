@@ -45,3 +45,12 @@ make a failing test pass. Do not store a live key in examples, logs, or fixtures
 
 Read `docs/updating.md` before changing upstream pins or claiming new coverage.
 Keep `docs/validation.md` honest about fixture, live, and untested behavior.
+
+## Product acceptance and developer reviews
+
+Read `ROADMAP.md` before narrowing the scope or claiming completion. Native Dart
+DX is the main contract; TanStack compatibility can be an optional integration.
+Use an independent consumer-development subagent on each implementation round.
+It must write/run realistic cases and score the experience honestly out of ten.
+Use GPT-6.1 Terra with low/medium reasoning for subagents. Never convert a green
+test count or forwarded provider parameters into a full-support claim.

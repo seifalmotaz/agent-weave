@@ -193,10 +193,19 @@ final class ModelRequest {
     required Iterable<ChatMessage> messages,
     Iterable<ModelTool> tools = const [],
     this.instructions,
-    this.outputSchema,
+    JsonObject? outputSchema,
     this.maxOutputTokens = 1024,
   }) : messages = List.unmodifiable(messages),
-       tools = List.unmodifiable(tools);
+       tools = List.unmodifiable(
+         tools.map(
+           (tool) => ModelTool(
+             name: tool.name,
+             description: tool.description,
+             inputSchema: immutableJson(tool.inputSchema),
+           ),
+         ),
+       ),
+       outputSchema = outputSchema == null ? null : immutableJson(outputSchema);
 }
 
 /// Implement a single model invocation. AgentWeave owns the tool loop.

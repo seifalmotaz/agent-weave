@@ -5,10 +5,15 @@
 Development version. Read compatibility and validation before making support claims.
 
 - [README.md](https://github.com/seifalmotaz/agent-weave/blob/main/README.md)
+- [ROADMAP.md](https://github.com/seifalmotaz/agent-weave/blob/main/ROADMAP.md)
+- [docs/dart-api.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/dart-api.md)
+- [docs/dx-review.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/dx-review.md)
 - [docs/architecture.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/architecture.md)
 - [docs/tools.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/tools.md)
 - [docs/providers.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/providers.md)
 - [docs/openai.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai.md)
+- [docs/openai-options-audit.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai-options-audit.md)
+- [docs/provider-coverage.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/provider-coverage.md)
 - [docs/compatibility.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/compatibility.md)
 - [docs/updating.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/updating.md)
 - [docs/validation.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/validation.md)

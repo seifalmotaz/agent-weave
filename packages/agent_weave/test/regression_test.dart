@@ -11,6 +11,82 @@ String interruptId(List<AgentEvent> events) =>
 
 void main() {
   test(
+    'a throwing diagnostic observer cannot replace the original failure or poison history',
+    () async {
+      final agent = AiAgent<String>(
+        model: FakeModel([
+          [call(), const ModelFinished()],
+          [const TextDelta('Recovered'), const ModelFinished()],
+        ]),
+        tools: [
+          tool(execute: (_, _) => throw StateError('private tool failure')),
+        ],
+        onError: (_, _) => throw StateError('logger failure'),
+      );
+      final failed = await run(agent);
+      expect(failed.last.json['code'], 'TOOL_FAILED');
+      expect(failed.where((e) => e.type == 'TOOL_CALL_RESULT'), hasLength(1));
+      final next = await run(agent, request(run: 'next'));
+      expect(next.last.type, 'RUN_FINISHED');
+    },
+  );
+  test(
+    'new user messages cannot be inserted between a pending call and its result',
+    () async {
+      var calls = 0;
+      final agent = AiAgent(
+        model: FakeModel([
+          [call(), const ModelFinished()],
+        ]),
+        tools: [
+          tool(
+            approval: true,
+            execute: (n, _) {
+              calls++;
+              return n;
+            },
+          ),
+        ],
+      );
+      final id = interruptId(await run(agent));
+      final invalid = await run(
+        agent,
+        request(
+          run: 'next',
+          parent: 'run',
+          text: 'Injected',
+          resume: [ResumeAnswer(interruptId: id, value: true)],
+        ),
+      );
+      expect(invalid.last.json['code'], 'INVALID_INPUT');
+      expect(calls, 0);
+      expect(
+        (await agent.store.load(
+          ownerId: 'owner',
+          threadId: 'thread',
+        ))!['status'],
+        'interrupted',
+      );
+    },
+  );
+  test(
+    'a failing generation observer still produces a safe terminal failure',
+    () async {
+      final task = GenerationTask<int, int>(
+        execute: (_, _) async => throw StateError('private'),
+        encodeResult: (n) => n,
+        onError: (_, _) => throw StateError('logger'),
+      );
+      final events = await task.run(1, threadId: 't', runId: 'r').toList();
+      expect(events.last.type, 'RUN_ERROR');
+      expect(
+        jsonEncode(events.map((e) => e.json).toList()),
+        isNot(contains('private')),
+      );
+    },
+  );
+
+  test(
     'cancellation retains the text already delivered to the client',
     () async {
       final token = CancellationToken();

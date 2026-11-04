@@ -1,10 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:uuid/uuid.dart';
+import 'package:json_schema/json_schema.dart';
 import 'cancellation.dart';
+import 'diagnostics.dart';
 import 'model.dart';
 import 'protocol.dart';
 import 'storage.dart';
+import 'result.dart';
 import 'tool.dart';
 
 /// A reusable agent definition. Mutable conversation state belongs to [store].
@@ -12,6 +15,9 @@ final class AiAgent<C> {
   final ChatModel model;
   final List<AgentTool<C>> tools;
   final String? instructions;
+
+  /// Trusted server-side seed history for new threads, never request-body data.
+  final List<ChatMessage> initialMessages;
   final JsonObject? outputSchema;
   final int maxSteps;
   final int maxOutputTokens;
@@ -25,6 +31,7 @@ final class AiAgent<C> {
     required this.model,
     Iterable<AgentTool<C>> tools = const [],
     this.instructions,
+    Iterable<ChatMessage> initialMessages = const [],
     JsonObject? outputSchema,
     this.maxSteps = 8,
     this.maxOutputTokens = 1024,
@@ -32,6 +39,7 @@ final class AiAgent<C> {
     this.onError,
     String Function()? newId,
   }) : tools = List.unmodifiable(tools),
+       initialMessages = List.unmodifiable(initialMessages),
        store = store ?? MemoryRunStore(),
        outputSchema = outputSchema == null ? null : immutableJson(outputSchema),
        _newId = newId ?? const Uuid().v4 {
@@ -42,6 +50,14 @@ final class AiAgent<C> {
         this.tools.length) {
       throw ArgumentError('Tool names must be unique.');
     }
+    if (this.initialMessages.map((m) => m.id).toSet().length !=
+        this.initialMessages.length) {
+      throw ArgumentError('Initial message identifiers must be unique.');
+    }
+    for (final tool in this.tools) {
+      validateToolDefinition(tool.definition, tool.outputSchema);
+    }
+    if (outputSchema != null) JsonSchema.create(outputSchema);
     if (this.tools.isNotEmpty && !model.capabilities.tools) {
       throw ArgumentError('The model does not support tools.');
     }
@@ -57,17 +73,72 @@ final class AiAgent<C> {
     required String ownerId,
     required C context,
     CancellationToken? cancellation,
+  }) => _run(
+    request,
+    ownerId: ownerId,
+    context: context,
+    cancellation: cancellation,
+  );
+
+  /// Return a typed result without parsing UI protocol events.
+  /// Failures throw [AgentRunException]; interruptions return a paused result.
+  Future<AgentResult> generate(
+    ChatRequest request, {
+    required String ownerId,
+    required C context,
+    CancellationToken? cancellation,
+  }) async {
+    AgentResult? result;
+    Object? cause;
+    StackTrace? causeStack;
+    String? code;
+    await _run(
+      request,
+      ownerId: ownerId,
+      context: context,
+      cancellation: cancellation,
+      onResult: (value, error, stack, errorCode) {
+        result = value;
+        cause = error;
+        causeStack = stack;
+        code = errorCode;
+      },
+    ).drain<void>();
+    final value = result!;
+    if (value.status == RunStatus.cancelled) throw const RunCancelled();
+    if (cause case final error?) {
+      final stack = causeStack!;
+      Error.throwWithStackTrace(
+        AgentRunException(
+          code: code!,
+          result: value,
+          cause: error,
+          causeStackTrace: stack,
+        ),
+        stack,
+      );
+    }
+    return value;
+  }
+
+  Stream<AgentEvent> _run(
+    ChatRequest request, {
+    required String ownerId,
+    required C context,
+    CancellationToken? cancellation,
+    void Function(AgentResult, Object?, StackTrace?, String?)? onResult,
   }) {
     final token = cancellation ?? CancellationToken();
     StreamSubscription<AgentEvent>? subscription;
     late final StreamController<AgentEvent> controller;
     controller = StreamController<AgentEvent>(
       onListen: () {
-        subscription = _execute(request, ownerId, context, token).listen(
-          controller.add,
-          onError: controller.addError,
-          onDone: controller.close,
-        );
+        subscription = _execute(request, ownerId, context, token, onResult)
+            .listen(
+              controller.add,
+              onError: controller.addError,
+              onDone: controller.close,
+            );
       },
       onPause: () => subscription?.pause(),
       onResume: () => subscription?.resume(),
@@ -84,6 +155,7 @@ final class AiAgent<C> {
     String ownerId,
     C context,
     CancellationToken token,
+    void Function(AgentResult, Object?, StackTrace?, String?)? onResult,
   ) async* {
     if (ownerId.isEmpty) throw ArgumentError.value(ownerId, 'ownerId');
     token.throwIfCancelled();
@@ -94,12 +166,22 @@ final class AiAgent<C> {
       parentRunId: request.parentRunId,
     );
     final messages = <ChatMessage>[
-      for (final raw in previous['messages'] as List? ?? [])
-        ChatMessage.fromJson(Map<String, Object?>.from(raw as Map)),
+      if (!previous.containsKey('messages'))
+        ...initialMessages
+      else
+        for (final raw in previous['messages'] as List)
+          ChatMessage.fromJson(Map<String, Object?>.from(raw as Map)),
     ];
+    final previousIds = messages.map((m) => m.id).toSet();
+    Object? failure;
+    StackTrace? failureStack;
+    String? failureCode;
+    var phase = 'input';
+    String? lastFinishReason;
+    Object? structuredOutput;
     final journal = <JsonObject>[];
     final pending = <JsonObject>[];
-    final usage = <JsonObject>[];
+    final usage = <TokenUsage>[];
     final generation = (previous['generation'] as int? ?? 0) + 1;
     var status = RunStatus.running;
     var released = false;
@@ -157,29 +239,43 @@ final class AiAgent<C> {
         'sequence': journal.length,
         ...fields,
         if ((type == 'RUN_FINISHED' || type == 'RUN_ERROR') && usage.isNotEmpty)
-          'usage': List<JsonObject>.of(usage),
+          'usage': [for (final item in usage) item.toJson()],
       };
       journal.add(json);
-      await store.appendEvent(
-        ownerId: ownerId,
-        threadId: request.threadId,
-        runId: request.runId,
-        event: json,
-      );
-      if (type == 'RUN_FINISHED' || type == 'RUN_ERROR') {
-        await store.save(
-          ownerId: ownerId,
-          threadId: request.threadId,
-          runId: request.runId,
-          state: state(),
-          release: true,
-        );
-        released = true;
+      try {
+        if (type == 'RUN_FINISHED' || type == 'RUN_ERROR') {
+          await store.complete(
+            ownerId: ownerId,
+            threadId: request.threadId,
+            runId: request.runId,
+            event: json,
+            state: state(),
+          );
+          released = true;
+        } else {
+          await store.appendEvent(
+            ownerId: ownerId,
+            threadId: request.threadId,
+            runId: request.runId,
+            event: json,
+          );
+        }
+      } catch (_) {
+        journal.removeLast();
+        rethrow;
       }
       return AgentEvent(json);
     }
 
     try {
+      if ((previous['pending'] as List? ?? []).isNotEmpty &&
+          request.messages.any(
+            (message) => !messages.any((saved) => saved.id == message.id),
+          )) {
+        throw const FormatException(
+          'Resolve pending tools before adding a new user message.',
+        );
+      }
       if (previous['kind'] != null && previous['kind'] != 'chat') {
         throw const FormatException('Thread belongs to a different operation.');
       }
@@ -243,6 +339,18 @@ final class AiAgent<C> {
         );
         if (resolution.cancelled) continue;
         final value = resolution.value;
+        try {
+          jsonEncode(value);
+        } catch (_) {
+          throw const FormatException(
+            'Interrupt answers must be JSON-serializable.',
+          );
+        }
+        if (value is! bool &&
+            !tool.clientExecuted &&
+            value is! Map<String, Object?>) {
+          throw const FormatException('Expected an approval decision.');
+        }
         if (tool.clientExecuted) {
           if (tool.outputSchema case final schema?) {
             validateSchema(schema, value);
@@ -288,6 +396,7 @@ final class AiAgent<C> {
               : Map<String, Object?>.from(answer as Map);
           if (resolution['approved'] == true) {
             final edited = resolution['editedArgs'];
+            phase = 'tool';
             result = await _invoke(
               tool,
               edited == null
@@ -310,6 +419,7 @@ final class AiAgent<C> {
         yield await event('TOOL_CALL_RESULT', _resultFields(call, result));
       }
       for (var step = 0; step < maxSteps; step++) {
+        phase = 'provider';
         token.throwIfCancelled();
         final messageId = _newId();
         final text = StringBuffer();
@@ -396,7 +506,7 @@ final class AiAgent<C> {
                 'input': call.arguments,
               });
             case TokenUsage(:final inputTokens, :final outputTokens):
-              usage.add(item.toJson());
+              usage.add(item);
               yield await event('CUSTOM', {
                 'name': 'agent_weave:usage',
                 'value': {
@@ -407,6 +517,7 @@ final class AiAgent<C> {
             case ModelFinished(:final reason):
               finished = true;
               finishReason = reason;
+              lastFinishReason = reason;
             case ProviderOutput(:final provider, :final items):
               providerData[provider] = items;
           }
@@ -447,8 +558,10 @@ final class AiAgent<C> {
         }
         if (calls.isEmpty) {
           if (outputSchema case final schema?) {
+            phase = 'output';
             final object = jsonDecode(text.toString());
             validateSchema(schema, object);
+            structuredOutput = object;
             yield await event('CUSTOM', {
               'name': 'structured-output.complete',
               'value': {
@@ -516,6 +629,7 @@ final class AiAgent<C> {
                 ),
             });
           } else {
+            phase = 'tool';
             final result = await _invoke(
               tool,
               call,
@@ -536,10 +650,22 @@ final class AiAgent<C> {
           return;
         }
       }
+      phase = 'step_limit';
       throw StateError('The agent reached its step limit.');
     } catch (error, stack) {
+      failure = error;
+      failureStack = stack;
+      failureCode = switch (phase) {
+        'input' => 'INVALID_INPUT',
+        'output' => 'INVALID_OUTPUT',
+        'provider' =>
+          error is FormatException ? 'INVALID_OUTPUT' : 'MODEL_FAILED',
+        'tool' => 'TOOL_FAILED',
+        'step_limit' => 'STEP_LIMIT',
+        _ => 'RUN_FAILED',
+      };
       status = token.isCancelled ? RunStatus.cancelled : RunStatus.failed;
-      onError?.call(error, stack);
+      reportError(onError, error, stack);
       preservePartial();
       if (accepted) {
         for (final call in unresolvedCalls()) {
@@ -571,7 +697,7 @@ final class AiAgent<C> {
       }
       if (!token.isCancelled) {
         final fields = <String, Object?>{
-          'code': error is FormatException ? 'INVALID_INPUT' : 'RUN_FAILED',
+          'code': failureCode,
           'message': error is FormatException
               ? 'Invalid input or provider output.'
               : 'The AI run could not complete.',
@@ -608,6 +734,35 @@ final class AiAgent<C> {
           release: true,
         );
       }
+      onResult?.call(
+        AgentResult(
+          threadId: request.threadId,
+          runId: request.runId,
+          status: status,
+          messages: messages,
+          responseMessages: messages.where(
+            (m) => !previousIds.contains(m.id) && m.role != MessageRole.user,
+          ),
+          usages: usage,
+          finishReason: lastFinishReason,
+          output: structuredOutput,
+          interrupts: [
+            for (final item in pending)
+              ToolInterrupt(
+                id: item['id'] as String,
+                call: ToolCall.fromJson(
+                  Map<String, Object?>.from(item['call'] as Map),
+                ),
+                clientExecuted: _tool(
+                  (item['call'] as Map)['name'] as String,
+                ).clientExecuted,
+              ),
+          ],
+        ),
+        failure,
+        failureStack,
+        failureCode,
+      );
     }
   }
 

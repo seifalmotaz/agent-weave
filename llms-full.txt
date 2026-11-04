@@ -95,6 +95,10 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 
 ## Learn and contribute
 
+[Browse the documentation site](https://seifalmotaz.github.io/agent-weave/).
+
+- [Acceptance roadmap and open work](ROADMAP.md)
+- [Dart API, typed results, and application recipes](docs/dart-api.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Typed tools and approvals](docs/tools.md)
 - [Provider author guide](docs/providers.md)
@@ -107,6 +111,315 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 
 Run `dart run tool/check.dart` for the normal checks. Paid provider tests are
 separate and opt-in.
+
+
+# Source: ROADMAP.md
+
+# AgentWeave acceptance roadmap
+
+The target is a Dart-first AI SDK for Serverpod developers, with useful APIs for
+other Dart backends and Flutter with hosted or local models. TanStack client
+interoperability must remain available; it must not dictate the native Dart API.
+A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
+
+## Acceptance requirements still open
+
+- Independent developer agents must write and run consumer applications across
+  multiple scenarios and score discoverability, clarity, type safety, debugging,
+  and testing. Record failures and rerun after fixes. Use GPT-6.1 Terra with low
+  or medium reasoning. The latest review is 7.7/10, not an acceptance pass.
+- Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
+  Vercel AI Gateway, and Cloudflare, with a documented custom-provider contract.
+  Track each endpoint, nested parameter, tool/event union, query, header, cache
+  option, and continuation behavior against a dated authoritative specification.
+  An OpenAI-compatible URL or SDK export does not establish native parity.
+- OpenAI computer use and other non-function tool continuations require explicit
+  event types, policy-controlled execution, complete input/output round trips,
+  approval/safety handling, and fixtures before any support claim.
+- Preserve provider options and metadata without letting configuration silently
+  replace server-owned history, schemas, tools, or execution bounds. Unsupported
+  response modes must fail explicitly or use a clearly separate native API.
+- Provide runnable Serverpod examples for streamed chat, persisted approvals,
+  typed output, tools, cancellation/reconnect, media and authentication. Verify
+  recreation/restart behavior and failure recovery with PostgreSQL.
+- Provide equivalent framework-independent recipes and adapters for Dart Frog
+  and other HTTP servers; verify Flutter device/local-provider behavior.
+- Evaluate whether protocol events should move into an optional TanStack adapter
+  package. Keep existing client compatibility tests throughout any migration.
+- Publish searchable, accessible GitHub Pages documentation with executable
+  recipes, precise capability tables, API references, migration/update guides,
+  and coding-agent instructions. Validate the deployed website separately.
+- Establish provider contract suites, schema/parameter inventories and upstream
+  update checks. Contribute reproducible missing SDK fields and union cases
+  upstream where that is the correct fix; keep PRs narrowly scoped and tested.
+- Verify package publication, compatibility across supported Dart SDKs, security,
+  performance/backpressure, and operational failure cases before a stable claim.
+
+## Current reliability/DX increment
+
+Implemented: typed `generateText`, `generateObject`, and `AiAgent.generate`;
+immutable run results and usage; typed approval resolutions; scripted test
+providers; atomic final event/checkpoint/release; safer observer handling;
+separate caller/model/output/tool/step-limit errors; guarded provider request
+configuration; canonical reasoning replay includes; actual provider model usage.
+
+Tests now exercise the same storage contract against memory and PostgreSQL,
+recreated PostgreSQL approval flows, local loopback HTTP, both existing clients,
+and the new native Dart API. Consult validation results for the exact checks.
+These improvements do not complete the requirements above.
+
+
+# Source: docs/dart-api.md
+
+# Dart API and application recipes
+
+Use `generateText` for a single backend operation, `generateObject<T>` for a
+schema-validated Dart value, and `AiAgent<C>.generate` for a conversation with
+trusted application context and storage. `AiAgent.run` remains the streaming
+transport API. They share the same validation and tool loop.
+
+Runnable offline examples: [consumer scenarios](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/consumer.dart)
+and [failure diagnostics](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/failures.dart).
+Run `dart run examples/review_cases/consumer.dart` from the workspace root.
+
+## Generate text
+
+```dart
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+final client = openai.OpenAIClient.fromEnvironment();
+try {
+  final result = await generateText(
+    model: openai.OpenAIResponsesModel(client: client, model: 'gpt-5.4-nano'),
+    prompt: 'Summarize the support ticket.',
+    maxOutputTokens: 256,
+  );
+  print(result.text);
+  print(result.usage?.outputTokens); // null means unreported, not zero.
+} finally {
+  client.close();
+}
+```
+
+Pass exactly one of `prompt` or `messages`. The `messages` argument is trusted
+backend history and can include assistant/tool messages. Never pass unchecked
+browser history as trusted seed data. HTTP routes accept only user additions
+to server-owned history.
+
+`result.text` contains the final assistant message. `responseMessages` includes
+this run's intermediate assistant/tool messages. `messages` is the complete
+server-side conversation snapshot, including private provider continuation
+state. Use `chatHydration` when returning stored history to a UI.
+
+## Decode structured output
+
+```dart
+final answer = await generateObject<int>(
+  model: model,
+  prompt: 'Return the number of days in a week.',
+  schema: const {
+    'type': 'object',
+    'properties': {'days': {'type': 'integer'}},
+    'required': ['days'],
+    'additionalProperties': false,
+  },
+  decode: (json) => (json as Map<String, Object?>)['days'] as int,
+);
+print(answer.value);
+print(answer.generation.usage?.inputTokens);
+```
+
+Validation runs before your decoder. Decoder exceptions are application errors
+and propagate normally. A provider that does not support structured output is
+rejected before submission.
+
+## Typed tools, approvals, and durable Serverpod history
+
+Keep the agent factory in your backend. It can be recreated on each request;
+the shared database holds the conversation and pending approval.
+
+```dart
+AiAgent<Session> agentFor(Session session) => AiAgent<Session>(
+  model: model,
+  store: ServerpodRunStore(session),
+  tools: [
+    Tool<String, String, Session>(
+      name: 'send_message',
+      description: 'Send an approved message',
+      needsApproval: true,
+      inputSchema: const {
+        'type': 'object',
+        'properties': {'text': {'type': 'string'}},
+        'required': ['text'],
+        'additionalProperties': false,
+      },
+      outputSchema: const {'type': 'string'},
+      decode: (json) => json['text'] as String,
+      encode: (result) => result,
+      execute: (text, context) => messageService.send(
+        ownerId: context.ownerId,
+        text: text,
+        idempotencyKey: context.idempotencyKey,
+      ),
+    ),
+  ],
+);
+```
+
+`messageService` is your application service. It must enforce permissions and
+use the idempotency key at the destination. AgentWeave cannot make an external
+service execute exactly once after a crash.
+
+```dart
+final paused = await agentFor(session).generate(
+  ChatRequest(
+    threadId: conversationId,
+    runId: firstRunId,
+    messages: [ChatMessage.user('Send the update', id: userMessageId)],
+  ),
+  ownerId: session.authenticated!.userIdentifier,
+  context: session,
+);
+
+if (paused.status == RunStatus.interrupted) {
+  final completed = await agentFor(session).generate(
+    ChatRequest(
+      threadId: paused.threadId,
+      runId: newRunId,
+      parentRunId: paused.runId,
+      resume: [for (final interrupt in paused.interrupts) interrupt.approve()],
+    ),
+    ownerId: session.authenticated!.userIdentifier,
+    context: session,
+  );
+  print(completed.text);
+}
+```
+
+The approval loop illustrates the backend API; a real application waits for a
+human decision. Do not automatically approve tools in production. Use
+`reject()`, `approve(editedArgs: ...)`, or `cancel()` as appropriate. Client-tool
+interrupts use `resolve(output)` and reject approval methods. Resolve every
+pending interrupt once, using a new run ID and the interrupted parent run ID.
+Do not add a new user message until pending tools have been resolved.
+
+For UI streaming use the authenticated endpoint in the
+[Serverpod example](../examples/serverpod/README.md). Its dedicated stream
+session remains open until the response closes.
+
+## Handle failures
+
+```dart
+try {
+  final result = await agent.generate(request, ownerId: ownerId, context: context);
+  // A paused result has status interrupted and typed tool interrupts.
+} on AgentRunException catch (error) {
+  logger.error(error.code, error.cause, error.causeStackTrace);
+  // error.result retains partial text and this run's snapshot.
+} on RunCancelled {
+  // Cancellation is deliberate and does not imply a completed answer.
+} on RunConflict {
+  // Another run owns the thread, the ID was reused, or the parent is stale.
+}
+```
+
+| Code | Meaning |
+| --- | --- |
+| `INVALID_INPUT` | Invalid caller input or continuation |
+| `INVALID_OUTPUT` | Invalid provider JSON or tool-call format |
+| `MODEL_FAILED` | Model invocation failed or ended prematurely |
+| `TOOL_FAILED` | A tool failed; reconcile possible external effects |
+| `STEP_LIMIT` | The configured agent loop bound was reached |
+
+Private causes stay on the backend. Error observers are best-effort synchronous
+callbacks; a throwing observer does not replace the original failure. Do not
+supply an unawaited asynchronous logger callback. Client streaming errors expose
+safe codes/messages rather than private exceptions.
+
+## Test without a provider account
+
+```dart
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave/testing.dart';
+
+final model = ScriptedChatModel(steps: [
+  [
+    const TextDelta('Hello'),
+    const TokenUsage(inputTokens: 2, outputTokens: 1),
+    const ModelFinished(),
+  ],
+]);
+final result = await generateText(model: model, prompt: 'Hi');
+assert(result.text == 'Hello');
+assert(model.requests.single.messages.single.text == 'Hi');
+assert(model.remainingSteps == 0);
+```
+
+Declare the capabilities used by your fixture (`tools`, `structuredOutput`,
+multimodal input). Supply one step per model invocation, including post-tool
+invocations. Missing terminal events and exhausted scripts fail explicitly.
+For custom providers see [the provider guide](providers.md).
+
+## Connect a local OpenAI-compatible endpoint
+
+```dart
+final client = openai.OpenAIClient(
+  config: openai.OpenAIConfig(
+    baseUrl: 'http://localhost:11434/v1',
+    authProvider: openai.ApiKeyProvider('local-development'),
+  ),
+);
+final model = openai.OpenAIChatModel(client: client, model: 'your-installed-model');
+final result = await generateText(model: model, prompt: 'Hello');
+```
+
+This uses the Chat Completions wire format; the target must implement it.
+Local server/model capability support varies. This recipe is not a claim of
+Ollama, OpenRouter, Together, or gateway-specific option parity. Use an
+application-controlled URL; keep hosted provider keys on the backend. Flutter
+may call a local/on-device provider directly, but this repository has not yet
+verified mobile device networking or model execution.
+
+
+# Source: docs/dx-review.md
+
+# Independent Dart consumer review — round 2
+
+Reviewed the current uncommitted worktree on 2026-11-04, using `docs/dart-api.md`, public imports and offline executable consumer probes. This is a snapshot, not a release or production-readiness certification. No runtime code was edited and no network or paid API call was made.
+
+## Result: 7.7/10 (round 1: 6.7/10)
+
+Each dimension has equal weight. A 5 requires substantial implementation reading or glue; an 8 is a documented, working application path with clear boundaries; a 10 requires independent adoption and broader failure testing. Scores represent the tested developer journey, not provider parity.
+
+| Dimension | Score | Evidence |
+| --- | ---: | --- |
+| Discoverability | 7 | New Dart guide collects text, structured output, typed tools, approvals, testing and local endpoint in one place. Most recipes are fragments with application-defined names, and durable setup still requires the separate Serverpod example. |
+| Clarity | 8 | `generateText`, `generateObject`, `AiAgent.generate`, `approve()` and typed context express common tasks directly. The approval example explicitly says a human must decide. The developer still assembles IDs, storage, service, session, identity and interruption UI. |
+| Types | 8 | Typed tool input/output/context, decoded object and usage work in the consumer. Status and interrupts are accessible, but application JSON schema and decoder must be kept consistent manually. |
+| Debugging | 7.5 | Malformed structured output now reports `INVALID_OUTPUT`, and executable probes identified `MODEL_FAILED`, `TOOL_FAILED` and `STEP_LIMIT` while retaining backend cause; partial text survived premature stream termination. Diagnose real storage and network failures separately. |
+| Testing | 8 | `ScriptedChatModel` supports deterministic offline tests, checks received requests and fails clearly when exhausted. The example uses assertions, which are not a substitute for test-runner expectations in all execution modes. |
+
+## Executed consumer checks
+
+From repository root:
+
+```sh
+dart run examples/review_cases/consumer.dart
+dart run examples/review_cases/failures.dart
+```
+
+Both exited 0. The first tested text plus usage, schema-validated `int`, typed tool with approval and trusted context, agent recreation with the same `MemoryRunStore`, subsequent history, a custom provider, and invalid structured output (`INVALID_OUTPUT`). The second checked a stream without a terminal event and exhausted fixture (`MODEL_FAILED`), a tool exception (`TOOL_FAILED`), and loop exhaustion (`STEP_LIMIT`). Causes were retained and premature stream failure retained partial text.
+
+## Remaining developer friction and limits
+
+1. **Durable approval recipe is not a runnable standalone setup.** It uses undefined `Session`, `messageService`, IDs and configured `model`. This is reasonable application pseudocode, but a first-time developer must still combine it with Serverpod setup, migrations, authentication and tool registration. The offline recreation probe shares an in-memory store within one process: it does not verify database persistence, restart recovery, or `atomicRunStore.complete` rollback/atomicity. Add a linked, runnable Serverpod consumer integration with process recreation and injected persistence failures.
+2. **The local endpoint recipe is not a live compatibility test.** It usefully specifies the Chat Completions protocol and cautions that capability support varies. The custom provider probe is in-process only; it did not exercise HTTP, local inference, cancellation or model-specific options. A fixture-backed HTTP consumer example and separately documented real-server test would close this gap.
+3. **Failure coverage remains selective.** The new codes and causes worked in probes above. They do not establish behavior for approval rejection or edited arguments, storage failure, cancellation, a decoder exception, concurrent runs, or a side effect that succeeds before persistence fails. Clarify and test those paths before increasing the debugging score. Tool failure cause includes private detail; the guide correctly says to keep causes on the backend.
+4. **Examples are not uniformly copy-and-run.** The first guide snippet lacks a `main`; later snippets rely on definitions outside their code block. Link a small compilable complete sample and run it in CI. Use test framework expectations for the test recipe rather than relying exclusively on `assert`.
+5. **Provider and SDK capability claims remain separate.** A custom `ChatModel` is straightforward, but scripted model success says nothing about real OpenAI-compatible implementations, tool protocol variants, media, caching or production performance.
+
+No PostgreSQL, Serverpod restart, Flutter device, local model server, paid provider, network, crash recovery, or complete provider option parity was tested.
 
 
 # Source: docs/architecture.md
@@ -147,8 +460,8 @@ is unsuitable for work that continues while the response body is streamed.
 
 `RunStore` reserves a thread atomically and rejects reused run IDs. Reservations
 are scoped to the authenticated owner. Event logs are append-only, and complete
-conversation checkpoints are saved separately. Terminal events are published
-after releasing the reservation.
+conversation checkpoints are saved separately. Terminal events, final checkpoints, and reservation release commit atomically.
+Observers cannot see successful completion before the final state is committed.
 
 `MemoryRunStore` is for development. `ServerpodRunStore` uses PostgreSQL row
 locking and unique indexes. Applications can implement the same contract for
@@ -341,6 +654,76 @@ should evaluate the Realtime API. Check the
 before choosing a model.
 
 
+# Source: docs/openai-options-audit.md
+
+# OpenAI options audit
+
+Audit scope: `agent_weave_openai` and installed `openai_dart` 11.0.1, compared with the [Responses API](https://platform.openai.com/docs/api-reference/responses/create), [computer-use guide](https://platform.openai.com/docs/guides/tools-computer-use), and [Realtime API](https://platform.openai.com/docs/api-reference/realtime). This is a source review, not an exhaustive certification of all OpenAI endpoints or individual nested SDK fields. No live API calls were made. SDK types or raw HTTP access do not imply AgentWeave orchestration or a working end-to-end feature.
+
+| Area | SDK and adapter coverage | Gap and priority |
+|---|---|---|
+| Canonical request | `chat_models.dart:90–118,203–275` maps runtime messages, tools, instructions, token limit and output schema; typed `configure` can replace the whole request. | **P0:** replacement can silently erase or alter runtime messages, tool definitions, schema, and Responses encrypted-reasoning include. Define ownership and merge rules, preserve canonical inputs/tools, and test multiple turns and callback conflicts. Changing model also makes emitted usage report the constructor model, not necessarily the actual model. |
+| Responses options | SDK `CreateResponseRequest` includes model/input, instructions, tools/tool choice, previous response ID, max output/tool calls, temperature/top-p/penalties, reasoning/text, truncation/context management, parallel calls, service tier, metadata, include/store/background, safety/moderation, cache key/options/retention, top logprobs, multi-agent and access programs. Callback can set SDK-supported fields. | **P1:** options are not first-class runtime semantics; callback can conflict with canonical history and can overwrite required includes. SDK `createStream` forces `stream=true`; adapter never passes `beta=true`, required by SDK for multi-agent. Background and prior-response state need explicit lifecycle and duplicate-history rules. Check server/model constraints. |
+| Responses events | `chat_models.dart:124–172` handles text/refusal/reasoning-summary deltas, completed function calls, final output and token usage. Full completed output is saved as provider replay. | **P0:** only `function_call` becomes a runnable `ToolCallReady`; computer, custom, shell, apply-patch and approval continuations are not dispatched. All tool messages become `function_call_output`. Hosted-tool events and results are retained for replay only and are not surfaced as typed progress/results. Refusals lose their distinction, incomplete causes collapse to length, errors lose details, and no terminal event is required before stream EOF. Preserve IDs, statuses, annotations, errors, incremental events and output kinds. |
+| Computer use | SDK parses `computer_call` output (`models/responses/items/output_item.dart`); callback can configure SDK tool types. | **P0:** no action executor, screenshot result, safety-check acknowledgement or correct `computer_call_output` continuation in runtime. SDK `items/item.dart` dispatch does not list `computer_call_output`: verify its round trip and contribute a typed input item upstream if missing. Raw JSON sent independently is not an AgentWeave computer loop. Explicit authorization and sandbox controls belong at the execution boundary. |
+| Function tools | Runtime tool schemas and JSON-object arguments are mapped; tool calls are dispatched. | **P1:** `strict:false` is fixed, arguments are assumed JSON objects, output is text only, and per-tool provider options are absent. Validate schema/arguments, preserve tool IDs and correctly represent multimodal and non-function results. Hosted tools need not be run locally. |
+| Cache and state | SDK supports `prompt_cache_key`, options and retention; adapter reports `cached_tokens` if usage is present. Responses defaults to `store:false`, includes encrypted reasoning, and replays completed output. | **P1:** setting a key is not evidence of a cache hit; no cache hit/miss diagnostics or cache lifetime validation. Changing `include` can drop encrypted reasoning. `store`, `previous_response_id`, conversation state, deletion and retrieval have privacy and replay implications; test exact outgoing payloads and cache usage with an authorized live run. See [prompt caching](https://platform.openai.com/docs/guides/prompt-caching). |
+| Query and transport | SDK `responses.retrieve` and input-item `list` accept typed `include[]` and pagination; `platform_api.dart` supports JSON, binary GET, repeated query keys, idempotency and cancellation with client interceptor chain. | **P1:** these are separate SDK/raw operations, not run lifecycle integration. Raw helper accepts only GET/POST/PATCH/DELETE, JSON object response, and no request-specific arbitrary headers, multipart upload or SSE; binary download lacks repeated queries. Typed stream exposes abort and beta but adapter exposes only abort. Provide per-request transport options without compromising auth, retry, secret redaction or canonical request ownership. |
+| Chat completions | SDK request exposes sampling, penalties, logit bias/logprobs, n, stop, tools, output format, audio/modalities, prediction, search, caching, safety, metadata/store and more through callback. | **P1:** `chat_models.dart:297–318` ignores choices other than index 0; audio output, logprobs and other deltas are not emitted, even when enabled. Either support each requested output or reject unsupported configurations; test `n`, audio and tool streaming. File and video input are explicitly rejected. |
+| Images/audio/embeddings/video | `generation_models.dart` forwards SDK request objects for image generation, speech, transcription, embeddings, decision and video. Speech/transcription streaming and image streaming exist. `generation_tasks.dart` normalizes image, speech and transcription results. | **P1:** forwarding only covers fields represented by the pinned SDK; normalized tasks drop provider-specific metadata (including transcription detail) and create local IDs. Image nonstream and video create cannot abort in-flight through these wrappers; cancellation of local video waiting does not cancel a server job. Image edits/variations, translation and job operations remain direct SDK/raw workflows. Audit individual request serialization and response fields before claiming all media options. |
+| Realtime | `OpenAIRealtimeModel` passes a typed session config including audio, modalities, tools, reasoning, tracing, truncation and include to SDK connection; caller owns returned session. | **P1:** this is connection access, not runtime event, tool, interruption or voice orchestration. Connection cancellation is checked before and after connect rather than aborting the handshake; session lifetime is caller-owned. WebRTC, SIP, client secrets and raw realtime events require separate SDK/API paths and their own verification. |
+| API surface and future fields | Public package exports SDK surfaces; raw helper can address additional JSON endpoints. | **P2:** typed parsing may reject or drop unknown fields, while raw path has transport and response restrictions above. Inventory each endpoint, parameter, nested union and event against a dated official spec; test unknown enum/item handling. Contribute missing fields upstream rather than presenting reexports as complete integration. |
+
+## Verification and proposed sequence
+
+1. Add fixture-based request/stream tests proving canonical messages and tools survive configuration, required includes are merged, usage identifies the actual model, and unsupported combinations fail visibly. Cover cancellation, EOF, incomplete/failure causes, `n > 1`, cache options and repeated query keys.
+2. Design typed provider events and continuation items before implementing each client-executed tool loop. Verify call IDs, multiple actions, screenshot content and safety acknowledgements across at least two turns; separately expose hosted-tool results and approvals. Keep side-effectful execution opt-in and constrained by caller policy.
+3. Expose response-state and request transport controls with explicit storage, replay and retry semantics. Test retrieve/list query encoding, background lifecycle, and redaction using mock HTTP.
+4. Audit every media/realtime SDK request and output union against the official endpoint schema, then add serialization and event round-trip fixtures for each claimed field. Submit reproducible upstream issues or patches for confirmed SDK omissions; preserve compatibility with the pinned version.
+5. Only after fixture coverage, run separately authorized, cost-bounded live scenarios for real model/tool capability, cache metrics, media and realtime. Unit fixtures establish serialization and orchestration, not server behavior, model support or actual cache hits.
+
+Existing tests in `packages/agent_weave_openai/test` use fixtures and cover selected text, function-call, generation, transport and cancellation paths. This audit did not run them or establish exhaustive coverage.
+
+## Update: current worktree
+
+The current `chat_models.dart` now guards runtime-owned messages/input and token limits, requires each runtime tool exactly once, and protects an existing runtime output schema; it merges `reasoning.encrypted_content` into Responses `include`. Usage reports the returned response model when present, falling back to the configured model. Fixture tests in `chat_models_test.dart` cover rejected conversation replacement, include merging, cache key/metadata serialization, and Responses returned-model usage. These changes supersede the corresponding earlier P0 request-replacement and P1 include/model findings; they do not establish exhaustive configuration coverage or live behavior. The P0 computer and other non-function tool continuation gaps remain open. The guard only compares runtime fields present in the canonical JSON and permits additional provider tools; audit individual conflicting settings before claiming full option safety.
+
+
+# Source: docs/provider-coverage.md
+
+# Provider coverage and roadmap
+
+Status: incremental inventory, not an assertion of complete provider support. Reviewed the repository and linked provider documentation on 2026-11-04; provider APIs, models and SDK versions change. No paid calls or external mutations were made. The goal is to account for **all** options on each explicitly supported API, including nested fields, transport and lifecycle semantics; the table is a starting point rather than a complete field inventory.
+
+## What exists
+
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). There are no dedicated Anthropic, OpenRouter, Together, Vercel Gateway or Cloudflare packages in this repository. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+
+| Provider and API | What the repo implements | Significant missing work and evidence |
+| --- | --- | --- |
+| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; some fixture coverage. | See [OpenAI audit](openai-options-audit.md): non-function tool continuation, events, transport, media and complete field-by-field coverage remain open. |
+| Anthropic native Messages | No native Messages adapter, SDK dependency, event mapping or fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
+| OpenRouter Chat and Responses | OpenAI Chat-compatible transport is configurable. Pinned SDK has some OpenRouter fields (`provider`, `models`, route, transforms, reasoning, usage and sampling extensions); callback can set represented fields. No OpenRouter-specific adapter or tests. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Inventory every nested option, model routing, sticky/cache behavior, plugins, headers and usage/cost; expose returned actual provider/model and handle stream errors. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
+| Together inference | OpenAI-compatible Chat transport can be pointed at a suitable endpoint; no Together-specific adapter, native feature mapping, request tests or claims. | Inventory [Together API reference](https://docs.together.ai/reference/chat-completions) by endpoint/model, including sampling, stop, tools, response formats, caching, routing, streaming and media as actually offered. Preserve provider-specific data and errors. Verify documented base URL/auth and serialized request in a fixture before promising compatibility; test native non-chat operations separately. |
+| Vercel AI Gateway | A configurable compatible transport is possible; no Gateway-specific adapter, routing controls or response metadata integration. | Gateway documents distinct [Chat, Responses, Anthropic Messages and other interfaces](https://vercel.com/docs/ai-gateway/sdks-and-apis). Its [provider options](https://vercel.com/docs/ai-gateway/models-and-providers/provider-options) include routing order/filtering, cache behavior, timeouts/fallbacks and request-scoped credentials. Map each API's actual wire format and security boundary rather than copying AI SDK JavaScript option objects into OpenAI requests. Preserve selected provider and usage; protect BYOK secrets. |
+| Cloudflare Workers AI / AI Gateway | Configurable OpenAI Chat/embedding SDK path is possible; no dedicated Workers AI `/run` adapter, Worker binding or Gateway-specific integration. | [Workers AI bindings](https://developers.cloudflare.com/workers-ai/configuration/bindings/) and [model parameters](https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/) are model- and endpoint-specific; [changelog](https://developers.cloudflare.com/changelog/product/workers-ai/2/) also documents Responses for particular models. Inventory `/run`, compatible endpoints and gateway separately; model-specific input/output schemas, auth/account path, streaming, errors, gateway caching and metadata cannot be inferred from OpenAI support. |
+| Other providers | Custom `ChatModel` can be implemented by users. | No blanket support or parity claim. Add named provider/API/version inventory entries and evidence before advertising them. Model availability, feature support and defaults are not stable constants. |
+
+## Architecture requirements
+
+1. Key capabilities by **provider, API protocol, endpoint and model**, distinguishing supported, unsupported and unknown. Do not advertise unconditional tools, media or structured output for every model. Preserve the core runtime's authoritative conversation and registered tools while allowing explicit provider options; reject incompatible combinations rather than silently ignoring them.
+2. Reuse an actively maintained typed Dart SDK when it actually represents the endpoint and preserves required fields. `openai_dart` is already useful for OpenAI and the subset of compatible wire formats its request types model; it is not an Anthropic SDK or proof of arbitrary extension support. Evaluate candidate native SDK maintenance, license, streaming, cancellation, types, unknown fields and release cadence before adoption. Where a specific field or union is missing, reproduce the omission against official docs and submit a focused upstream issue or patch with serialization and round-trip tests; do not fork preemptively.
+3. Define explicit provider-specific typed options plus a controlled forward-compatible extension mechanism where transport supports it. Separate request fields, query parameters, request-scoped headers, multipart/binary data and SSE/WebSocket transport; preserve auth, cancellation, timeouts and safe retry/idempotency semantics. Never log credentials or sensitive replay blocks. An escape hatch alone does not implement orchestration.
+4. Preserve raw provider continuation privately and round-trip every relevant block in order. Map function calls, client-executed computer/custom tools, hosted tools, approvals, tool results and IDs distinctly; do not force all results into a function-output schema. Preserve refusal, errors, finish reasons, structured output, citations, reasoning, media, cache and usage/provider metadata without presenting private continuation as UI text.
+5. Inventory all create/retrieve/list/delete/cancel/query operations, paging, background jobs, cache and storage settings, file/media upload, realtime and model-specific limits separately. Make explicit whether each is typed SDK access, raw escape hatch, integrated runtime behavior, fixture-verified or live-verified.
+
+## Verification and upkeep
+
+- Maintain a versioned machine-readable inventory per provider/API/endpoint: official source URL and revision/date, request and response field/union, defaults, constraints, SDK representation, adapter handling, tests and status. Generate a human-readable coverage report and fail CI on unexplained inventory/spec changes when a reliable machine-readable spec is available; manually review provider changes where it is not.
+- Offline contract fixtures must assert exact request JSON/headers/query and parse provider event sequences. Cover text, schema, fragmented parallel tool arguments, multi-turn replay, hosted vs client tools, rejection, malformed/unknown events, errors, EOF, usage, caching markers, pagination, cancellation, privacy and retry. Add endpoint-specific incompatible-option tests. Include a mock HTTP consumer scenario for each claimed compatible provider, not just SDK unit tests.
+- Separately run explicitly authorized, spend-limited live smoke tests per provider/model/endpoint for text, tools, structured output, usage and any claimed media/cache behavior. Record model, date, capability, output and whether a real cache hit occurred; a fixture, reexport or HTTP 200 is not proof of real orchestration. Re-run after SDK or provider-spec changes. Do not treat this roadmap as completed until every supported surface has an inventoried, tested status and known exclusions.
+
+
 # Source: docs/compatibility.md
 
 # Compatibility
@@ -437,6 +820,13 @@ client version, which must be resolved before publishing that package.
 Create a reviewed tag and release notes that identify the tested upstream pins
 and the remaining limits. A Git push is not a pub.dev publication.
 
+## Custom store migration
+
+`RunStore.complete` must atomically append the terminal event, save the final
+checkpoint, and release the reservation. Do not implement it as two separately
+committed calls. The shared contract in `test/support/run_store_contract.dart`
+runs against both memory and PostgreSQL and exercises rollback and stale writers.
+
 
 # Source: docs/validation.md
 
@@ -465,10 +855,10 @@ and interoperability with the pinned official JavaScript client.
 
 On Dart 3.12.2 and 3.13.3:
 
-- 83 Dart unit and regression tests: tool validation, approvals, client tools,
+- 108 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 6 Serverpod integration tests with a real isolated PostgreSQL database:
+- 12 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -610,3 +1000,12 @@ make a failing test pass. Do not store a live key in examples, logs, or fixtures
 
 Read `docs/updating.md` before changing upstream pins or claiming new coverage.
 Keep `docs/validation.md` honest about fixture, live, and untested behavior.
+
+## Product acceptance and developer reviews
+
+Read `ROADMAP.md` before narrowing the scope or claiming completion. Native Dart
+DX is the main contract; TanStack compatibility can be an optional integration.
+Use an independent consumer-development subagent on each implementation round.
+It must write/run realistic cases and score the experience honestly out of ten.
+Use GPT-6.1 Terra with low/medium reasoning for subagents. Never convert a green
+test count or forwarded provider parameters into a full-support claim.

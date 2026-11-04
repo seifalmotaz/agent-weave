@@ -34,8 +34,8 @@ is unsuitable for work that continues while the response body is streamed.
 
 `RunStore` reserves a thread atomically and rejects reused run IDs. Reservations
 are scoped to the authenticated owner. Event logs are append-only, and complete
-conversation checkpoints are saved separately. Terminal events are published
-after releasing the reservation.
+conversation checkpoints are saved separately. Terminal events, final checkpoints, and reservation release commit atomically.
+Observers cannot see successful completion before the final state is committed.
 
 `MemoryRunStore` is for development. `ServerpodRunStore` uses PostgreSQL row
 locking and unique indexes. Applications can implement the same contract for

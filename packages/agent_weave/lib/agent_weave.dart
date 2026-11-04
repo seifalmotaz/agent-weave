@@ -10,3 +10,6 @@ export 'src/protocol.dart';
 export 'src/runtime.dart';
 export 'src/storage.dart';
 export 'src/tool.dart';
+
+export 'src/result.dart';
+export 'src/text.dart';

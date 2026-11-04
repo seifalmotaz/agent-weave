@@ -51,6 +51,8 @@ Future<void> main() async {
   }
   await run('dart', ['test', 'test/integration'], directory: example);
   await run('node', ['tool/interop/test.mjs']);
+  await run('dart', ['run', 'examples/review_cases/consumer.dart']);
+  await run('dart', ['run', 'examples/review_cases/failures.dart']);
   await run('python3', ['tool/test_audit_openai.py']);
   final secret = RegExp(
     r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
 import 'package:http/http.dart' as http;
@@ -66,6 +67,109 @@ final modelRequest = ModelRequest(
 );
 
 void main() {
+  test('local OpenAI-compatible chat works over real loopback HTTP', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) async {
+      expect(request.uri.path, '/v1/chat/completions');
+      final body = jsonDecode(await utf8.decoder.bind(request).join()) as Map;
+      expect((body['messages'] as List).last['content'], [
+        {'type': 'text', 'text': 'Hello'},
+      ]);
+      request.response.headers.contentType = ContentType(
+        'text',
+        'event-stream',
+      );
+      for (final event in [
+        chatEvent(delta: {'content': 'Local answer'}),
+        chatEvent(finish: 'stop'),
+      ]) {
+        request.response.write('data: ${jsonEncode(event)}\n\n');
+      }
+      request.response.write('data: [DONE]\n\n');
+      await request.response.close();
+    });
+    final client = openai.OpenAIClient(
+      config: openai.OpenAIConfig(
+        baseUrl: 'http://127.0.0.1:${server.port}/v1',
+        authProvider: openai.ApiKeyProvider('local-fixture'),
+      ),
+    );
+    addTearDown(client.close);
+    final result = await generateText(
+      model: openai.OpenAIChatModel(client: client, model: 'local'),
+      prompt: 'Hello',
+    );
+    expect(result.text, 'Local answer');
+  });
+
+  for (final responses in [true, false]) {
+    test(
+      '${responses ? "Responses" : "Chat"} configuration cannot replace authoritative conversation',
+      () async {
+        var sent = false;
+        final client = fixtureClient([], (_) {
+          sent = true;
+        });
+        final ChatModel model = responses
+            ? openai.OpenAIResponsesModel(
+                client: client,
+                model: 'fixture',
+                configure: (request) => openai.CreateResponseRequest.fromJson({
+                  ...request.toJson(),
+                  'input': <Object?>[],
+                }),
+              )
+            : openai.OpenAIChatModel(
+                client: client,
+                model: 'fixture',
+                configure: (request) =>
+                    openai.ChatCompletionCreateRequest.fromJson({
+                      ...request.toJson(),
+                      'messages': <Object?>[],
+                    }),
+              );
+        await expectLater(
+          model
+              .stream(modelRequest, cancellation: CancellationToken())
+              .toList(),
+          throwsArgumentError,
+        );
+        expect(sent, isFalse);
+      },
+    );
+  }
+  test(
+    'Responses options preserve caching and required encrypted reasoning replay',
+    () async {
+      final client = fixtureClient(
+        [
+          responseEvent('response.completed', {'response': responseJson()}),
+        ],
+        (request) {
+          final body = jsonDecode(request.body) as Map;
+          expect(body['prompt_cache_key'], 'tenant-cache');
+          expect(body['include'], contains('reasoning.encrypted_content'));
+          expect(body['metadata'], {'tenant': 'fixture'});
+        },
+      );
+      final model = openai.OpenAIResponsesModel(
+        client: client,
+        model: 'configured-model',
+        configure: (request) => openai.CreateResponseRequest.fromJson({
+          ...request.toJson(),
+          'prompt_cache_key': 'tenant-cache',
+          'include': <Object?>[],
+          'metadata': {'tenant': 'fixture'},
+        }),
+      );
+      final events = await model
+          .stream(modelRequest, cancellation: CancellationToken())
+          .toList();
+      expect(events.whereType<TokenUsage>().single.model, 'fixture');
+    },
+  );
+
   test(
     'Responses streams text and usage and sends bounded server options',
     () async {

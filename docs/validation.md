@@ -23,10 +23,10 @@ and interoperability with the pinned official JavaScript client.
 
 On Dart 3.12.2 and 3.13.3:
 
-- 83 Dart unit and regression tests: tool validation, approvals, client tools,
+- 108 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 6 Serverpod integration tests with a real isolated PostgreSQL database:
+- 12 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod

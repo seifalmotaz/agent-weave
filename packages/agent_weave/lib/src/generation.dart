@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'cancellation.dart';
+import 'diagnostics.dart';
 import 'model.dart';
 import 'protocol.dart';
 import 'storage.dart';
@@ -85,7 +86,7 @@ final class GenerationTask<P, R> {
         add('CUSTOM', {'name': 'generation:result', 'value': encoded});
         add('RUN_FINISHED');
       } catch (error, stack) {
-        onError?.call(error, stack);
+        reportError(onError, error, stack);
         if (!token.isCancelled) {
           add('RUN_ERROR', {
             'code': 'GENERATION_FAILED',
@@ -163,12 +164,6 @@ Stream<AgentEvent> _persist(
     }
     await for (final event in source) {
       cancellation.throwIfCancelled();
-      await store.appendEvent(
-        ownerId: ownerId,
-        threadId: threadId,
-        runId: runId,
-        event: event.json,
-      );
       if (event.json['name'] == 'generation:result') {
         state['result'] = event.json['value'];
       }
@@ -179,13 +174,29 @@ Stream<AgentEvent> _persist(
       if (event.type == 'RUN_ERROR') state['status'] = 'failed';
       final terminal =
           event.type == 'RUN_FINISHED' || event.type == 'RUN_ERROR';
-      await store.save(
-        ownerId: ownerId,
-        threadId: threadId,
-        runId: runId,
-        state: state,
-        release: terminal,
-      );
+      if (terminal) {
+        await store.complete(
+          ownerId: ownerId,
+          threadId: threadId,
+          runId: runId,
+          event: event.json,
+          state: state,
+        );
+      } else {
+        await store.appendEvent(
+          ownerId: ownerId,
+          threadId: threadId,
+          runId: runId,
+          event: event.json,
+        );
+        await store.save(
+          ownerId: ownerId,
+          threadId: threadId,
+          runId: runId,
+          state: state,
+          release: false,
+        );
+      }
       released = terminal;
       yield event;
     }

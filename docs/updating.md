@@ -38,3 +38,10 @@ their dependants. The native client currently depends on an unpublished Dart
 client version, which must be resolved before publishing that package.
 Create a reviewed tag and release notes that identify the tested upstream pins
 and the remaining limits. A Git push is not a pub.dev publication.
+
+## Custom store migration
+
+`RunStore.complete` must atomically append the terminal event, save the final
+checkpoint, and release the reservation. Do not implement it as two separately
+committed calls. The shared contract in `test/support/run_store_contract.dart`
+runs against both memory and PostgreSQL and exercises rollback and stale writers.

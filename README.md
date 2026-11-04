@@ -93,6 +93,10 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 
 ## Learn and contribute
 
+[Browse the documentation site](https://seifalmotaz.github.io/agent-weave/).
+
+- [Acceptance roadmap and open work](ROADMAP.md)
+- [Dart API, typed results, and application recipes](docs/dart-api.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Typed tools and approvals](docs/tools.md)
 - [Provider author guide](docs/providers.md)

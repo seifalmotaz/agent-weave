@@ -68,11 +68,7 @@ final class Tool<I, O, C> implements AgentTool<C> {
        outputSchema = outputSchema == null
            ? null
            : immutableJson(outputSchema) {
-    if (!RegExp(r'^[a-zA-Z0-9_-]{1,64}$').hasMatch(name)) {
-      throw ArgumentError.value(name, 'name', 'Invalid tool name');
-    }
-    JsonSchema.create(inputSchema);
-    if (outputSchema != null) JsonSchema.create(outputSchema);
+    validateToolDefinition(definition, this.outputSchema);
   }
 
   @override
@@ -106,4 +102,13 @@ void validateSchema(JsonObject schema, Object? value) {
       'Value does not match the declared JSON Schema.',
     );
   }
+}
+
+/// Validate declarations before a model request can be submitted.
+void validateToolDefinition(ModelTool definition, JsonObject? outputSchema) {
+  if (!RegExp(r'^[a-zA-Z0-9_-]{1,64}$').hasMatch(definition.name)) {
+    throw ArgumentError.value(definition.name, 'name', 'Invalid tool name');
+  }
+  JsonSchema.create(definition.inputSchema);
+  if (outputSchema != null) JsonSchema.create(outputSchema);
 }

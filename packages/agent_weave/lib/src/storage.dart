@@ -13,6 +13,15 @@ final class RunConflict implements Exception {
 /// Storage implementations must atomically reserve a thread and reject reused
 /// run IDs. Persist before publishing events. Never silently steal active runs.
 abstract interface class RunStore {
+  /// Atomically append a terminal event, checkpoint state, and release the run.
+  /// Observers must never see this event before the checkpoint is committed.
+  Future<void> complete({
+    required String ownerId,
+    required String threadId,
+    required String runId,
+    required JsonObject event,
+    required JsonObject state,
+  });
   Future<JsonObject> begin({
     required String ownerId,
     required String threadId,
@@ -54,6 +63,31 @@ final class MemoryRunStore implements RunStore {
   final _active = <(String, String), String>{};
   final _runs = <(String, String), String>{};
   final _events = <(String, String, String), List<JsonObject>>{};
+
+  @override
+  Future<void> complete({
+    required String ownerId,
+    required String threadId,
+    required String runId,
+    required JsonObject event,
+    required JsonObject state,
+  }) async {
+    validateTerminalEvent(event);
+    final key = (ownerId, threadId);
+    if (_active[key] != runId) {
+      throw const RunConflict('Run does not own thread.');
+    }
+    final journal = _events.putIfAbsent((ownerId, threadId, runId), () => []);
+    if (event['sequence'] != journal.length) {
+      throw const RunConflict('Event sequence is not contiguous.');
+    }
+    final eventCopy = copyJson(event);
+    final stateCopy = copyJson(state);
+    // No await between writes: readers cannot observe a partial commit.
+    journal.add(eventCopy);
+    _threads[key] = stateCopy;
+    _active.remove(key);
+  }
 
   @override
   Future<JsonObject> begin({
@@ -140,4 +174,10 @@ final class MemoryRunStore implements RunStore {
     for (final event in _events[(ownerId, threadId, runId)] ?? <JsonObject>[])
       if ((event['sequence'] as int) > afterSequence) copyJson(event),
   ];
+}
+
+void validateTerminalEvent(JsonObject event) {
+  if (event['type'] != 'RUN_FINISHED' && event['type'] != 'RUN_ERROR') {
+    throw ArgumentError('Expected a terminal run event.');
+  }
 }

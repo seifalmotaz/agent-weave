@@ -115,7 +115,19 @@ final class OpenAIResponsesModel implements ChatModel {
           },
         },
     });
-    params = configure?.call(params) ?? params;
+    final configured = configure?.call(params) ?? params;
+    final options = _preserveRequest(
+      params.toJson(),
+      configured.toJson(),
+      owned: ['input', 'instructions', 'max_output_tokens'],
+      schemaField: 'text',
+    );
+    options['include'] = <Object?>{
+      ...?options['include'] as List?,
+      'reasoning.encrypted_content',
+    }.toList();
+    params = api.CreateResponseRequest.fromJson(options);
+
     await for (final event in client.responses.createStream(
       params,
       abortTrigger: cancellation.whenCancelled,
@@ -155,7 +167,7 @@ final class OpenAIResponsesModel implements ChatModel {
             yield TokenUsage(
               inputTokens: usage['input_tokens'] as int,
               outputTokens: usage['output_tokens'] as int,
-              model: model,
+              model: response['model'] as String? ?? params.model,
               cachedInputTokens:
                   (usage['input_tokens_details'] as Map?)?['cached_tokens']
                       as int?,
@@ -272,7 +284,16 @@ final class OpenAIChatModel implements ChatModel {
           },
         },
     });
-    params = configure?.call(params) ?? params;
+    final configured = configure?.call(params) ?? params;
+    params = api.ChatCompletionCreateRequest.fromJson(
+      _preserveRequest(
+        params.toJson(),
+        configured.toJson(),
+        owned: ['messages', 'max_completion_tokens'],
+        schemaField: 'response_format',
+      ),
+    );
+
     final calls = <int, _CallBuffer>{};
     String? finishReason;
     await for (final event in client.chat.completions.createStream(
@@ -285,7 +306,7 @@ final class OpenAIChatModel implements ChatModel {
         yield TokenUsage(
           inputTokens: usage['prompt_tokens'] as int,
           outputTokens: usage['completion_tokens'] as int,
-          model: model,
+          model: json['model'] as String? ?? params.model,
           cachedInputTokens:
               (usage['prompt_tokens_details'] as Map?)?['cached_tokens']
                   as int?,
@@ -346,4 +367,43 @@ final class _CallBuffer {
   String? id;
   final name = StringBuffer();
   final arguments = StringBuffer();
+}
+
+// Provider options cannot silently rewrite the runtime's conversation contract.
+Map<String, dynamic> _preserveRequest(
+  Map<String, dynamic> canonical,
+  Map<String, dynamic> configured, {
+  required List<String> owned,
+  required String schemaField,
+}) {
+  for (final key in owned) {
+    if (canonical.containsKey(key) &&
+        canonicalJson(canonical[key]) != canonicalJson(configured[key])) {
+      throw ArgumentError(
+        'configure cannot replace runtime-owned $key. Set it on AiAgent instead.',
+      );
+    }
+  }
+  final canonicalSchema = canonical[schemaField];
+  final configuredSchema = configured[schemaField];
+  final before = schemaField == 'text' && canonicalSchema is Map
+      ? canonicalSchema['format']
+      : canonicalSchema;
+  final after = schemaField == 'text' && configuredSchema is Map
+      ? configuredSchema['format']
+      : configuredSchema;
+  if (before != null && canonicalJson(before) != canonicalJson(after)) {
+    throw ArgumentError('configure cannot replace the runtime output schema.');
+  }
+  for (final tool in canonical['tools'] as List? ?? []) {
+    final matches = (configured['tools'] as List? ?? []).where(
+      (candidate) => canonicalJson(candidate) == canonicalJson(tool),
+    );
+    if (matches.length != 1) {
+      throw ArgumentError(
+        'configure must preserve every runtime tool exactly once.',
+      );
+    }
+  }
+  return Map<String, dynamic>.from(configured);
 }

@@ -1,3 +1,7 @@
+# Unreleased
+
+- Commit final events, checkpoints and reservation release in a single transaction.
+
 ## 0.1.0-dev.1
 
 Initial development version. See the workspace compatibility and validation

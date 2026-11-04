@@ -2,10 +2,15 @@ import 'dart:io';
 
 const documents = [
   'README.md',
+  'ROADMAP.md',
+  'docs/dart-api.md',
+  'docs/dx-review.md',
   'docs/architecture.md',
   'docs/tools.md',
   'docs/providers.md',
   'docs/openai.md',
+  'docs/openai-options-audit.md',
+  'docs/provider-coverage.md',
   'docs/compatibility.md',
   'docs/updating.md',
   'docs/validation.md',

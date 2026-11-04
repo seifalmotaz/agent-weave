@@ -11,6 +11,34 @@ final class ServerpodRunStore implements RunStore {
   const ServerpodRunStore(this.session);
 
   @override
+  Future<void> complete({
+    required String ownerId,
+    required String threadId,
+    required String runId,
+    required JsonObject event,
+    required JsonObject state,
+  }) async {
+    validateTerminalEvent(event);
+    await session.db.transaction((tx) async {
+      await _appendEvent(
+        ownerId: ownerId,
+        threadId: threadId,
+        runId: runId,
+        event: event,
+        transaction: tx,
+      );
+      await _save(
+        ownerId: ownerId,
+        threadId: threadId,
+        runId: runId,
+        state: state,
+        release: true,
+        transaction: tx,
+      );
+    });
+  }
+
+  @override
   Future<JsonObject> begin({
     required String ownerId,
     required String threadId,
@@ -82,6 +110,21 @@ final class ServerpodRunStore implements RunStore {
     required String runId,
     required JsonObject state,
     required bool release,
+  }) => _save(
+    ownerId: ownerId,
+    threadId: threadId,
+    runId: runId,
+    state: state,
+    release: release,
+  );
+
+  Future<void> _save({
+    required String ownerId,
+    required String threadId,
+    required String runId,
+    required JsonObject state,
+    required bool release,
+    Transaction? transaction,
   }) async {
     final rows = await session.db.unsafeQuery(
       '''
@@ -96,6 +139,7 @@ final class ServerpodRunStore implements RunStore {
         'state': jsonEncode(state),
         'active': release ? null : runId,
       }),
+      transaction: transaction,
     );
     if (rows.isEmpty) throw const RunConflict('Run does not own thread.');
   }
@@ -136,6 +180,19 @@ final class ServerpodRunStore implements RunStore {
     required String threadId,
     required String runId,
     required JsonObject event,
+  }) => _appendEvent(
+    ownerId: ownerId,
+    threadId: threadId,
+    runId: runId,
+    event: event,
+  );
+
+  Future<void> _appendEvent({
+    required String ownerId,
+    required String threadId,
+    required String runId,
+    required JsonObject event,
+    Transaction? transaction,
   }) async {
     final rows = await session.db.unsafeQuery(
       '''
@@ -143,6 +200,9 @@ final class ServerpodRunStore implements RunStore {
       SELECT @owner, @thread, @run, @sequence, @event
       FROM agent_weave_thread WHERE "ownerId" = @owner AND "threadId" = @thread
         AND "activeRun" = @run
+        AND @sequence = (SELECT COALESCE(MAX("sequence"), -1) + 1
+          FROM agent_weave_event WHERE "ownerId" = @owner
+            AND "threadId" = @thread AND "runId" = @run)
       RETURNING id
       ''',
       parameters: QueryParameters.named({
@@ -152,6 +212,7 @@ final class ServerpodRunStore implements RunStore {
         'sequence': event['sequence'],
         'event': jsonEncode(event),
       }),
+      transaction: transaction,
     );
     if (rows.isEmpty) throw const RunConflict('Run does not own thread.');
   }

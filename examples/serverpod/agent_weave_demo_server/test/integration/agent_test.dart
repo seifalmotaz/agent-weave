@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave/testing.dart';
 import 'package:agent_weave_demo_client/agent_weave_demo_client.dart'
     as generated;
 import 'package:agent_weave_serverpod_client/agent_weave_serverpod_client.dart';
@@ -16,6 +17,7 @@ import 'package:serverpod/serverpod.dart';
 import 'package:serverpod/src/server/server.dart' show ServerInternalMethods;
 import 'package:test/test.dart';
 import 'test_tools/serverpod_test_tools.dart';
+import '../../../../../test/support/run_store_contract.dart';
 
 String input(String thread, String run) => jsonEncode({
   'threadId': thread,
@@ -35,6 +37,96 @@ void main() {
   withServerpod(
     'AgentWeave PostgreSQL integration',
     (builder, endpoints) {
+      runStoreContract(() => ServerpodRunStore(builder.build()));
+      test(
+        'a recreated agent resumes a PostgreSQL-backed approval without repeating its tool',
+        () async {
+          var calls = 0;
+          AiAgent<Session> agent(ChatModel model) => AiAgent<Session>(
+            model: model,
+            store: ServerpodRunStore(builder.build()),
+            tools: [
+              Tool<int, int, Session>(
+                name: 'double',
+                description: 'Double',
+                needsApproval: true,
+                inputSchema: const {'type': 'object'},
+                outputSchema: const {'type': 'integer'},
+                decode: (_) => 21,
+                encode: (n) => n,
+                execute: (n, context) {
+                  calls++;
+                  return n * 2;
+                },
+              ),
+            ],
+          );
+          final first = agent(
+            ScriptedChatModel(
+              capabilities: const ModelCapabilities(tools: true),
+              steps: [
+                [
+                  ToolCallReady(
+                    ToolCall(
+                      id: 'approval-call',
+                      name: 'double',
+                      arguments: {},
+                    ),
+                  ),
+                  const ModelFinished(),
+                ],
+              ],
+            ),
+          );
+          final paused = await first.generate(
+            ChatRequest(
+              threadId: 'durable-approval',
+              runId: 'pause',
+              messages: [ChatMessage.user('Start', id: 'approval-user')],
+            ),
+            ownerId: 'approval-owner',
+            context: builder.build(),
+          );
+          expect(paused.status, RunStatus.interrupted);
+          expect(calls, 0);
+          final recreated = agent(
+            ScriptedChatModel(
+              capabilities: const ModelCapabilities(tools: true),
+              steps: [
+                [const TextDelta('Result: 42'), const ModelFinished()],
+              ],
+            ),
+          );
+          final result = await recreated.generate(
+            ChatRequest(
+              threadId: paused.threadId,
+              runId: 'resume',
+              parentRunId: paused.runId,
+              resume: [paused.interrupts.single.approve()],
+            ),
+            ownerId: 'approval-owner',
+            context: builder.build(),
+          );
+          expect(result.text, 'Result: 42');
+          expect(calls, 1);
+          expect(result.messages, hasLength(4));
+          await expectLater(
+            recreated.generate(
+              ChatRequest(
+                threadId: paused.threadId,
+                runId: 'resume',
+                parentRunId: paused.runId,
+                resume: [paused.interrupts.single.approve()],
+              ),
+              ownerId: 'approval-owner',
+              context: builder.build(),
+            ),
+            throwsA(isA<RunConflict>()),
+          );
+          expect(calls, 1);
+        },
+      );
+
       test(
         'authenticated native endpoint streams and persists history',
         () async {

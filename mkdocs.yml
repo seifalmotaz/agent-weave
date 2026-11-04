@@ -1,0 +1,91 @@
+site_name: AgentWeave
+site_description: Build AI applications in Dart, with Serverpod first.
+site_url: https://seifalmotaz.github.io/agent-weave/
+repo_url: https://github.com/seifalmotaz/agent-weave
+repo_name: seifalmotaz/agent-weave
+edit_uri: ''
+docs_dir: website
+site_dir: .dart_tool/docs-site
+strict: true
+watch:
+  - docs
+  - examples/serverpod/README.md
+  - CONTRIBUTING.md
+  - AGENTS.md
+hooks:
+  - tool/docs_hook.py
+theme:
+  name: material
+  language: en
+  logo: assets/mark.svg
+  favicon: assets/mark.svg
+  font: false
+  palette:
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+plugins:
+  - search
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+extra_css:
+  - assets/styles.css
+extra:
+  generator: false
+nav:
+  - Overview: index.md
+  - Start building:
+      - Serverpod backend: getting-started/serverpod.md
+      - Plain Dart: getting-started/dart.md
+      - Flutter and other frameworks: getting-started/frameworks.md
+  - Guides:
+      - Dart API and recipes: dart-api.md
+      - Tools and approvals: tools.md
+      - Custom providers: providers.md
+      - OpenAI capabilities: openai.md
+      - Testing your application: testing.md
+  - Understand the SDK:
+      - Architecture: architecture.md
+      - Packages and API: reference.md
+      - Compatibility and limits: compatibility.md
+      - Validation evidence: validation.md
+  - Contribute:
+      - Contribution guide: contributing.md
+      - Update upstream: updating.md
+      - OpenAI options audit: openai-options-audit.md
+      - Provider coverage: provider-coverage.md
+      - Developer reviews: dx-review.md
+      - Coding-agent guide: agent-guide.md
+      - Build these docs: docs-site.md
