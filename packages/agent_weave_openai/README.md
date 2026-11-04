@@ -28,3 +28,16 @@ OpenAI Responses adapter; Chat Completions and compatible provider namespaces do
 not support this continuation. A rejected or failed call ends the continuation;
 start a new thread with a fresh screenshot. Safety-check acknowledgement has
 fixture coverage but has not been verified against the live GA service.
+
+
+## Hosted Responses tools
+
+Configure `hostedTools` on `OpenAIResponsesModel` for selected provider-executed
+search, code, image generation and server tool-search. Use
+`OpenAIHostedTool.fromJson` and `OpenAIResponsesModel.native` when native fields
+are missing or mistyped in the installed SDK. Completed image bytes become
+ordered `ImagePart` data URLs; native replay and metadata remain private.
+
+See [the hosted-tools guide](https://seifalmotaz.github.io/agent-weave/openai-hosted/)
+for an executable example, SDK type limits and unsupported workflows. This does
+not establish hosted-tool support for other compatible provider endpoints.

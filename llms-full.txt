@@ -120,6 +120,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Documents](docs/documents.md)
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
+- [OpenAI hosted tools and images](docs/openai-hosted.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
 - [Anthropic computer tools](docs/anthropic-computer.md)
@@ -165,6 +166,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   equivalent native approval, persistence and batch-failure contracts. Real
   driver/model behavior and other native
   tool continuations remain open; this is not complete computer-use parity.
+- Selected OpenAI hosted Responses tools now have lossless native options,
+  terminal validation, private replay and ordered completed image parts. Hosted
+  progress, citations, partial images, MCP/shell/custom/patch and live provider
+  behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
   browser/MCP tools, public citation rendering and full nested semantics remain
@@ -795,6 +800,73 @@ Final frozen-code rerun: all eight consumer cases pass and the consumer analyzes
 Additional Dart client review: `examples/review_cases/structured_continuation_client.dart` runs the pinned `tanstack_ai_dart` ChatClient against a local SSE server and scripted model. Across two runs, including a structured-output pause and `MESSAGES_SNAPSHOT`, it observes exactly two completed outputs with the expected data; a newly attached client hydrates the same two completed outputs. The script runs successfully and analyzes without issues. This is local protocol interop, not Flutter device or live provider evidence.
 
 Final programmatic fixture correction: the earlier fixture omitted the container needed for a pending programmatic call. After the runtime enforced that requirement, the fixture was updated to return a container and assert its replay after approval. Both the direct `20260120` caller and configured `20260521` alias with the `20260120` wire caller pass, as do all other loopback cases. Analyzer reports no issues. The earlier pass did not verify the required programmatic container.
+
+
+## Round 15: OpenAI hosted tools and cross-provider guards
+
+# Round 15: OpenAI Responses hosted tools consumer review
+
+**Scoped score: 8.2/10.** The native Dart API makes the common hosted definitions straightforward, and its raw constructor provides a clear escape hatch for fields the pinned SDK cannot represent. The split between typed and native configuration and the need to inspect private provider data for hosted metadata take some discovery. This score covers only the local scenarios below, not overall provider parity or production readiness.
+
+`examples/review_cases/openai_hosted.dart` uses a real loopback HTTP/SSE server and no provider credentials or paid requests. Dart 3.12.2 analysis reported no issues, and the consumer passed all twelve cases:
+
+- Typed web and file search plus native code interpreter and image generation definitions, including unknown request and nested tool fields on the actual HTTP body.
+- Four hosted output items and an application function call, exact unknown-field replay across a persisted approval and recreated agent, and private metadata excluded from hydration. A generated 1x1 PNG data URL is accessible in the result.
+- Automatic local execution only after completion, plus EOF, incomplete responses, terminal call mismatch, pre-cancellation, and cancellation after the server flushed a call event without execution. An unrelated owner cannot resume an approval.
+- Wrong-provider replay ignored; configuration cannot replace instructions, output schema or registered hosted definitions, or inject an unregistered function.
+
+The initial run exposed an unregistered function injection through native configuration. After the implementation fix, that same case passed before dispatch. The initial image-result assertion also failed while the feature was being implemented; it passes on the final rerun.
+
+Limits: this review did not call OpenAI, render the image, test every nested provider option or hosted tool, validate search quality, or exercise a live code container. Loopback fixtures cannot establish production provider behavior. Tool-search/MCP and other native continuation workflows are not certified by this score.
+
+Additional media consumer review: `examples/review_cases/output_media_client.dart` passed against a local SSE server using a real 1x1 PNG fixture. The native Dart client received text-image-text in order live and after server hydration; provider replay remained private and another owner could not load the checkpoint. A separate PostgreSQL recreation test checks the same ordering and privacy, plus provider replay in a subsequent recreated agent request; it analyzes clean and passed in the coordinated PostgreSQL suite after the follow-up fixture declared image input capability. Neither fixture renders pixels or calls a provider.
+
+
+### Independent contract and ownership review
+
+# Upstream image-generation tool patch review
+
+Static review of sparse worktree `.dart_tool/upstream/openai-image-tool-options` against pinned OpenAI Responses declaration and [current official request reference](https://developers.openai.com/api/reference/resources/responses/methods/create). No tests run here to avoid colliding with the root agent's checks; no paid requests. Reviewed upstream `AGENTS.md` and `.agents/skills/create-pr/SKILL.md` via `git show` because sparse checkout omits that file.
+
+## Findings
+
+1. **P2 — mask representation enforces a stricter contract than the published schema.** `ImageReference.fromJson` (`packages/openai_dart/lib/src/models/images/image_edit_json_request.dart:27`) requires exactly one of `file_id` and `image_url`, and its constructor relies on an assert for that invariant. The Responses API and pinned TypeScript `Tool.ImageGeneration.InputImageMask` declare both keys independently optional; no exclusivity requirement is specified. New tests label empty and both-key objects invalid. Those cases are schema-permitted but not verified accepted by the live API, so this is a schema-parity risk rather than a claimed production failure. Either establish an authoritative stricter rule or use a dedicated mask model with independently optional fields and appropriate tests. Importantly, Dart asserts are disabled in production, so direct construction can bypass the assumed invariant regardless.
+
+2. **P2 — unknown enum values are silently changed on a request round-trip.** `ImageModerationLevel.fromJson` and `ImageInputFidelity.fromJson` convert unrecognized strings to `.unknown`, which serializes literally as `unknown`. For example future `moderation: 'future'` is changed instead of preserved or rejected. The current API only documents auto/low and high/low; this is forward-compatibility risk rather than a supported-current-value failure. Consider rejecting unknown values for request models or preserving raw strings; add a decoding test for each. Avoid silently asserting unknown inputs are lossless.
+
+3. **P3 — model option combination in the new fixture is not an official supported example.** It pairs `model: gpt-image-2.5-flare` with `input_fidelity: high`; current reference documents fidelity for `gpt-image-1.5` and `gpt-image-1-mini`, not 2.5. This offline serialization test doesn't call the provider, but `gpt-image-1.5` would make the example contract-coherent. Model-specific acceptance remains untested.
+
+## What looks correct and release guidance
+
+The patch updates factory and constructor, reads/writes the structured mask, string moderation and integer compression, adds action and fidelity, and updates equality/hash consistently. New tests exercise both normal mask variants, exact request/tool round-trips, omission/null, wrong wire types and identity. The change breaks caller source compatibility for three existing parameter types. `AGENTS.md` requires conventional breaking marker; create-pr skill requires `## Breaking Changes` with before/after migration examples and accurate `## Test Plan`. Include replacements for all three parameters and an official API reference. No other repo callsites using changed parameter names were found by `rg`.
+
+The reference additionally specifies output compression 0–100 and partial images 0–3. Current patch preserves any integer; whether to validate locally should follow the package's existing boundary-validation policy rather than invent extra constraints. Existing enum fallback and shared ImageReference behavior predate this patch, but reuse makes them visible in this new API path.
+
+## Re-review of revision
+
+The revised patch resolves all three observations: `ImageGenerationMask` models two independent optional fields and tests empty/both-key cases, unknown moderation/fidelity values are rejected in decoding and encoding instead of rewritten, and the fixture uses `gpt-image-1.5`. No new actionable defect identified by static review. This is not an API acceptance or live execution check; no tests were rerun here.
+
+## Cross-provider concrete finding
+
+The shared Chat Completions configuration guard accepts extra unregistered function tools. `_preserveRequest` in `packages/agent_weave_openai/lib/src/chat_models.dart` only requires each canonical tool to appear once. A callback can add a new function with no corresponding runtime tool, so the provider may call a tool the runtime cannot execute. Reproduced using an actual OpenRouter `MockClient` and no registered tools with `.dart_tool/dx-review/round15/rogue_chat_tool.dart`; it printed `Reproduced: unregistered tool sent with no runtime tools`. Shared delegates affect OpenRouter, Vercel Gateway and Cloudflare compatible Chat adapters as well as OpenAI. The native APIs and Responses-specific hosted tool controls are separate.
+
+Regression `packages/agent_weave_openai/test/chat_tool_ownership_test.dart` tests additions with zero and one registered tool (both fail before fix), preserves an unmodified registered tool and rejects removal (existing guard handles removal). Fix Chat tool ownership by requiring configured tool definitions to match canonical registered definitions, accounting for absent versus empty arrays. Do not globally disallow hosted Responses additions as that protocol has a separate hosted-tools contract. Remaining listed provider coverage gaps are not established as new defects by this review.
+
+## Round 15 follow-up: shared codec and provider guards
+
+Static review scope: changed core JSON helpers, provider replay/ownership guards, OpenAI Responses parser, media snapshots, and selected compatible provider wrappers; not a whole-codebase security audit. Scoped score 6/10: selected regressions verify real failures but broad provider parity and live behavior remain open.
+
+The Chat ownership fix and conditional OpenAI-only Responses hosted-tool exception are verified by local mock HTTP wrapper tests. `test/compatible_responses_tool_ownership_test.dart` passes all three OpenRouter/Vercel/Cloudflare additions checks; `test/compatible_chat_tool_ownership_test.dart` adds native `int` versus `double` edge cases. Shared `jsonEquals` initially still used Dart scalar `==`: the pinned Dart VM considers `9007199254740993 == 9007199254740992.0` true, and all three compatible Chat wrapper tests confirmed this reaches HTTP. Fix must compare integral doubles with exact integer conversion and handle signed-int bounds, including `+2^63` saturation. As of the failing run, these three cases were red pending root's concurrent fix.
+
+`packages/agent_weave_anthropic/test/tool_ownership_test.dart` reproduces the pre-fix integer-to-integer `canonicalJson` collision and now passes with the native guard fix; adding a wholly unregistered native tool is rejected. `packages/agent_weave_ollama/test/tool_ownership_test.dart` verifies a forged replay tool argument differing by one above 2^53 fails before HTTP. Together normalized Chat exposes no arbitrary configure callback and serializes runtime tool definitions after its typed options; no matching extra-tool injection found in the inspected path.
+
+OpenAI hosted image option `output_compression` validation currently accepts any numeric value from 0 to 100, including fractional numbers; official Responses reference specifies integer. Reject fractional values and add an offline invalid-input test. This is provider validation, not evidence of a live service failure.
+
+## Final fix verification
+
+Root fixed mixed int/double comparisons using finite integral validation and exact `BigInt` comparison. Reran all five independently owned regression files with pinned Dart 3.12.2: **20/20 passed**, including all three compatible Chat nested-double cases and compatible Responses tool ownership. Root also tightened hosted image compression to `int`; independent assert-based check `image_compression_check.dart` confirmed 2.5 is rejected. Prior findings are resolved within this offline scope. No paid requests or exhaustive provider/security audit were performed.
+
+Final guide review: the first Dart block in `docs/openai-hosted.md` byte-matches `examples/openai_hosted_demo.dart` (1,112 bytes). Dart analysis and kernel compilation both passed without running the billable example. Inspection of the current hosted API and guide found no actionable mismatch or unsafe instruction; the guide explicitly flags billing and server-side credentials. This is a source-level review, not a live provider test.
 
 
 # Source: docs/architecture.md
@@ -1637,12 +1709,13 @@ Generated from the pinned official Node SDK. This is a selected protocol invento
 
 # OpenAI integration
 
-`agent_weave_openai` uses `openai_dart 11.0.1` for typed provider transport.
+`agent_weave_openai` uses `openai_dart 11.0.1` for provider transport.
+Responses uses native JSON/SSE to preserve fields before typed decoding.
 AgentWeave implements orchestration and protocol adaptation around that SDK.
 
 | Capability | Entry point |
 | --- | --- |
-| Responses chat | `OpenAIResponsesModel` |
+| Responses chat and selected hosted tools | `OpenAIResponsesModel`, including `.native` options |
 | Chat Completions | `OpenAIChatModel` |
 | Images | `OpenAIImageModel`, `imageTask`, or `client.images` |
 | Speech | `OpenAISpeechModel`, `speechTask`, or `client.audio.speech` |
@@ -1653,6 +1726,9 @@ AgentWeave implements orchestration and protocol adaptation around that SDK.
 | Realtime | `OpenAIRealtimeModel`, `client.realtime`, or `client.realtimeSessions` |
 | Supporting resources | Typed provider client resources |
 | Additional JSON operations | `OpenAIPlatformApi` |
+
+See [hosted tools](openai-hosted.md) for search, code, server tool-search and
+completed image output, with explicit lifecycle limits.
 
 Use `configure` on chat adapters to set typed provider-specific options. Model
 capabilities describe the adapter's request formats; selecting an incompatible
@@ -1719,6 +1795,475 @@ print(response.headers['x-request-id']);
 
 The raw helper buffers responses; it does not add arbitrary SSE or multipart
 handling. It preserves data but does not implement missing tool/job lifecycles.
+
+
+# Source: docs/openai-hosted.md
+
+# OpenAI hosted tools
+
+Configure provider-executed tools on `OpenAIResponsesModel`, separately from
+the application's `AiAgent.tools`. OpenAI executes hosted searches, code and
+image generation. AgentWeave executes only registered application tools, after
+the complete response has been validated and any approval has been resolved.
+
+## Search from Dart
+
+This example runs on a backend. Select an OpenAI model that supports the
+configured tool and set `OPENAI_API_KEY` and `OPENAI_MODEL`. Running it makes a
+billable provider request. The repository checks compile it without making that
+request.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+Future<void> main() async {
+  final key = Platform.environment['OPENAI_API_KEY'];
+  final modelId = Platform.environment['OPENAI_MODEL'];
+  if (key == null || key.isEmpty || modelId == null || modelId.isEmpty) {
+    throw StateError('Set OPENAI_API_KEY and OPENAI_MODEL.');
+  }
+  final client = openai.OpenAIClient.withApiKey(key);
+  try {
+    final result = await generateText(
+      model: openai.OpenAIResponsesModel.native(
+        client: client,
+        model: modelId,
+        hostedTools: [
+          openai.OpenAIHostedTool.fromJson({
+            'type': 'web_search',
+            'user_location': {
+              'type': 'approximate',
+              'city': 'Cairo',
+              'country': 'EG',
+            },
+          }),
+        ],
+        configure: (body) => {...body, 'tool_choice': 'auto'},
+      ),
+      prompt: 'Find the latest stable Dart release.',
+      maxOutputTokens: 1024,
+    );
+    print(result.text);
+  } finally {
+    client.close();
+  }
+}
+```
+
+The same source is in
+[`examples/openai_hosted_demo.dart`](https://github.com/seifalmotaz/agent-weave/blob/main/examples/openai_hosted_demo.dart).
+For Serverpod, pass this model to the agent behind your authenticated endpoint
+and use `ServerpodRunStore` for durable history. Keep the provider client alive
+for the application lifetime, then close it on shutdown.
+
+## Definitions and native options
+
+`OpenAIHostedTool` accepts an SDK `ResponseTool`.
+`OpenAIHostedTool.fromJson` accepts an immutable snapshot of native JSON.
+Use the latter when the installed SDK cannot represent a field accurately.
+The adapter currently recognizes these hosted tool families:
+
+| Tool | Integrated behavior |
+| --- | --- |
+| `web_search` and the pinned preview variants | Retain ordered native calls and search metadata for private continuation |
+| `file_search` | Require vector-store IDs; retain private queries and results |
+| `code_interpreter` | Require a container ID or auto configuration; retain private code, container IDs and outputs |
+| `image_generation` | Retain native output and expose completed image bytes as an `ImagePart` data URL |
+| `tool_search` with `execution: server` | Retain server search calls and loaded definitions; ordinary executors must still be registered by the application |
+
+One definition per family is allowed. Hosted tools do not add local executors.
+Client tool search, MCP, shell, custom-tool and patch lifecycles are not
+integrated and fail explicitly. Computer use has its own
+[application-controlled contract](computer-use.md).
+
+`OpenAIResponsesModel.native` keeps SDK authentication, client ownership and
+cancellation while using native JSON/SSE for Responses. Its `configure` callback
+receives immutable canonical JSON. Return a new map, copying any nested map or
+list you need to edit. History, output schema, tool definitions and output-token
+bounds remain runtime-owned. Native extensions retain unknown fields; they are
+not a promise that every field has a runtime handler or is accepted by a model.
+
+The ordinary constructor keeps its typed SDK configuration callback. Changes
+made through that typed view are patched onto the original JSON, preserving
+unchanged fields the SDK does not know. If the SDK cannot decode a definition,
+use the native constructor. With `openai_dart 11.0.1`, image-generation masks,
+moderation and compression have incorrect SDK types; native JSON accepts an
+object mask, `auto` or `low` moderation, and integer compression from 0 to 100.
+The type correction is proposed in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);
+this workspace continues to use the released SDK pin.
+
+Function tools may use strict schemas and deferred loading. Their names and
+schemas must still match registered executors. Asynchronous and programmatic
+function continuations need a separate handler and are rejected. Background
+Responses, `previous_response_id` and provider-owned conversations are also
+outside the agent's stateless full-history replay contract; use SDK resource
+APIs separately for those workflows.
+
+## Output, storage and privacy
+
+Completed image results become `ImagePart` data URLs in assistant history.
+Their position among text parts is retained in native Dart results, sanitized
+client snapshots and hydration. Image-only responses work too. The inline bytes
+are persisted with the conversation, so application storage and response-size
+limits must account for them. AgentWeave does not host or optimize artifacts.
+
+Raw ordered Responses output is stored under `openai.responses`. Top-level
+response metadata is retained under `openai.responses.metadata`. Both are
+server-side `providerData`, excluded from public history and events. Unknown
+fields on recognized output items survive replay. Never expose raw checkpoints
+as a client history endpoint.
+
+Search citations, code outputs, container files and image metadata stay private.
+Public citation rendering, partial image progress, hosted-tool progress and
+container-file downloads are not normalized by this adapter. Applications that
+need these capabilities can use native SDK streams, but then own their
+normalization and lifecycle.
+
+## Verification and scope
+
+The [generated field inventory](openai-hosted-parameters.md) records selected
+official Node SDK declarations and an executable Dart request fixture. Its
+upstream check detects changes to the selected declarations. It does not
+certify all nested constraints or the whole OpenAI API.
+
+Offline cases verify request preservation, mixed hosted/application tools,
+approval and recreation, terminal validation, cancellation, media ordering,
+private replay, native Dart and official JavaScript clients, and PostgreSQL
+history. No live hosted search, container, tool-search or Responses-image
+request was made for this increment. The earlier standalone Images API smoke
+test is a separate workflow. See [validation](validation.md).
+
+
+# Source: docs/openai-hosted-parameters.md
+
+# OpenAI hosted tool inventory
+
+Generated from the pinned [official Node SDK declarations](openai-hosted-inventory.json). See [the usage guide](openai-hosted.md).
+
+Selected hosted Responses declarations and executable request fields only; not a claim of nested semantics, live model behavior, or endpoint parity. Only completed image result bytes become public ImagePart content; other image metadata stays private. Partial images, public citations, hosted progress and downloaded container files are not normalized. External type references are retained, not expanded. Other tools, local executors, and unselected declarations are excluded.
+
+## FileSearchTool
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| type | `'file_search'` |
+| vector_store_ids | `Array<string>` |
+| filters? | `Shared.ComparisonFilter \| Shared.CompoundFilter \| null` |
+| max_num_results? | `number` |
+| ranking_options? | `FileSearchTool.RankingOptions` |
+
+## FileSearchTool.RankingOptions
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| hybrid_search? | `RankingOptions.HybridSearch` |
+| ranker? | `'auto' \| 'default-2024-11-15'` |
+| score_threshold? | `number` |
+
+## FileSearchTool.RankingOptions.HybridSearch
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| embedding_weight | `number` |
+| text_weight | `number` |
+
+## ResponseCodeInterpreterToolCall
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| code | `string \| null` |
+| container_id | `string` |
+| outputs | `Array<ResponseCodeInterpreterToolCall.Logs \| ResponseCodeInterpreterToolCall.Image> \| null` |
+| status | `'in_progress' \| 'completed' \| 'incomplete' \| 'interpreting' \| 'failed'` |
+| type | `'code_interpreter_call'` |
+
+## ResponseCodeInterpreterToolCall.Logs
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| logs | `string` |
+| type | `'logs'` |
+
+## ResponseCodeInterpreterToolCall.Image
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| type | `'image'` |
+| url | `string` |
+
+## ResponseFileSearchToolCall
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| queries | `Array<string>` |
+| status | `'in_progress' \| 'searching' \| 'completed' \| 'incomplete' \| 'failed'` |
+| type | `'file_search_call'` |
+| results? | `Array<ResponseFileSearchToolCall.Result> \| null` |
+
+## ResponseFileSearchToolCall.Result
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| attributes? | `{
+    [key: string]: string \| number \| boolean;
+} \| null` |
+| file_id? | `string` |
+| filename? | `string` |
+| score? | `number` |
+| text? | `string` |
+
+## ResponseFunctionWebSearch
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| action | `ResponseFunctionWebSearch.Search \| ResponseFunctionWebSearch.OpenPage \| ResponseFunctionWebSearch.Find` |
+| status | `'in_progress' \| 'searching' \| 'completed' \| 'failed' \| 'incomplete'` |
+| type | `'web_search_call'` |
+
+## ResponseFunctionWebSearch.Search
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| type | `'search'` |
+| queries? | `Array<string>` |
+| query? | `string` |
+| sources? | `Array<Search.Source>` |
+
+## ResponseFunctionWebSearch.Search.Source
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| type | `'url'` |
+| url | `string` |
+
+## ResponseFunctionWebSearch.OpenPage
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| type | `'open_page'` |
+| url? | `string \| null` |
+
+## ResponseFunctionWebSearch.Find
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| pattern | `string` |
+| type | `'find_in_page'` |
+| url | `string` |
+
+## ResponseOutputItem.ImageGenerationCall
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| result | `string \| null` |
+| status | `'in_progress' \| 'completed' \| 'generating' \| 'failed'` |
+| type | `'image_generation_call'` |
+| action? | `'generate' \| 'edit' \| 'auto' \| null` |
+| background? | `'transparent' \| 'opaque' \| 'auto' \| null` |
+| error? | `ImageGenerationCall.Error` |
+| output_format? | `'png' \| 'webp' \| 'jpeg' \| null` |
+| quality? | `'low' \| 'medium' \| 'high' \| 'xhigh' \| 'max' \| 'auto' \| null` |
+| revised_prompt? | `string \| null` |
+| size? | `(string & {}) \| '1024x1024' \| '1024x1536' \| '1536x1024' \| null` |
+
+## ResponseOutputItem.ImageGenerationCall.Error
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| code | `string \| null` |
+| message | `string` |
+| param | `string \| null` |
+| type | `string` |
+| moderation_details? | `Error.ModerationDetails` |
+
+## ResponseOutputItem.ImageGenerationCall.Error.ModerationDetails
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| categories | `Array<string>` |
+| moderation_stage | `'input' \| 'output' \| 'unknown'` |
+
+## ResponseToolSearchCall
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| arguments | `unknown` |
+| call_id | `string \| null` |
+| execution | `'server' \| 'client'` |
+| status | `'in_progress' \| 'completed' \| 'incomplete'` |
+| type | `'tool_search_call'` |
+| created_by? | `string` |
+
+## ResponseToolSearchOutputItem
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| call_id | `string \| null` |
+| execution | `'server' \| 'client'` |
+| status | `'in_progress' \| 'completed' \| 'incomplete'` |
+| tools | `Array<Tool>` |
+| type | `'tool_search_output'` |
+| created_by? | `string` |
+
+## Tool.CodeInterpreter
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| container | `string \| CodeInterpreter.CodeInterpreterToolAuto` |
+| type | `'code_interpreter'` |
+| allowed_callers? | `Array<'direct' \| 'programmatic'> \| null` |
+
+## Tool.CodeInterpreter.CodeInterpreterToolAuto
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| type | `'auto'` |
+| file_ids? | `Array<string>` |
+| memory_limit? | `'1g' \| '4g' \| '16g' \| '64g' \| null` |
+| network_policy? | `ResponsesAPI.ContainerNetworkPolicyDisabled \| ResponsesAPI.ContainerNetworkPolicyAllowlist` |
+
+## Tool.ImageGeneration
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| type | `'image_generation'` |
+| action? | `'generate' \| 'edit' \| 'auto'` |
+| background? | `'transparent' \| 'opaque' \| 'auto'` |
+| input_fidelity? | `'high' \| 'low' \| null` |
+| input_image_mask? | `ImageGeneration.InputImageMask` |
+| model? | `(string & {}) \| 'gpt-image-1' \| 'gpt-image-1-mini' \| 'gpt-image-2' \| 'gpt-image-2-2026-04-21' \| 'gpt-image-2.5-sunburst' \| 'gpt-image-2.5-sunburst-2026-09-08' \| 'gpt-image-2.5-flare' \| 'gpt-image-2.5-flare-2026-09-08' \| 'gpt-image-1.5' \| 'chatgpt-image-latest'` |
+| moderation? | `'auto' \| 'low'` |
+| output_compression? | `number` |
+| output_format? | `'png' \| 'webp' \| 'jpeg'` |
+| partial_images? | `number` |
+| quality? | `'low' \| 'medium' \| 'high' \| 'xhigh' \| 'max' \| 'auto'` |
+| size? | `(string & {}) \| '1024x1024' \| '1024x1536' \| '1536x1024' \| 'auto'` |
+
+## Tool.ImageGeneration.InputImageMask
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| file_id? | `string` |
+| image_url? | `string` |
+
+## ToolSearchTool
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| type | `'tool_search'` |
+| description? | `string \| null` |
+| execution? | `'server' \| 'client'` |
+| parameters? | `unknown \| null` |
+
+## WebSearchPreviewTool
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| type | `'web_search_preview' \| 'web_search_preview_2025_03_11'` |
+| search_content_types? | `Array<'text' \| 'image'>` |
+| search_context_size? | `'low' \| 'medium' \| 'high'` |
+| user_location? | `WebSearchPreviewTool.UserLocation \| null` |
+
+## WebSearchPreviewTool.UserLocation
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| type | `'approximate'` |
+| city? | `string \| null` |
+| country? | `string \| null` |
+| region? | `string \| null` |
+| timezone? | `string \| null` |
+
+## WebSearchTool
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| type | `'web_search' \| 'web_search_2025_08_26'` |
+| external_web_access? | `boolean` |
+| filters? | `WebSearchTool.Filters \| null` |
+| search_context_size? | `'low' \| 'medium' \| 'high'` |
+| user_location? | `WebSearchTool.UserLocation \| null` |
+
+## WebSearchTool.Filters
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| allowed_domains? | `Array<string> \| null` |
+
+## WebSearchTool.UserLocation
+
+Disposition: raw-native-options
+
+| Field | Source type |
+| --- | --- |
+| city? | `string \| null` |
+| country? | `string \| null` |
+| region? | `string \| null` |
+| timezone? | `string \| null` |
+| type? | `'approximate'` |
 
 
 # Source: docs/openrouter.md
@@ -3537,7 +4082,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
-| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; Responses also supports the application-executed native computer tool. | See [OpenAI audit](openai-options-audit.md): other native tool continuations, events, transport, media and complete field-by-field coverage remain open. Computer model and driver behavior require separate live verification. |
+| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. | See [OpenAI audit](openai-options-audit.md): MCP/shell/custom/patch continuations, public citations, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
 | Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Complete nested semantics, browser/MCP tools, other endpoint workflows and live hosted behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
 | OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, all hosted tools/media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
@@ -3576,6 +4121,9 @@ override only after checking the published package and rerunning interop tests.
 ## Implemented contracts
 
 - Text streaming, standard reasoning events, and structured-output events.
+- Ordered completed media parts in assistant history, client snapshots and hydration.
+- Selected OpenAI Responses hosted search, code, image and server tool-search
+  output with private replay; see [hosted tools](openai-hosted.md).
 - Configured server tools, client-tool pauses, and default tool approvals.
 - Selected OpenAI Responses native computer calls with application-owned
   execution, safety approvals, screenshots, and continuation; see
@@ -3600,7 +4148,7 @@ not a claim of full TanStack AI core parity.
   client-executed tools and other native tool kinds are unsupported; native
   approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
-  and provider-hosted tool event normalization are not implemented.
+  and general provider-hosted progress/citation normalization are not implemented.
 - Server tools execute sequentially. Applications can perform concurrency
   inside a tool, with their own cancellation and idempotency policy.
 - Disconnecting a direct run cancels its provider request. Replaying a stored
@@ -3609,9 +4157,9 @@ not a claim of full TanStack AI core parity.
   must reconnect; the observation timeout does not cancel the original run.
 - PostgreSQL is the supported persistent store. The raw SQL store does not
   claim SQLite compatibility.
-- Binary artifact hosting and automatic media reconstruction after a client
-  reload are not implemented. Inline results can be retained by application
-  storage; provider URLs may expire.
+- Binary artifact hosting is not implemented. Completed inline media parts are
+  retained in stored assistant history and hydration; provider URLs may expire.
+  Applications own media storage budgets and rendering.
 - OpenAI resource coverage combines typed SDK delegation and an explicit raw
   JSON helper. Complete typed endpoint parity and exhaustive endpoint tests
   remain unfinished.
@@ -3883,6 +4431,26 @@ and both positive/negative caller fixtures in the review; a request-field pin
 alone cannot prove that behavior.
 
 
+## OpenAI hosted Responses tools
+
+The selected hosted declarations share the OpenAI computer source pin and license.
+`tool/contracts/openai-hosted/reviewed-declarations.json` records the reviewed
+projection. A field or union change fails the check until it is reviewed.
+
+```sh
+dart run tool/openai_hosted_contract.dart
+node --test tool/interop/openai-hosted-inventory.test.mjs
+node tool/interop/openai-hosted-inventory.mjs --check
+node tool/interop/openai-hosted-inventory.mjs --upstream
+```
+
+Review native definition fields, output unions and continuation rules together.
+Update the reviewed projection, Dart serialization and parser tests before
+regenerating the published inventory with `--write`. A private replay field is
+not a public UI feature. Keep hosted execution distinct from registered local
+functions and explicitly reject lifecycles without a handler.
+
+
 # Source: docs/validation.md
 
 # Validation
@@ -3908,20 +4476,20 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest local-model and Dart Frog increment was checked on Dart 3.12.2. The prior
+The latest hosted-tools and provider-guard increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 391 Dart unit and regression tests: tool validation, approvals, client tools,
+- 427 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 16 Serverpod integration tests with a real isolated PostgreSQL database:
+- 17 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 19 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 20 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, two provider-continuation cases, and seven media/history cases. The media cases include document
+  generation, two provider-continuation cases, and eight media/history cases, including ordered output images. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
 - 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
@@ -4349,6 +4917,42 @@ was exercised. Browser/MCP tools, public citation rendering and full nested
 semantics remain unfinished. No paid calls or package publications were made.
 
 
+## OpenAI hosted tools and provider guards increment
+
+Selected hosted Responses tool definitions preserve native and unknown options
+before SDK decoding. Completed image results retain text-image-text ordering in
+Dart results, both clients and recreated PostgreSQL history. Private replay and
+metadata stay out of public history. Fixtures verify no application tool runs
+before a complete, consistent terminal response, including EOF, incomplete,
+mismatched and cancelled streams.
+
+The native Dart consumer passes 12 loopback cases and scores the selected path
+8.2/10. Its separate SSE/hydration case and the real PostgreSQL recreation test
+pass. The first PostgreSQL fixture incorrectly selected a text-only follow-up
+model; declaring its image capability corrected that fixture. The Gateway and Cloudflare
+consumers previously emitted a done function call missing from its terminal
+output; correcting those inconsistent fixtures restores their tool flows.
+
+Twenty independent regressions exercise runtime-owned tool/schema guards through
+actual OpenRouter, Vercel Gateway and Cloudflare wrappers, plus OpenAI, Anthropic
+and Ollama. They include adjacent integers above 2^53 and rounded doubles.
+Native guards now use exact JSON equality; protocol hashing keeps its deliberate
+JavaScript numeric semantics. The selected hosted declaration check matches the
+pinned official Node source and current upstream projection at review time.
+
+The related `openai_dart` image-option correction is submitted as
+[upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436).
+Its isolated Dart 3.13.3 unit suite passed 25,239 tests with 3 environment skips;
+strict library/new-test analysis passed. It used an explicitly remapped existing
+workspace dependency configuration, not a fresh full-monorepo bootstrap. The
+AgentWeave SDK pin remains 11.0.1; native JSON avoids the incorrect image types.
+
+No paid calls were made for this increment. Live hosted tools, search quality,
+containers, complete native provider semantics and device image rendering remain
+unverified. Public citations, hosted progress and partial images are not
+normalized. Packages remain unpublished.
+
+
 # Source: CONTRIBUTING.md
 
 # Contribute to AgentWeave
@@ -4413,6 +5017,9 @@ TypeScript API conventions into the Dart developer API.
 Use named parameters, immutable values, sealed events, patterns, and Dart
 Streams. Prefer typed provider options and schema-validated tool inputs.
 Use prefixes for provider imports to avoid collisions such as `Tool`.
+Use `jsonEquals` for Dart-owned JSON guards; `canonicalJson` deliberately uses
+JavaScript numeric semantics for protocol hashing and is not a guard comparison.
+Completed media is public content; native output/replay metadata stays private.
 Keep credentials on the backend and outside source control.
 
 Authentication owns `ownerId`. Never accept it from a request body.

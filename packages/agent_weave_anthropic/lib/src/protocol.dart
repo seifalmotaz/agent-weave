@@ -55,9 +55,7 @@ final class AnthropicChatModel implements ChatModel {
             }
             final before = snapshotJson(typed.toJson());
             final after = snapshotJson(configure!(typed).toJson());
-            return snapshotJson(
-              _applyChanges(body, before, after) as JsonObject,
-            );
+            return applyJsonChanges(body, before, after);
           },
     transport: (body, token) => client.messages.postStream(
       '/v1/messages',
@@ -179,13 +177,13 @@ final class AnthropicProtocolModel implements ChatModel {
                       (block) =>
                           block['type'] == 'tool_use' &&
                           block['toolset_name'] == 'computer' &&
-                          canonicalJson(
-                                AnthropicComputerCall.fromJson(
-                                  block,
-                                  definition: nativeTools.single,
-                                ).raw,
-                              ) ==
-                              canonicalJson(call.arguments),
+                          jsonEquals(
+                            AnthropicComputerCall.fromJson(
+                              block,
+                              definition: nativeTools.single,
+                            ).raw,
+                            call.arguments,
+                          ),
                     )
                     .length !=
                 1) {
@@ -304,8 +302,10 @@ final class AnthropicProtocolModel implements ChatModel {
     final original = canonical;
     final configured = snapshotJson(configure?.call(canonical) ?? canonical);
     for (final field in ['messages', 'max_tokens', 'system', 'tools']) {
-      if (canonicalJson(_ownedValue(field, original[field])) !=
-          canonicalJson(_ownedValue(field, configured[field]))) {
+      if (!jsonEquals(
+        _ownedValue(field, original[field]),
+        _ownedValue(field, configured[field]),
+      )) {
         throw ArgumentError('configure cannot replace runtime-owned $field.');
       }
     }
@@ -319,8 +319,10 @@ final class AnthropicProtocolModel implements ChatModel {
       );
     }
     if (request.outputSchema != null &&
-        canonicalJson((original['output_config'] as Map)['format']) !=
-            canonicalJson((configured['output_config'] as Map?)?['format'])) {
+        !jsonEquals(
+          (original['output_config'] as Map)['format'],
+          (configured['output_config'] as Map?)?['format'],
+        )) {
       throw ArgumentError(
         'configure cannot replace the runtime output schema.',
       );
@@ -347,8 +349,7 @@ final class AnthropicProtocolModel implements ChatModel {
       if (reason == 'pause_turn' || reason == 'tool_use') {
         final previous = lastAssistant.providerData['anthropic.messages.tools'];
         if (previous != null &&
-            canonicalJson(previous) !=
-                canonicalJson(configured['tools'] ?? [])) {
+            !jsonEquals(previous, configured['tools'] ?? [])) {
           throw ArgumentError(
             'Preserve tools while continuing an unfinished hosted turn.',
           );
@@ -723,33 +724,6 @@ Map<String, dynamic> _anthropicDocument(DocumentPart part) => {
     ),
   },
 };
-
-// Apply SDK callback changes without discarding fields its decoder does not know.
-Object? _applyChanges(Object? original, Object? before, Object? after) {
-  if (canonicalJson(before) == canonicalJson(after)) return original;
-  if (before is Map && after is Map && original is Map) {
-    return <String, Object?>{
-      for (final key in {...original.keys, ...after.keys})
-        if (!(before.containsKey(key) && !after.containsKey(key)))
-          key as String: before.containsKey(key) && after.containsKey(key)
-              ? _applyChanges(original[key], before[key], after[key])
-              : after.containsKey(key)
-              ? after[key]
-              : original[key],
-    };
-  }
-  if (before is List &&
-      after is List &&
-      original is List &&
-      before.length == after.length &&
-      original.length == before.length) {
-    return [
-      for (var i = 0; i < before.length; i++)
-        _applyChanges(original[i], before[i], after[i]),
-    ];
-  }
-  return after;
-}
 
 String? _containerId(Object? value) {
   if (value == null) return null;

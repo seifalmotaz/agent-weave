@@ -463,7 +463,12 @@ void main() {
       isNot(contains('secret')),
     );
     expect(
-      jsonEncode(events.whereType<ProviderOutput>().single.items),
+      jsonEncode(
+        events
+            .whereType<ProviderOutput>()
+            .singleWhere((e) => e.provider == 'openai.responses')
+            .items,
+      ),
       contains('secret'),
     );
     expect(

@@ -410,7 +410,7 @@ final class AnthropicComputerResult {
       ],
       isError: value['is_error'] == true,
     );
-    if (canonicalJson(result.toJson()['content']) != canonicalJson(blocks)) {
+    if (!jsonEquals(result.toJson()['content'], blocks)) {
       throw const FormatException('Unsupported computer result field.');
     }
     return result;

@@ -1,5 +1,10 @@
 # Unreleased
 
+- Add native Responses options and selected hosted search, code, server tool-search and complete image output with private replay.
+- Validate terminal calls before releasing application tools; preserve raw response metadata separately.
+- Reject unregistered Chat/compatible Responses tools and exact large-number mutations in runtime-owned schemas.
+- ResponsesProtocolModel transport/configure fields are now internal and its typed constructor is non-const; constructor callback names remain unchanged.
+
 - Add app-executed OpenAI Responses computer calls with approval and screenshot continuation.
 - Preserve original Responses SSE items before typed decoding and reject unknown computer action fields before execution.
 

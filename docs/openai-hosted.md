@@ -1,0 +1,136 @@
+# OpenAI hosted tools
+
+Configure provider-executed tools on `OpenAIResponsesModel`, separately from
+the application's `AiAgent.tools`. OpenAI executes hosted searches, code and
+image generation. AgentWeave executes only registered application tools, after
+the complete response has been validated and any approval has been resolved.
+
+## Search from Dart
+
+This example runs on a backend. Select an OpenAI model that supports the
+configured tool and set `OPENAI_API_KEY` and `OPENAI_MODEL`. Running it makes a
+billable provider request. The repository checks compile it without making that
+request.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+Future<void> main() async {
+  final key = Platform.environment['OPENAI_API_KEY'];
+  final modelId = Platform.environment['OPENAI_MODEL'];
+  if (key == null || key.isEmpty || modelId == null || modelId.isEmpty) {
+    throw StateError('Set OPENAI_API_KEY and OPENAI_MODEL.');
+  }
+  final client = openai.OpenAIClient.withApiKey(key);
+  try {
+    final result = await generateText(
+      model: openai.OpenAIResponsesModel.native(
+        client: client,
+        model: modelId,
+        hostedTools: [
+          openai.OpenAIHostedTool.fromJson({
+            'type': 'web_search',
+            'user_location': {
+              'type': 'approximate',
+              'city': 'Cairo',
+              'country': 'EG',
+            },
+          }),
+        ],
+        configure: (body) => {...body, 'tool_choice': 'auto'},
+      ),
+      prompt: 'Find the latest stable Dart release.',
+      maxOutputTokens: 1024,
+    );
+    print(result.text);
+  } finally {
+    client.close();
+  }
+}
+```
+
+The same source is in
+[`examples/openai_hosted_demo.dart`](https://github.com/seifalmotaz/agent-weave/blob/main/examples/openai_hosted_demo.dart).
+For Serverpod, pass this model to the agent behind your authenticated endpoint
+and use `ServerpodRunStore` for durable history. Keep the provider client alive
+for the application lifetime, then close it on shutdown.
+
+## Definitions and native options
+
+`OpenAIHostedTool` accepts an SDK `ResponseTool`.
+`OpenAIHostedTool.fromJson` accepts an immutable snapshot of native JSON.
+Use the latter when the installed SDK cannot represent a field accurately.
+The adapter currently recognizes these hosted tool families:
+
+| Tool | Integrated behavior |
+| --- | --- |
+| `web_search` and the pinned preview variants | Retain ordered native calls and search metadata for private continuation |
+| `file_search` | Require vector-store IDs; retain private queries and results |
+| `code_interpreter` | Require a container ID or auto configuration; retain private code, container IDs and outputs |
+| `image_generation` | Retain native output and expose completed image bytes as an `ImagePart` data URL |
+| `tool_search` with `execution: server` | Retain server search calls and loaded definitions; ordinary executors must still be registered by the application |
+
+One definition per family is allowed. Hosted tools do not add local executors.
+Client tool search, MCP, shell, custom-tool and patch lifecycles are not
+integrated and fail explicitly. Computer use has its own
+[application-controlled contract](computer-use.md).
+
+`OpenAIResponsesModel.native` keeps SDK authentication, client ownership and
+cancellation while using native JSON/SSE for Responses. Its `configure` callback
+receives immutable canonical JSON. Return a new map, copying any nested map or
+list you need to edit. History, output schema, tool definitions and output-token
+bounds remain runtime-owned. Native extensions retain unknown fields; they are
+not a promise that every field has a runtime handler or is accepted by a model.
+
+The ordinary constructor keeps its typed SDK configuration callback. Changes
+made through that typed view are patched onto the original JSON, preserving
+unchanged fields the SDK does not know. If the SDK cannot decode a definition,
+use the native constructor. With `openai_dart 11.0.1`, image-generation masks,
+moderation and compression have incorrect SDK types; native JSON accepts an
+object mask, `auto` or `low` moderation, and integer compression from 0 to 100.
+The type correction is proposed in [upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436);
+this workspace continues to use the released SDK pin.
+
+Function tools may use strict schemas and deferred loading. Their names and
+schemas must still match registered executors. Asynchronous and programmatic
+function continuations need a separate handler and are rejected. Background
+Responses, `previous_response_id` and provider-owned conversations are also
+outside the agent's stateless full-history replay contract; use SDK resource
+APIs separately for those workflows.
+
+## Output, storage and privacy
+
+Completed image results become `ImagePart` data URLs in assistant history.
+Their position among text parts is retained in native Dart results, sanitized
+client snapshots and hydration. Image-only responses work too. The inline bytes
+are persisted with the conversation, so application storage and response-size
+limits must account for them. AgentWeave does not host or optimize artifacts.
+
+Raw ordered Responses output is stored under `openai.responses`. Top-level
+response metadata is retained under `openai.responses.metadata`. Both are
+server-side `providerData`, excluded from public history and events. Unknown
+fields on recognized output items survive replay. Never expose raw checkpoints
+as a client history endpoint.
+
+Search citations, code outputs, container files and image metadata stay private.
+Public citation rendering, partial image progress, hosted-tool progress and
+container-file downloads are not normalized by this adapter. Applications that
+need these capabilities can use native SDK streams, but then own their
+normalization and lifecycle.
+
+## Verification and scope
+
+The [generated field inventory](openai-hosted-parameters.md) records selected
+official Node SDK declarations and an executable Dart request fixture. Its
+upstream check detects changes to the selected declarations. It does not
+certify all nested constraints or the whole OpenAI API.
+
+Offline cases verify request preservation, mixed hosted/application tools,
+approval and recreation, terminal validation, cancellation, media ordering,
+private replay, native Dart and official JavaScript clients, and PostgreSQL
+history. No live hosted search, container, tool-search or Responses-image
+request was made for this increment. The earlier standalone Images API smoke
+test is a separate workflow. See [validation](validation.md).

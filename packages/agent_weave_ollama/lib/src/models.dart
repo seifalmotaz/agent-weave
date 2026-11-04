@@ -124,8 +124,7 @@ final class OllamaChatModel implements ChatModel {
         final function = _function(native);
         final call = message.toolCalls[i];
         if (function['name'] != call.name ||
-            canonicalJson(function['arguments']) !=
-                canonicalJson(call.arguments) ||
+            !jsonEquals(function['arguments'], call.arguments) ||
             (saved != null &&
                 (saved[i]['localId'] != call.id ||
                     saved[i]['position'] != i ||
@@ -170,7 +169,7 @@ final class OllamaChatModel implements ChatModel {
       'tools',
       if (request.outputSchema != null) 'format',
     ]) {
-      if (canonicalJson(body[field]) != canonicalJson(canonical[field])) {
+      if (!jsonEquals(body[field], canonical[field])) {
         throw ArgumentError('configure cannot replace runtime-owned $field.');
       }
     }
@@ -243,8 +242,7 @@ final class OllamaChatModel implements ChatModel {
           if (prior != null) {
             final old = _function(prior);
             if (old['name'] != function['name'] ||
-                canonicalJson(old['arguments']) !=
-                    canonicalJson(function['arguments']) ||
+                !jsonEquals(old['arguments'], function['arguments']) ||
                 (prior['id'] != null &&
                     call['id'] != null &&
                     prior['id'] != call['id'])) {

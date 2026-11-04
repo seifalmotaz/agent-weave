@@ -24,6 +24,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   equivalent native approval, persistence and batch-failure contracts. Real
   driver/model behavior and other native
   tool continuations remain open; this is not complete computer-use parity.
+- Selected OpenAI hosted Responses tools now have lossless native options,
+  terminal validation, private replay and ordered completed image parts. Hosted
+  progress, citations, partial images, MCP/shell/custom/patch and live provider
+  behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
   browser/MCP tools, public citation rendering and full nested semantics remain

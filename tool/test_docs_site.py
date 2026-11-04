@@ -14,6 +14,11 @@ spec.loader.exec_module(hook)
 
 
 class DocumentationTest(unittest.TestCase):
+    def test_hosted_guide_uses_the_runnable_example(self):
+        guide = (ROOT / 'docs/openai-hosted.md').read_text()
+        sample = guide.split('```dart\n', 1)[1].split('```', 1)[0]
+        self.assertEqual(sample, (ROOT / 'examples/openai_hosted_demo.dart').read_text())
+
     def test_canonical_links_keep_fragments_and_external_urls(self):
         text = ('[Update](docs/updating.md#releases) '
                 '[Agent](AGENTS.md) [Web](https://example.com/docs/x.md)')
@@ -30,6 +35,7 @@ class DocumentationTest(unittest.TestCase):
                          'getting-started/dart/index.html', 'tools/index.html',
                          'providers/index.html', 'compatibility/index.html',
                          'documents/index.html', 'openrouter/index.html',
+                         'openai-hosted/index.html', 'openai-hosted-parameters/index.html', 'openai-hosted-inventory.json',
                          'together/index.html', 'together-options/index.html', 'together-chat-inventory.json',
                          'vercel-gateway/index.html', 'gateway-options/index.html', 'gateway-options-inventory.json',
                          'cloudflare/index.html', 'cloudflare-api-reference/index.html',
@@ -45,6 +51,10 @@ class DocumentationTest(unittest.TestCase):
             self.assertNotIn('href="/assets/', html)
             search = json.loads((target / 'search/search_index.json').read_text())
             locations = {doc['location'] for doc in search['docs']}
+            self.assertIn('openai-hosted/', locations)
+            self.assertIn('openai-hosted-parameters/', locations)
+            hosted = json.loads((target / 'openai-hosted-inventory.json').read_text())
+            self.assertIn('Tool.ImageGeneration', hosted['declarations'])
             self.assertIn('tools/', locations)
             self.assertIn('documents/', locations)
             self.assertIn('openrouter/', locations)

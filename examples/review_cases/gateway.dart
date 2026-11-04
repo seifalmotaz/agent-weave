@@ -87,7 +87,17 @@ Future<void> journey(bool responses) async {
           'created_at': 0,
           'status': 'completed',
           'model': 'fixture',
-          'output': <Object>[],
+          'output': <Object>[
+            if (count == 2)
+              {
+                'type': 'function_call',
+                'id': 'item',
+                'call_id': 'call',
+                'name': 'double',
+                'arguments': '{"answer":21}',
+                'status': 'completed',
+              },
+          ],
         },
       });
     } else {

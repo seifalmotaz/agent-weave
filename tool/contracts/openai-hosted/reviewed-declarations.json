@@ -1,0 +1,780 @@
+{
+  "FileSearchTool": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'file_search'"
+      },
+      {
+        "name": "vector_store_ids",
+        "optional": false,
+        "type": "Array<string>"
+      },
+      {
+        "name": "filters",
+        "optional": true,
+        "type": "Shared.ComparisonFilter | Shared.CompoundFilter | null"
+      },
+      {
+        "name": "max_num_results",
+        "optional": true,
+        "type": "number"
+      },
+      {
+        "name": "ranking_options",
+        "optional": true,
+        "type": "FileSearchTool.RankingOptions"
+      }
+    ]
+  },
+  "FileSearchTool.RankingOptions": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "hybrid_search",
+        "optional": true,
+        "type": "RankingOptions.HybridSearch"
+      },
+      {
+        "name": "ranker",
+        "optional": true,
+        "type": "'auto' | 'default-2024-11-15'"
+      },
+      {
+        "name": "score_threshold",
+        "optional": true,
+        "type": "number"
+      }
+    ]
+  },
+  "FileSearchTool.RankingOptions.HybridSearch": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "embedding_weight",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "text_weight",
+        "optional": false,
+        "type": "number"
+      }
+    ]
+  },
+  "ResponseCodeInterpreterToolCall": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "code",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "container_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "outputs",
+        "optional": false,
+        "type": "Array<ResponseCodeInterpreterToolCall.Logs | ResponseCodeInterpreterToolCall.Image> | null"
+      },
+      {
+        "name": "status",
+        "optional": false,
+        "type": "'in_progress' | 'completed' | 'incomplete' | 'interpreting' | 'failed'"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'code_interpreter_call'"
+      }
+    ]
+  },
+  "ResponseCodeInterpreterToolCall.Logs": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "logs",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'logs'"
+      }
+    ]
+  },
+  "ResponseCodeInterpreterToolCall.Image": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'image'"
+      },
+      {
+        "name": "url",
+        "optional": false,
+        "type": "string"
+      }
+    ]
+  },
+  "ResponseFileSearchToolCall": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "queries",
+        "optional": false,
+        "type": "Array<string>"
+      },
+      {
+        "name": "status",
+        "optional": false,
+        "type": "'in_progress' | 'searching' | 'completed' | 'incomplete' | 'failed'"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'file_search_call'"
+      },
+      {
+        "name": "results",
+        "optional": true,
+        "type": "Array<ResponseFileSearchToolCall.Result> | null"
+      }
+    ]
+  },
+  "ResponseFileSearchToolCall.Result": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "attributes",
+        "optional": true,
+        "type": "{\n    [key: string]: string | number | boolean;\n} | null"
+      },
+      {
+        "name": "file_id",
+        "optional": true,
+        "type": "string"
+      },
+      {
+        "name": "filename",
+        "optional": true,
+        "type": "string"
+      },
+      {
+        "name": "score",
+        "optional": true,
+        "type": "number"
+      },
+      {
+        "name": "text",
+        "optional": true,
+        "type": "string"
+      }
+    ]
+  },
+  "ResponseFunctionWebSearch": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "action",
+        "optional": false,
+        "type": "ResponseFunctionWebSearch.Search | ResponseFunctionWebSearch.OpenPage | ResponseFunctionWebSearch.Find"
+      },
+      {
+        "name": "status",
+        "optional": false,
+        "type": "'in_progress' | 'searching' | 'completed' | 'failed' | 'incomplete'"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'web_search_call'"
+      }
+    ]
+  },
+  "ResponseFunctionWebSearch.Search": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'search'"
+      },
+      {
+        "name": "queries",
+        "optional": true,
+        "type": "Array<string>"
+      },
+      {
+        "name": "query",
+        "optional": true,
+        "type": "string"
+      },
+      {
+        "name": "sources",
+        "optional": true,
+        "type": "Array<Search.Source>"
+      }
+    ]
+  },
+  "ResponseFunctionWebSearch.Search.Source": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'url'"
+      },
+      {
+        "name": "url",
+        "optional": false,
+        "type": "string"
+      }
+    ]
+  },
+  "ResponseFunctionWebSearch.OpenPage": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'open_page'"
+      },
+      {
+        "name": "url",
+        "optional": true,
+        "type": "string | null"
+      }
+    ]
+  },
+  "ResponseFunctionWebSearch.Find": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "pattern",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'find_in_page'"
+      },
+      {
+        "name": "url",
+        "optional": false,
+        "type": "string"
+      }
+    ]
+  },
+  "ResponseOutputItem.ImageGenerationCall": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "result",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "status",
+        "optional": false,
+        "type": "'in_progress' | 'completed' | 'generating' | 'failed'"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'image_generation_call'"
+      },
+      {
+        "name": "action",
+        "optional": true,
+        "type": "'generate' | 'edit' | 'auto' | null"
+      },
+      {
+        "name": "background",
+        "optional": true,
+        "type": "'transparent' | 'opaque' | 'auto' | null"
+      },
+      {
+        "name": "error",
+        "optional": true,
+        "type": "ImageGenerationCall.Error"
+      },
+      {
+        "name": "output_format",
+        "optional": true,
+        "type": "'png' | 'webp' | 'jpeg' | null"
+      },
+      {
+        "name": "quality",
+        "optional": true,
+        "type": "'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto' | null"
+      },
+      {
+        "name": "revised_prompt",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "size",
+        "optional": true,
+        "type": "(string & {}) | '1024x1024' | '1024x1536' | '1536x1024' | null"
+      }
+    ]
+  },
+  "ResponseOutputItem.ImageGenerationCall.Error": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "code",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "message",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "param",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "moderation_details",
+        "optional": true,
+        "type": "Error.ModerationDetails"
+      }
+    ]
+  },
+  "ResponseOutputItem.ImageGenerationCall.Error.ModerationDetails": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "categories",
+        "optional": false,
+        "type": "Array<string>"
+      },
+      {
+        "name": "moderation_stage",
+        "optional": false,
+        "type": "'input' | 'output' | 'unknown'"
+      }
+    ]
+  },
+  "ResponseToolSearchCall": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "arguments",
+        "optional": false,
+        "type": "unknown"
+      },
+      {
+        "name": "call_id",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "execution",
+        "optional": false,
+        "type": "'server' | 'client'"
+      },
+      {
+        "name": "status",
+        "optional": false,
+        "type": "'in_progress' | 'completed' | 'incomplete'"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'tool_search_call'"
+      },
+      {
+        "name": "created_by",
+        "optional": true,
+        "type": "string"
+      }
+    ]
+  },
+  "ResponseToolSearchOutputItem": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "call_id",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "execution",
+        "optional": false,
+        "type": "'server' | 'client'"
+      },
+      {
+        "name": "status",
+        "optional": false,
+        "type": "'in_progress' | 'completed' | 'incomplete'"
+      },
+      {
+        "name": "tools",
+        "optional": false,
+        "type": "Array<Tool>"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'tool_search_output'"
+      },
+      {
+        "name": "created_by",
+        "optional": true,
+        "type": "string"
+      }
+    ]
+  },
+  "Tool.CodeInterpreter": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "container",
+        "optional": false,
+        "type": "string | CodeInterpreter.CodeInterpreterToolAuto"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'code_interpreter'"
+      },
+      {
+        "name": "allowed_callers",
+        "optional": true,
+        "type": "Array<'direct' | 'programmatic'> | null"
+      }
+    ]
+  },
+  "Tool.CodeInterpreter.CodeInterpreterToolAuto": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'auto'"
+      },
+      {
+        "name": "file_ids",
+        "optional": true,
+        "type": "Array<string>"
+      },
+      {
+        "name": "memory_limit",
+        "optional": true,
+        "type": "'1g' | '4g' | '16g' | '64g' | null"
+      },
+      {
+        "name": "network_policy",
+        "optional": true,
+        "type": "ResponsesAPI.ContainerNetworkPolicyDisabled | ResponsesAPI.ContainerNetworkPolicyAllowlist"
+      }
+    ]
+  },
+  "Tool.ImageGeneration": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'image_generation'"
+      },
+      {
+        "name": "action",
+        "optional": true,
+        "type": "'generate' | 'edit' | 'auto'"
+      },
+      {
+        "name": "background",
+        "optional": true,
+        "type": "'transparent' | 'opaque' | 'auto'"
+      },
+      {
+        "name": "input_fidelity",
+        "optional": true,
+        "type": "'high' | 'low' | null"
+      },
+      {
+        "name": "input_image_mask",
+        "optional": true,
+        "type": "ImageGeneration.InputImageMask"
+      },
+      {
+        "name": "model",
+        "optional": true,
+        "type": "(string & {}) | 'gpt-image-1' | 'gpt-image-1-mini' | 'gpt-image-2' | 'gpt-image-2-2026-04-21' | 'gpt-image-2.5-sunburst' | 'gpt-image-2.5-sunburst-2026-09-08' | 'gpt-image-2.5-flare' | 'gpt-image-2.5-flare-2026-09-08' | 'gpt-image-1.5' | 'chatgpt-image-latest'"
+      },
+      {
+        "name": "moderation",
+        "optional": true,
+        "type": "'auto' | 'low'"
+      },
+      {
+        "name": "output_compression",
+        "optional": true,
+        "type": "number"
+      },
+      {
+        "name": "output_format",
+        "optional": true,
+        "type": "'png' | 'webp' | 'jpeg'"
+      },
+      {
+        "name": "partial_images",
+        "optional": true,
+        "type": "number"
+      },
+      {
+        "name": "quality",
+        "optional": true,
+        "type": "'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'auto'"
+      },
+      {
+        "name": "size",
+        "optional": true,
+        "type": "(string & {}) | '1024x1024' | '1024x1536' | '1536x1024' | 'auto'"
+      }
+    ]
+  },
+  "Tool.ImageGeneration.InputImageMask": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "file_id",
+        "optional": true,
+        "type": "string"
+      },
+      {
+        "name": "image_url",
+        "optional": true,
+        "type": "string"
+      }
+    ]
+  },
+  "ToolSearchTool": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'tool_search'"
+      },
+      {
+        "name": "description",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "execution",
+        "optional": true,
+        "type": "'server' | 'client'"
+      },
+      {
+        "name": "parameters",
+        "optional": true,
+        "type": "unknown | null"
+      }
+    ]
+  },
+  "WebSearchPreviewTool": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'web_search_preview' | 'web_search_preview_2025_03_11'"
+      },
+      {
+        "name": "search_content_types",
+        "optional": true,
+        "type": "Array<'text' | 'image'>"
+      },
+      {
+        "name": "search_context_size",
+        "optional": true,
+        "type": "'low' | 'medium' | 'high'"
+      },
+      {
+        "name": "user_location",
+        "optional": true,
+        "type": "WebSearchPreviewTool.UserLocation | null"
+      }
+    ]
+  },
+  "WebSearchPreviewTool.UserLocation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'approximate'"
+      },
+      {
+        "name": "city",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "country",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "region",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "timezone",
+        "optional": true,
+        "type": "string | null"
+      }
+    ]
+  },
+  "WebSearchTool": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'web_search' | 'web_search_2025_08_26'"
+      },
+      {
+        "name": "external_web_access",
+        "optional": true,
+        "type": "boolean"
+      },
+      {
+        "name": "filters",
+        "optional": true,
+        "type": "WebSearchTool.Filters | null"
+      },
+      {
+        "name": "search_context_size",
+        "optional": true,
+        "type": "'low' | 'medium' | 'high'"
+      },
+      {
+        "name": "user_location",
+        "optional": true,
+        "type": "WebSearchTool.UserLocation | null"
+      }
+    ]
+  },
+  "WebSearchTool.Filters": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "allowed_domains",
+        "optional": true,
+        "type": "Array<string> | null"
+      }
+    ]
+  },
+  "WebSearchTool.UserLocation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "city",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "country",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "region",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "timezone",
+        "optional": true,
+        "type": "string | null"
+      },
+      {
+        "name": "type",
+        "optional": true,
+        "type": "'approximate'"
+      }
+    ]
+  }
+}

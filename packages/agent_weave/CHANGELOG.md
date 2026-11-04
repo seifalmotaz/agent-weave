@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add ordered completed media parts, sanitized client snapshots and hydration.
+- Add lossless typed JSON patches and exact numeric JSON comparison for provider ownership guards.
+
 - Preserve typed structured results in history and replace paused structured placeholders with sanitized snapshots.
 
 - Add checkpointed, step-bounded provider continuations and protect pending turns from new user input.

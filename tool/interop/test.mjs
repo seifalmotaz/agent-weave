@@ -72,6 +72,25 @@ try {
       console.log(`PASS official JS client: ${scenario}`);
     } finally { chat.dispose(); }
   }
+  const media = new ChatClient({threadId: 'output-media', connection: fetchServerSentEvents(`${base}/media`)});
+  try {
+    await media.sendMessage('Draw');
+    assert.equal(media.getError(), undefined);
+    const parts = media.getMessages().find(m => m.role === 'assistant').parts;
+    assert.deepEqual(parts.map(p => p.type), ['text', 'image', 'text']);
+    assert.equal(parts[0].content, 'before');
+    assert.equal(parts[2].content, 'after');
+    ContentPartSchema.parse(parts[1]);
+    assert.match(parts[1].source.value, /^data:image\/png;base64,/);
+    assert.equal(Buffer.from(parts[1].source.value.split(',')[1], 'base64').readUInt32BE(0), 0x89504e47);
+    const history = await (await fetch(`${base}/media-history?threadId=output-media`)).json();
+    assert.deepEqual(history.messages.find(m => m.role === 'assistant').parts, parts);
+    assert.equal(JSON.stringify(history).includes('PRIVATE-MEDIA'), false);
+    const restored = new ChatClient({threadId: 'output-media', connection: fetchServerSentEvents(`${base}/media`), initialMessages: history.messages});
+    try { assert.deepEqual(restored.getMessages().find(m => m.role === 'assistant').parts, parts); }
+    finally { restored.dispose(); }
+    console.log('PASS official JS client: ordered output image and private history');
+  } finally { media.dispose(); }
   for (const [name, part] of [
     ['document-url', { type: 'document', source: { type: 'url', value: 'https://example.com/report.pdf' }, metadata: { filename: 'report.pdf' } }],
     ['document-data', { type: 'document', source: { type: 'data', value: 'UERG', mimeType: 'application/pdf' } }],

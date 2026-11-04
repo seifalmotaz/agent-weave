@@ -346,3 +346,70 @@ Final frozen-code rerun: all eight consumer cases pass and the consumer analyzes
 Additional Dart client review: `examples/review_cases/structured_continuation_client.dart` runs the pinned `tanstack_ai_dart` ChatClient against a local SSE server and scripted model. Across two runs, including a structured-output pause and `MESSAGES_SNAPSHOT`, it observes exactly two completed outputs with the expected data; a newly attached client hydrates the same two completed outputs. The script runs successfully and analyzes without issues. This is local protocol interop, not Flutter device or live provider evidence.
 
 Final programmatic fixture correction: the earlier fixture omitted the container needed for a pending programmatic call. After the runtime enforced that requirement, the fixture was updated to return a container and assert its replay after approval. Both the direct `20260120` caller and configured `20260521` alias with the `20260120` wire caller pass, as do all other loopback cases. Analyzer reports no issues. The earlier pass did not verify the required programmatic container.
+
+
+## Round 15: OpenAI hosted tools and cross-provider guards
+
+# Round 15: OpenAI Responses hosted tools consumer review
+
+**Scoped score: 8.2/10.** The native Dart API makes the common hosted definitions straightforward, and its raw constructor provides a clear escape hatch for fields the pinned SDK cannot represent. The split between typed and native configuration and the need to inspect private provider data for hosted metadata take some discovery. This score covers only the local scenarios below, not overall provider parity or production readiness.
+
+`examples/review_cases/openai_hosted.dart` uses a real loopback HTTP/SSE server and no provider credentials or paid requests. Dart 3.12.2 analysis reported no issues, and the consumer passed all twelve cases:
+
+- Typed web and file search plus native code interpreter and image generation definitions, including unknown request and nested tool fields on the actual HTTP body.
+- Four hosted output items and an application function call, exact unknown-field replay across a persisted approval and recreated agent, and private metadata excluded from hydration. A generated 1x1 PNG data URL is accessible in the result.
+- Automatic local execution only after completion, plus EOF, incomplete responses, terminal call mismatch, pre-cancellation, and cancellation after the server flushed a call event without execution. An unrelated owner cannot resume an approval.
+- Wrong-provider replay ignored; configuration cannot replace instructions, output schema or registered hosted definitions, or inject an unregistered function.
+
+The initial run exposed an unregistered function injection through native configuration. After the implementation fix, that same case passed before dispatch. The initial image-result assertion also failed while the feature was being implemented; it passes on the final rerun.
+
+Limits: this review did not call OpenAI, render the image, test every nested provider option or hosted tool, validate search quality, or exercise a live code container. Loopback fixtures cannot establish production provider behavior. Tool-search/MCP and other native continuation workflows are not certified by this score.
+
+Additional media consumer review: `examples/review_cases/output_media_client.dart` passed against a local SSE server using a real 1x1 PNG fixture. The native Dart client received text-image-text in order live and after server hydration; provider replay remained private and another owner could not load the checkpoint. A separate PostgreSQL recreation test checks the same ordering and privacy, plus provider replay in a subsequent recreated agent request; it analyzes clean and passed in the coordinated PostgreSQL suite after the follow-up fixture declared image input capability. Neither fixture renders pixels or calls a provider.
+
+
+### Independent contract and ownership review
+
+# Upstream image-generation tool patch review
+
+Static review of sparse worktree `.dart_tool/upstream/openai-image-tool-options` against pinned OpenAI Responses declaration and [current official request reference](https://developers.openai.com/api/reference/resources/responses/methods/create). No tests run here to avoid colliding with the root agent's checks; no paid requests. Reviewed upstream `AGENTS.md` and `.agents/skills/create-pr/SKILL.md` via `git show` because sparse checkout omits that file.
+
+## Findings
+
+1. **P2 — mask representation enforces a stricter contract than the published schema.** `ImageReference.fromJson` (`packages/openai_dart/lib/src/models/images/image_edit_json_request.dart:27`) requires exactly one of `file_id` and `image_url`, and its constructor relies on an assert for that invariant. The Responses API and pinned TypeScript `Tool.ImageGeneration.InputImageMask` declare both keys independently optional; no exclusivity requirement is specified. New tests label empty and both-key objects invalid. Those cases are schema-permitted but not verified accepted by the live API, so this is a schema-parity risk rather than a claimed production failure. Either establish an authoritative stricter rule or use a dedicated mask model with independently optional fields and appropriate tests. Importantly, Dart asserts are disabled in production, so direct construction can bypass the assumed invariant regardless.
+
+2. **P2 — unknown enum values are silently changed on a request round-trip.** `ImageModerationLevel.fromJson` and `ImageInputFidelity.fromJson` convert unrecognized strings to `.unknown`, which serializes literally as `unknown`. For example future `moderation: 'future'` is changed instead of preserved or rejected. The current API only documents auto/low and high/low; this is forward-compatibility risk rather than a supported-current-value failure. Consider rejecting unknown values for request models or preserving raw strings; add a decoding test for each. Avoid silently asserting unknown inputs are lossless.
+
+3. **P3 — model option combination in the new fixture is not an official supported example.** It pairs `model: gpt-image-2.5-flare` with `input_fidelity: high`; current reference documents fidelity for `gpt-image-1.5` and `gpt-image-1-mini`, not 2.5. This offline serialization test doesn't call the provider, but `gpt-image-1.5` would make the example contract-coherent. Model-specific acceptance remains untested.
+
+## What looks correct and release guidance
+
+The patch updates factory and constructor, reads/writes the structured mask, string moderation and integer compression, adds action and fidelity, and updates equality/hash consistently. New tests exercise both normal mask variants, exact request/tool round-trips, omission/null, wrong wire types and identity. The change breaks caller source compatibility for three existing parameter types. `AGENTS.md` requires conventional breaking marker; create-pr skill requires `## Breaking Changes` with before/after migration examples and accurate `## Test Plan`. Include replacements for all three parameters and an official API reference. No other repo callsites using changed parameter names were found by `rg`.
+
+The reference additionally specifies output compression 0–100 and partial images 0–3. Current patch preserves any integer; whether to validate locally should follow the package's existing boundary-validation policy rather than invent extra constraints. Existing enum fallback and shared ImageReference behavior predate this patch, but reuse makes them visible in this new API path.
+
+## Re-review of revision
+
+The revised patch resolves all three observations: `ImageGenerationMask` models two independent optional fields and tests empty/both-key cases, unknown moderation/fidelity values are rejected in decoding and encoding instead of rewritten, and the fixture uses `gpt-image-1.5`. No new actionable defect identified by static review. This is not an API acceptance or live execution check; no tests were rerun here.
+
+## Cross-provider concrete finding
+
+The shared Chat Completions configuration guard accepts extra unregistered function tools. `_preserveRequest` in `packages/agent_weave_openai/lib/src/chat_models.dart` only requires each canonical tool to appear once. A callback can add a new function with no corresponding runtime tool, so the provider may call a tool the runtime cannot execute. Reproduced using an actual OpenRouter `MockClient` and no registered tools with `.dart_tool/dx-review/round15/rogue_chat_tool.dart`; it printed `Reproduced: unregistered tool sent with no runtime tools`. Shared delegates affect OpenRouter, Vercel Gateway and Cloudflare compatible Chat adapters as well as OpenAI. The native APIs and Responses-specific hosted tool controls are separate.
+
+Regression `packages/agent_weave_openai/test/chat_tool_ownership_test.dart` tests additions with zero and one registered tool (both fail before fix), preserves an unmodified registered tool and rejects removal (existing guard handles removal). Fix Chat tool ownership by requiring configured tool definitions to match canonical registered definitions, accounting for absent versus empty arrays. Do not globally disallow hosted Responses additions as that protocol has a separate hosted-tools contract. Remaining listed provider coverage gaps are not established as new defects by this review.
+
+## Round 15 follow-up: shared codec and provider guards
+
+Static review scope: changed core JSON helpers, provider replay/ownership guards, OpenAI Responses parser, media snapshots, and selected compatible provider wrappers; not a whole-codebase security audit. Scoped score 6/10: selected regressions verify real failures but broad provider parity and live behavior remain open.
+
+The Chat ownership fix and conditional OpenAI-only Responses hosted-tool exception are verified by local mock HTTP wrapper tests. `test/compatible_responses_tool_ownership_test.dart` passes all three OpenRouter/Vercel/Cloudflare additions checks; `test/compatible_chat_tool_ownership_test.dart` adds native `int` versus `double` edge cases. Shared `jsonEquals` initially still used Dart scalar `==`: the pinned Dart VM considers `9007199254740993 == 9007199254740992.0` true, and all three compatible Chat wrapper tests confirmed this reaches HTTP. Fix must compare integral doubles with exact integer conversion and handle signed-int bounds, including `+2^63` saturation. As of the failing run, these three cases were red pending root's concurrent fix.
+
+`packages/agent_weave_anthropic/test/tool_ownership_test.dart` reproduces the pre-fix integer-to-integer `canonicalJson` collision and now passes with the native guard fix; adding a wholly unregistered native tool is rejected. `packages/agent_weave_ollama/test/tool_ownership_test.dart` verifies a forged replay tool argument differing by one above 2^53 fails before HTTP. Together normalized Chat exposes no arbitrary configure callback and serializes runtime tool definitions after its typed options; no matching extra-tool injection found in the inspected path.
+
+OpenAI hosted image option `output_compression` validation currently accepts any numeric value from 0 to 100, including fractional numbers; official Responses reference specifies integer. Reject fractional values and add an offline invalid-input test. This is provider validation, not evidence of a live service failure.
+
+## Final fix verification
+
+Root fixed mixed int/double comparisons using finite integral validation and exact `BigInt` comparison. Reran all five independently owned regression files with pinned Dart 3.12.2: **20/20 passed**, including all three compatible Chat nested-double cases and compatible Responses tool ownership. Root also tightened hosted image compression to `int`; independent assert-based check `image_compression_check.dart` confirmed 2.5 is rejected. Prior findings are resolved within this offline scope. No paid requests or exhaustive provider/security audit were performed.
+
+Final guide review: the first Dart block in `docs/openai-hosted.md` byte-matches `examples/openai_hosted_demo.dart` (1,112 bytes). Dart analysis and kernel compilation both passed without running the billable example. Inspection of the current hosted API and guide found no actionable mismatch or unsafe instruction; the guide explicitly flags billing and server-side credentials. This is a source-level review, not a live provider test.

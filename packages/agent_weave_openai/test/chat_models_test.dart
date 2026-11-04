@@ -7,13 +7,13 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
-Map<String, Object?> responseJson() => {
+Map<String, Object?> responseJson({List<JsonObject> output = const []}) => {
   'id': 'response',
   'object': 'response',
   'created_at': 0,
   'status': 'completed',
   'model': 'fixture',
-  'output': <Object>[],
+  'output': output,
   'usage': {'input_tokens': 5, 'output_tokens': 2, 'total_tokens': 7},
 };
 Map<String, Object?> responseEvent(
@@ -392,7 +392,9 @@ void main() {
                   providerData: {
                     'openai.responses': first
                         .whereType<ProviderOutput>()
-                        .single
+                        .singleWhere(
+                          (event) => event.provider == 'openai.responses',
+                        )
                         .items,
                   },
                 ),
@@ -921,6 +923,7 @@ void main() {
       expect(events.map((e) => e.runtimeType), [
         TextDelta,
         ProviderOutput,
+        ProviderOutput,
         TokenUsage,
         ModelFinished,
       ]);
@@ -941,7 +944,20 @@ void main() {
           'status': 'completed',
         },
       }),
-      responseEvent('response.completed', {'response': responseJson()}),
+      responseEvent('response.completed', {
+        'response': responseJson(
+          output: [
+            {
+              'type': 'function_call',
+              'id': 'item',
+              'call_id': 'call',
+              'name': 'lookup',
+              'arguments': '{"id":42}',
+              'status': 'completed',
+            },
+          ],
+        ),
+      }),
     ], (_) {});
     final events = await openai.OpenAIResponsesModel(
       client: client,

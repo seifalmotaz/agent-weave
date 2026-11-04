@@ -64,6 +64,12 @@ Future<void> main() async {
     'tool/interop/anthropic-computer-inventory.mjs',
     '--check',
   ]);
+  await run('dart', ['run', 'tool/openai_hosted_contract.dart']);
+  await run('node', [
+    '--test',
+    'tool/interop/openai-hosted-inventory.test.mjs',
+  ]);
+  await run('node', ['tool/interop/openai-hosted-inventory.mjs', '--check']);
   await run('dart', ['run', 'tool/computer_contract.dart']);
   await run('node', ['--test', 'tool/interop/computer-inventory.test.mjs']);
   await run('node', ['tool/interop/computer-inventory.mjs', '--check']);
@@ -84,7 +90,13 @@ Future<void> main() async {
   ], directory: example);
   await run('node', ['tool/interop/test.mjs']);
   await run('node', ['tool/interop/dart-frog.mjs']);
-  for (final consumer in ['ollama', 'dart_frog', 'provider_options']) {
+  for (final consumer in [
+    'ollama',
+    'dart_frog',
+    'provider_options',
+    'openai_hosted',
+    'output_media_client',
+  ]) {
     await run('dart', [
       '--enable-asserts',
       'run',

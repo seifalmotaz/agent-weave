@@ -21,20 +21,20 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest local-model and Dart Frog increment was checked on Dart 3.12.2. The prior
+The latest hosted-tools and provider-guard increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 391 Dart unit and regression tests: tool validation, approvals, client tools,
+- 427 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 16 Serverpod integration tests with a real isolated PostgreSQL database:
+- 17 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 19 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 20 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, two provider-continuation cases, and seven media/history cases. The media cases include document
+  generation, two provider-continuation cases, and eight media/history cases, including ordered output images. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
 - 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
@@ -460,3 +460,39 @@ executable example and was analyzed and compiled without paid execution.
 No live search, fetch, code execution, tool search, container, files or billing
 was exercised. Browser/MCP tools, public citation rendering and full nested
 semantics remain unfinished. No paid calls or package publications were made.
+
+
+## OpenAI hosted tools and provider guards increment
+
+Selected hosted Responses tool definitions preserve native and unknown options
+before SDK decoding. Completed image results retain text-image-text ordering in
+Dart results, both clients and recreated PostgreSQL history. Private replay and
+metadata stay out of public history. Fixtures verify no application tool runs
+before a complete, consistent terminal response, including EOF, incomplete,
+mismatched and cancelled streams.
+
+The native Dart consumer passes 12 loopback cases and scores the selected path
+8.2/10. Its separate SSE/hydration case and the real PostgreSQL recreation test
+pass. The first PostgreSQL fixture incorrectly selected a text-only follow-up
+model; declaring its image capability corrected that fixture. The Gateway and Cloudflare
+consumers previously emitted a done function call missing from its terminal
+output; correcting those inconsistent fixtures restores their tool flows.
+
+Twenty independent regressions exercise runtime-owned tool/schema guards through
+actual OpenRouter, Vercel Gateway and Cloudflare wrappers, plus OpenAI, Anthropic
+and Ollama. They include adjacent integers above 2^53 and rounded doubles.
+Native guards now use exact JSON equality; protocol hashing keeps its deliberate
+JavaScript numeric semantics. The selected hosted declaration check matches the
+pinned official Node source and current upstream projection at review time.
+
+The related `openai_dart` image-option correction is submitted as
+[upstream PR #436](https://github.com/davidmigloz/ai_clients_dart/pull/436).
+Its isolated Dart 3.13.3 unit suite passed 25,239 tests with 3 environment skips;
+strict library/new-test analysis passed. It used an explicitly remapped existing
+workspace dependency configuration, not a fresh full-monorepo bootstrap. The
+AgentWeave SDK pin remains 11.0.1; native JSON avoids the incorrect image types.
+
+No paid calls were made for this increment. Live hosted tools, search quality,
+containers, complete native provider semantics and device image rendering remain
+unverified. Public citations, hosted progress and partial images are not
+normalized. Packages remain unpublished.

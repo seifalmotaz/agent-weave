@@ -36,6 +36,9 @@ TypeScript API conventions into the Dart developer API.
 Use named parameters, immutable values, sealed events, patterns, and Dart
 Streams. Prefer typed provider options and schema-validated tool inputs.
 Use prefixes for provider imports to avoid collisions such as `Tool`.
+Use `jsonEquals` for Dart-owned JSON guards; `canonicalJson` deliberately uses
+JavaScript numeric semantics for protocol hashing and is not a guard comparison.
+Completed media is public content; native output/replay metadata stays private.
 Keep credentials on the backend and outside source control.
 
 Authentication owns `ownerId`. Never accept it from a request body.

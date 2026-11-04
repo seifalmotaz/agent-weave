@@ -1,11 +1,12 @@
 # OpenAI integration
 
-`agent_weave_openai` uses `openai_dart 11.0.1` for typed provider transport.
+`agent_weave_openai` uses `openai_dart 11.0.1` for provider transport.
+Responses uses native JSON/SSE to preserve fields before typed decoding.
 AgentWeave implements orchestration and protocol adaptation around that SDK.
 
 | Capability | Entry point |
 | --- | --- |
-| Responses chat | `OpenAIResponsesModel` |
+| Responses chat and selected hosted tools | `OpenAIResponsesModel`, including `.native` options |
 | Chat Completions | `OpenAIChatModel` |
 | Images | `OpenAIImageModel`, `imageTask`, or `client.images` |
 | Speech | `OpenAISpeechModel`, `speechTask`, or `client.audio.speech` |
@@ -16,6 +17,9 @@ AgentWeave implements orchestration and protocol adaptation around that SDK.
 | Realtime | `OpenAIRealtimeModel`, `client.realtime`, or `client.realtimeSessions` |
 | Supporting resources | Typed provider client resources |
 | Additional JSON operations | `OpenAIPlatformApi` |
+
+See [hosted tools](openai-hosted.md) for search, code, server tool-search and
+completed image output, with explicit lifecycle limits.
 
 Use `configure` on chat adapters to set typed provider-specific options. Model
 capabilities describe the adapter's request formats; selecting an incompatible

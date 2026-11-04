@@ -15,6 +15,66 @@ JsonObject immutableJson(JsonObject value) {
   return freeze(value) as JsonObject;
 }
 
+/// Compare JSON values without coercing Dart integers to JavaScript doubles.
+bool jsonEquals(Object? a, Object? b) {
+  if (a is Map && b is Map) {
+    return a.length == b.length &&
+        a.keys.every((key) => b.containsKey(key) && jsonEquals(a[key], b[key]));
+  }
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!jsonEquals(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (a is num && b is num && (a is int) != (b is int)) {
+    final real = a is double ? a : b as double;
+    return real.isFinite &&
+        real == real.truncateToDouble() &&
+        BigInt.from(a) == BigInt.from(b);
+  }
+  return a == b;
+}
+
+/// Apply changes made through a typed JSON view without dropping unknown fields.
+/// Editing an array's length replaces that array; unchanged arrays retain opaque data.
+JsonObject applyJsonChanges(
+  JsonObject original,
+  JsonObject before,
+  JsonObject after,
+) {
+  Object? patch(Object? raw, Object? old, Object? next) {
+    if (jsonEquals(old, next)) return raw;
+    if (raw is Map && old is Map && next is Map) {
+      return <String, Object?>{
+        for (final key in {...raw.keys, ...next.keys})
+          if (!(old.containsKey(key) && !next.containsKey(key)) &&
+              (raw.containsKey(key) ||
+                  !old.containsKey(key) ||
+                  !jsonEquals(old[key], next[key])))
+            key as String: old.containsKey(key) && next.containsKey(key)
+                ? patch(raw[key], old[key], next[key])
+                : next.containsKey(key)
+                ? next[key]
+                : raw[key],
+      };
+    }
+    if (raw is List &&
+        old is List &&
+        next is List &&
+        raw.length == old.length &&
+        old.length == next.length) {
+      return [
+        for (var i = 0; i < raw.length; i++) patch(raw[i], old[i], next[i]),
+      ];
+    }
+    return next;
+  }
+
+  return immutableJson(patch(original, before, after) as JsonObject);
+}
+
 enum MessageRole { user, assistant, tool }
 
 sealed class ContentPart {
@@ -492,6 +552,20 @@ final class TextDelta extends ModelEvent {
 final class ReasoningDelta extends ModelEvent {
   final String text;
   const ReasoningDelta(this.text);
+}
+
+/// A complete non-text output part. Text remains a stream of [TextDelta] events.
+final class ContentPartReady extends ModelEvent {
+  final ContentPart part;
+
+  /// UTF-16 offset in accumulated text; omission places the part after current text.
+  final int? textOffset;
+  ContentPartReady(this.part, {this.textOffset}) {
+    if (textOffset != null && textOffset! < 0) {
+      throw ArgumentError.value(textOffset);
+    }
+    if (part is TextPart) throw ArgumentError('Use TextDelta for text output.');
+  }
 }
 
 final class ToolCallReady extends ModelEvent {

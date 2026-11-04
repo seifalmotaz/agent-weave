@@ -480,6 +480,8 @@ final class AiAgent<C> {
         token.throwIfCancelled();
         final messageId = _newId();
         final text = StringBuffer();
+        final media = <({int offset, ContentPart part})>[];
+        var hasMedia = false;
         partialMessageId = messageId;
         partialText = text;
         final calls = <ToolCall>[];
@@ -536,6 +538,16 @@ final class AiAgent<C> {
                 'messageId': messageId,
                 'delta': text,
               });
+            case ContentPartReady(:final part, :final textOffset):
+              final offset = textOffset ?? text.length;
+              if (offset > text.length ||
+                  (media.isNotEmpty && offset < media.last.offset)) {
+                throw const FormatException(
+                  'Output media has an invalid text offset.',
+                );
+              }
+              media.add((offset: offset, part: part));
+              hasMedia = true;
             case ToolCallReady() || NativeToolCallReady():
               final call = switch (item) {
                 ToolCallReady(:final call) => call,
@@ -603,11 +615,24 @@ final class AiAgent<C> {
           );
         }
         providerContinuationPending = continueTurn;
+        final content = <ContentPart>[];
+        final fullText = text.toString();
+        var cursor = 0;
+        for (final output in media) {
+          if (output.offset > cursor) {
+            content.add(TextPart(fullText.substring(cursor, output.offset)));
+          }
+          content.add(output.part);
+          cursor = output.offset;
+        }
+        if (cursor < fullText.length) {
+          content.add(TextPart(fullText.substring(cursor)));
+        }
         messages.add(
           ChatMessage(
             id: messageId,
             role: MessageRole.assistant,
-            content: text.isEmpty ? const [] : [TextPart(text.toString())],
+            content: content,
             toolCalls: calls,
             providerData: providerData,
           ),
@@ -630,7 +655,7 @@ final class AiAgent<C> {
           yield await event('REASONING_END', {'messageId': messageId});
         }
         if (continueTurn) {
-          if (outputSchema != null && textStarted) {
+          if (hasMedia || (outputSchema != null && textStarted)) {
             // A paused invocation is progress text, not a failed JSON answer.
             yield await event('MESSAGES_SNAPSHOT', {
               'messages': chatHydration(state())['messages'],
@@ -647,7 +672,7 @@ final class AiAgent<C> {
             messages[messages.length - 1] = ChatMessage(
               id: messageId,
               role: MessageRole.assistant,
-              content: [TextPart(text.toString())],
+              content: content,
               providerData: providerData,
               structuredOutput: StructuredMessageOutput(text.toString()),
             );
@@ -660,9 +685,19 @@ final class AiAgent<C> {
               },
             });
           }
+          if (hasMedia) {
+            yield await event('MESSAGES_SNAPSHOT', {
+              'messages': chatHydration(state())['messages'],
+            });
+          }
           status = RunStatus.completed;
           yield await event('RUN_FINISHED', {'finishReason': finishReason});
           return;
+        }
+        if (hasMedia || (outputSchema != null && textStarted)) {
+          yield await event('MESSAGES_SNAPSHOT', {
+            'messages': chatHydration(state())['messages'],
+          });
         }
         final interrupts = <JsonObject>[];
         final sequentialApprovals = {

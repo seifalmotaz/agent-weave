@@ -216,3 +216,23 @@ response union: the provider returns the `code_execution_20260120` caller tag.
 Keep the [programmatic-calling guide](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling)
 and both positive/negative caller fixtures in the review; a request-field pin
 alone cannot prove that behavior.
+
+
+## OpenAI hosted Responses tools
+
+The selected hosted declarations share the OpenAI computer source pin and license.
+`tool/contracts/openai-hosted/reviewed-declarations.json` records the reviewed
+projection. A field or union change fails the check until it is reviewed.
+
+```sh
+dart run tool/openai_hosted_contract.dart
+node --test tool/interop/openai-hosted-inventory.test.mjs
+node tool/interop/openai-hosted-inventory.mjs --check
+node tool/interop/openai-hosted-inventory.mjs --upstream
+```
+
+Review native definition fields, output unions and continuation rules together.
+Update the reviewed projection, Dart serialization and parser tests before
+regenerating the published inventory with `--write`. A private replay field is
+not a public UI feature. Keep hosted execution distinct from registered local
+functions and explicitly reject lifecycles without a handler.

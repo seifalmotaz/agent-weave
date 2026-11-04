@@ -1,5 +1,7 @@
 # Unreleased
 
+- Use shared lossless typed JSON patches and exact numeric ownership/replay comparisons.
+
 - Add typed/native hosted tools, opaque result replay, bounded paused turns, container reuse and programmatic caller checks.
 
 - Add typed 17-member computer toolsets, read-only approvals, ordered and halted batches, validated text/image results, and environment binding.

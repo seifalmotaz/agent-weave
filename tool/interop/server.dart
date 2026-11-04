@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave/testing.dart';
 import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
 
 const inputSchema = <String, Object?>{
@@ -78,6 +79,28 @@ Future<void> main() async {
       'additionalProperties': false,
     },
   );
+  final mediaAgent = AiAgent<void>(
+    model: ScriptedChatModel(
+      steps: [
+        [
+          const TextDelta('beforeafter'),
+          ContentPartReady(
+            const ImagePart(
+              'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aQAAAABJRU5ErkJggg==',
+            ),
+            textOffset: 6,
+          ),
+          ProviderOutput(
+            provider: 'fixture.private',
+            items: [
+              {'secret': 'PRIVATE-MEDIA'},
+            ],
+          ),
+          const ModelFinished(),
+        ],
+      ],
+    ),
+  );
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
   stdout.writeln(jsonEncode({'port': server.port}));
   await for (final request in server) {
@@ -101,6 +124,7 @@ Future<void> main() async {
       if (request.method == 'GET' &&
           {
             '/history',
+            '/media-history',
             '/structured-history',
             '/native-history',
             '/mixed-history',
@@ -109,7 +133,9 @@ Future<void> main() async {
         request.response.write(
           jsonEncode(
             chatHydration(
-              await (request.uri.path == '/native-history'
+              await (request.uri.path == '/media-history'
+                      ? mediaAgent
+                      : request.uri.path == '/native-history'
                       ? nativeAgent
                       : request.uri.path == '/mixed-history'
                       ? mixedAgent
@@ -149,7 +175,9 @@ Future<void> main() async {
             );
       } else {
         source =
-            (request.uri.path == '/mixed'
+            (request.uri.path == '/media'
+                    ? mediaAgent
+                    : request.uri.path == '/mixed'
                     ? mixedAgent
                     : request.uri.path == '/native'
                     ? nativeAgent

@@ -11,6 +11,9 @@ override only after checking the published package and rerunning interop tests.
 ## Implemented contracts
 
 - Text streaming, standard reasoning events, and structured-output events.
+- Ordered completed media parts in assistant history, client snapshots and hydration.
+- Selected OpenAI Responses hosted search, code, image and server tool-search
+  output with private replay; see [hosted tools](openai-hosted.md).
 - Configured server tools, client-tool pauses, and default tool approvals.
 - Selected OpenAI Responses native computer calls with application-owned
   execution, safety approvals, screenshots, and continuation; see
@@ -35,7 +38,7 @@ not a claim of full TanStack AI core parity.
   client-executed tools and other native tool kinds are unsupported; native
   approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
-  and provider-hosted tool event normalization are not implemented.
+  and general provider-hosted progress/citation normalization are not implemented.
 - Server tools execute sequentially. Applications can perform concurrency
   inside a tool, with their own cancellation and idempotency policy.
 - Disconnecting a direct run cancels its provider request. Replaying a stored
@@ -44,9 +47,9 @@ not a claim of full TanStack AI core parity.
   must reconnect; the observation timeout does not cancel the original run.
 - PostgreSQL is the supported persistent store. The raw SQL store does not
   claim SQLite compatibility.
-- Binary artifact hosting and automatic media reconstruction after a client
-  reload are not implemented. Inline results can be retained by application
-  storage; provider URLs may expire.
+- Binary artifact hosting is not implemented. Completed inline media parts are
+  retained in stored assistant history and hydration; provider URLs may expire.
+  Applications own media storage budgets and rendering.
 - OpenAI resource coverage combines typed SDK delegation and an explicit raw
   JSON helper. Complete typed endpoint parity and exhaustive endpoint tests
   remain unfinished.

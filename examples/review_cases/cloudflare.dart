@@ -423,7 +423,17 @@ Future<void> responses() async {
         'created_at': 0,
         'status': 'completed',
         'model': 'fixture',
-        'output': <Object>[],
+        'output': <Object>[
+          if (count == 1)
+            {
+              'type': 'function_call',
+              'id': 'item1',
+              'call_id': 'call1',
+              'name': 'double',
+              'arguments': '{"value":21}',
+              'status': 'completed',
+            },
+        ],
       },
     });
     await request.response.close();
