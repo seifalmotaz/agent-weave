@@ -2,13 +2,14 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
 import 'package:agent_weave_cloudflare/agent_weave_cloudflare.dart'
     as cloudflare;
+import 'package:agent_weave_ollama/agent_weave_ollama.dart' as ollama;
 import 'package:agent_weave_together/agent_weave_together.dart' as together;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 void main() {
-  for (final provider in ['Anthropic', 'Together', 'Cloudflare']) {
+  for (final provider in ['Anthropic', 'Together', 'Cloudflare', 'Ollama']) {
     test(
       '$provider rejects foreign native definitions and history before HTTP',
       () async {
@@ -37,6 +38,10 @@ void main() {
               together.TogetherChatModel(client: client, model: 'fixture'),
               client.close,
             );
+          }(),
+          'Ollama' => () {
+            final client = ollama.OllamaNativeClient(httpClient: transport);
+            return (client.chatModel(model: 'fixture'), client.close);
           }(),
           _ => () {
             final client = cloudflare.CloudflareClient.withApiToken(

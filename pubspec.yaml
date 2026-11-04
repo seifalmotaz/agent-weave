@@ -6,6 +6,8 @@ workspace:
   - packages/agent_weave
   - packages/agent_weave_openai
   - packages/agent_weave_anthropic
+  - packages/agent_weave_ollama
+  - packages/agent_weave_dart_frog
   - packages/agent_weave_openrouter
   - packages/agent_weave_together
   - packages/agent_weave_http
@@ -18,9 +20,12 @@ workspace:
   - examples/serverpod/agent_weave_demo_server
   - examples/serverpod/agent_weave_demo_client
 dev_dependencies:
+  dart_frog: ^1.2.6
   agent_weave: ^0.1.0-dev.1
   agent_weave_openai: ^0.1.0-dev.1
   agent_weave_anthropic: ^0.1.0-dev.1
+  agent_weave_ollama: ^0.1.0-dev.1
+  agent_weave_dart_frog: ^0.1.0-dev.1
   agent_weave_openrouter: ^0.1.0-dev.1
   agent_weave_together: ^0.1.0-dev.1
   agent_weave_http: ^0.1.0-dev.1

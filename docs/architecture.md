@@ -136,7 +136,7 @@ until their gateway/account ownership can be established. URLs and inline input
 remain separate source variants.
 
 `agent_weave_http` owns HTTP methods with explicit empty, JSON or binary bodies
-and JSON SSE I/O for native adapters. Together, Gateway and Cloudflare use the
+and JSON SSE/NDJSON I/O for native adapters. Together, Gateway and Cloudflare use the
 same per-request deadline, abort, metadata and error-body handling. Provider adapters own finish/EOF semantics and credential redaction.
 This package does not add an HTTP dependency to the core agent runtime.
 
@@ -164,3 +164,17 @@ Chat reasoning fragments and response-level metadata have separate private
 namespaces. Only reasoning fragments are replayed as Chat continuation. Metadata
 is a compact snapshot of reported fields; raw native methods retain complete
 events without storing every text chunk twice in assistant history.
+
+## Ollama and Dart Frog
+
+Ollama uses native NDJSON rather than the compatible SSE codecs. The adapter
+assembles selected message fields, retains original frames privately and maps
+native call IDs to separate local runtime IDs. It replays thinking, tool indexes
+and native IDs without exposing them through UI hydration. Tools with conflicting
+repeated indexes fail before execution; raw streaming remains available.
+
+Dart Frog handlers use core chat requests, generation tasks, stores and event
+encoding. Authentication supplies owner identity and trusted context. Both chat
+and generation derive identity on the server; generation decoding can use that
+context to bind parameters. The application owns provider/store lifetimes and
+keeps request-context resources valid until its response stream ends.

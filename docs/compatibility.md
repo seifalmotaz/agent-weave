@@ -79,6 +79,15 @@ not a claim of full TanStack AI core parity.
   acceptance and live gateway behavior are unverified. Native traditional tool
   continuation is limited to the documented Hermes single-call format. See
   [Cloudflare](cloudflare.md).
+- Ollama native chat uses NDJSON with private thinking, native call ID and metadata
+  replay. Typed options and embeddings are available; a real daemon, model and
+  Flutter device remain untested. External image URLs are not fetched, only inline
+  base64 images are accepted. Conflicting repeated tool indexes fail explicitly.
+  See [Ollama](ollama.md).
+- Dart Frog handlers support authenticated chat, history, replay and typed
+  generation over actual local HTTP. Production authentication, reverse-proxy
+  disconnects and durable restart require application-level verification. See
+  [Dart Frog](dart-frog.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 

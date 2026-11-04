@@ -153,6 +153,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.9.0"
+  dart_frog:
+    dependency: "direct dev"
+    description:
+      name: dart_frog
+      sha256: "4ab2323ad74f935f5f76cb2de7e699d0319245e8029753878b0ddc35984f9cfe"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.6"
   ffi:
     dependency: transitive
     description:
@@ -217,6 +225,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.2.0"
+  hotreloader:
+    dependency: transitive
+    description:
+      name: hotreloader
+      sha256: "66871df468fc24eee81f1a0a7cb98acc104716f9b7376d355437b48d633c4ebf"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.4.0"
   http:
     dependency: "direct dev"
     description:
@@ -225,6 +241,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.0"
+  http_methods:
+    dependency: transitive
+    description:
+      name: http_methods
+      sha256: "6bccce8f1ec7b5d701e7921dca35e202d425b57e317ba1a37f2638590e29e566"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.1"
   http_multi_server:
     dependency: transitive
     description:
@@ -321,6 +345,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.0.2"
+  ollama_dart:
+    dependency: transitive
+    description:
+      name: ollama_dart
+      sha256: "346f8c9578ac927bebd8be95c05855947be80f69d24752c2053cecf31eb4ac8a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.0.0"
   openai_dart:
     dependency: transitive
     description:
@@ -529,6 +561,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.3"
+  shelf_hotreload:
+    dependency: transitive
+    description:
+      name: shelf_hotreload
+      sha256: "449f68ce2d087a030c2bfbb40e6925c63fac3dcb502a67388a7139ce72102e7a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.0"
   shelf_packages_handler:
     dependency: transitive
     description:
@@ -633,6 +673,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.4"
+  stream_transform:
+    dependency: transitive
+    description:
+      name: stream_transform
+      sha256: a00e5f18bffc764f923e7dec1038527f7fe7a1791361a7117f0358193f13d53a
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.2"
   string_scanner:
     dependency: transitive
     description:

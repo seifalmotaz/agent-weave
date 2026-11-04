@@ -19,6 +19,8 @@ using it in production.
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, private replay, cache controls, and cancellation |
+| [`agent_weave_ollama`](packages/agent_weave_ollama) | Local Ollama chat, typed options, embeddings and native NDJSON |
+| [`agent_weave_dart_frog`](packages/agent_weave_dart_frog) | Authenticated Dart Frog chat, history, replay and generation handlers |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
@@ -110,6 +112,8 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 
 - [Acceptance roadmap and open work](ROADMAP.md)
 - [Dart API, typed results, and application recipes](docs/dart-api.md)
+- [Dart Frog backend](docs/dart-frog.md)
+- [Ollama local models](docs/ollama.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Typed tools and approvals](docs/tools.md)
 - [Provider author guide](docs/providers.md)
@@ -147,7 +151,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   multiple scenarios and score discoverability, clarity, type safety, debugging,
   and testing. Record failures and rerun after fixes. Use GPT-6.1 Terra with low
   or medium reasoning. The latest general review is 8.0/10. The native Anthropic transport path scored
-  8.4/10 and its computer-tool path scored 7.8/10. Neither is an acceptance pass.
+  8.4/10 and its computer-tool path scored 7.8/10. The targeted Dart Frog and Ollama
+  paths scored 8.0/10 and 7.8/10. Neither is an acceptance pass.
 - Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
   Vercel AI Gateway, and Cloudflare, with a documented custom-provider contract.
   Track each endpoint, nested parameter, tool/event union, query, header, cache
@@ -167,6 +172,9 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   recreation/restart behavior and failure recovery with PostgreSQL.
 - Provide equivalent framework-independent recipes and adapters for Dart Frog
   and other HTTP servers; verify Flutter device/local-provider behavior.
+  Dart Frog now has local HTTP and official JavaScript client fixtures. Ollama
+  has native NDJSON fixtures and a consumer example; neither establishes live
+  model, device, proxy or production deployment behavior.
 - Evaluate whether protocol events should move into an optional TanStack adapter
   package. Keep existing client compatibility tests throughout any migration.
 - Publish searchable, accessible GitHub Pages documentation with executable
@@ -711,6 +719,45 @@ A subsequent safety fix stops all later executors in the same mixed turn after a
 Final guide review: the mixed-turn failure wording now matches the verified halt behavior, and its Dart block still matches the executable example exactly. The scoped 7.8/10 assessment remains unchanged.
 
 
+## Round 13: Local model and Dart Frog consumer review
+
+Baseline: **0/10 runnable integration for each new path**. At the start of the review, the Ollama package and both review cases were absent; the Dart Frog package contained only its pubspec. No consumer integration could be compiled or run. These are path-specific baseline scores, not an SDK-wide assessment.
+
+Review uses loopback HTTP and scripted fixtures only. No model downloads, external provider calls, or paid usage.
+
+Dart Frog final provisional score: **8/10 for the tested adapter path**. The handler and trusted identity callback are straightforward; the consumer still owns authentication, durable storage, deployment, and disconnection behavior through intermediaries. The loopback fixture passed with Dart 3.12.2 and assertions enabled: HTTP method/auth/invalid payload handling, forged body owner isolation, approval and server-stored continuation, history, typed generation, event replay with offset and foreign-owner isolation, and client subscription disconnect stopping the model. This is local HTTP evidence only, not proof for reverse proxies, production authentication, persistent-store restart, or every official client interaction. The guide's example compiles; workspace analysis initially reported a missing direct `dart_frog` dependency for example imports, sent to the implementation owner.
+
+Ollama provisional score: **7.8/10 for the exercised local-model path**, not an SDK-wide score. Native client construction, typed SDK options and embeddings, structured generation, and approval continuation are approachable. Replay state and provider metadata remain deliberately server-side; the application must know that URLs are not fetched for image input and supply inline data. The first compile exposed the missing `EmbeddingModel.embed` implementation while it was being developed; the owner fixed it before the final run. The embedding method name corrected the earlier announced API.
+
+Dart 3.12.2 with assertions enabled passed loopback tests for schema output, typed temperature, approval with no execution before resume, thinking and unknown fields plus native ID/index replay, hidden thinking and provider ID in UI hydration, terminal duration and cached token usage, immutable vector results, HTTP and malformed NDJSON errors followed by successful stream, inline image bytes, pre-cancelled token with no HTTP request, stream unsubscription with a surviving sibling, and borrowed HTTP client reuse after client close. Analysis of both review scripts and the Dart Frog example passed with no issues. The test does not establish real Ollama/model behavior, model downloads, production deployment, in-flight cancellation-token timing, every error/status or provider endpoint, or live JavaScript interoperability for the Dart Frog handler.
+
+Final guide and API check: the first Dart block in `docs/ollama.md` matches `examples/ollama_demo.dart` byte-for-byte and compiles unchanged to a Dart kernel artifact. The guide's SDK option and embedding signatures match the current API; no live server or model was used. After the Dart Frog generation decoder gained trusted application context, the loopback fixture was updated to derive an execution parameter from that context and passed again. Analysis of both review scripts and both demo examples reports no issues. Scores remain unchanged.
+
+Additional official JavaScript integration: the pinned TanStack client passed text, schema and stored approval/resume over a real Dart Frog SSE handler backed by `OllamaNativeClient` and a local fake NDJSON server. The fake verified thinking, unknown field, original native call ID/index and tool name/result on continuation; counters confirmed no tool effect before approval and one afterward. Owner isolation, private data absent from history, authenticated typed generation and redacted generation failure also passed. Dart analysis is clean. This is a local protocol fixture, not a live model, durable restart or proxy test; scores remain unchanged.
+
+
+## Round 13: provider option review
+
+
+Scope: selected pinned provider inventories, adapters and offline tests; not a complete field-by-field audit. No external provider or paid calls. Score: 6/10 for the reviewed all-provider developer experience: useful typed options and replay examples, but the requested complete parity is explicitly unfinished; this review found and then verified a fix for a common Gateway override failure.
+
+### Finding and fix verification
+
+Before the fix, Cloudflare Gateway `@cf/` requests rejected a client-default gateway ID whenever a per-request options object contains only another header, such as cache TTL. `_run` validated `(gateway ?? client.gateway)` in `packages/agent_weave_cloudflare/lib/agent_weave_cloudflare.dart` near line 470, whereas `_send` merges the client and per-request header maps. The input is valid under the merge semantics documented in `docs/cloudflare.md`. Validation now follows the merged headers; per-request keys override client defaults, absent per-request keys inherit client defaults, and do not mutate either map.
+
+Reproduction: `.dart_tool/dart-3.12.2/dart-sdk/bin/dart --enable-asserts run examples/review_cases/provider_options.dart`. Before the fix it failed immediately with `Invalid argument(s): @cf models require a gateway ID.` After the fix, the same command passed with Dart 3.12.2. The consumer checks request cache/default precedence, default immutability, cache/request ID response headers and Together query/header forwarding after the Cloudflare check. The original failure occurred only when the request omitted the inherited Gateway ID; explicitly repeating it already worked.
+
+### Coverage boundaries
+
+The provider coverage page is appropriately qualified as an incremental inventory. Anthropic hosted tools and pause-turn, OpenRouter management/hosted tools/media, Together native legacy calls and multiple choices in the adapter, Vercel model semantics, and Cloudflare model-specific/live behavior are explicit gaps rather than newly discovered defects. OpenRouter tests cover selected ordered reasoning replay, Together tests exercise headers/query and reasoning replay, and Anthropic documents its raw/typed replay limitations. Fixture evidence cannot prove live billing, acceptance, cache hits or complete nested field semantics. This review did not exercise every option, streaming branch, native tool, or provider.
+
+Existing Together test `dart test packages/agent_weave_together/test/together_test.dart --name 'native options snapshot and numeric logprobs; tools, schema and replay'` passed with the pinned Dart SDK. It verifies query, custom header, options snapshots, tool calls, schema, and reasoning replay through a loopback server.
+
+### Guide and integration verification
+
+Extracted the first Dart block from each Ollama and Dart Frog guide and analyzed both without executing them: no issues found with Dart 3.12.2. The Ollama and Dart Frog offline consumer programs passed. `node tool/interop/dart-frog.mjs` passed all four official JavaScript client scenarios using the pinned Dart SDK and local fixture server. These checks are offline, not live provider evidence.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -851,7 +898,7 @@ until their gateway/account ownership can be established. URLs and inline input
 remain separate source variants.
 
 `agent_weave_http` owns HTTP methods with explicit empty, JSON or binary bodies
-and JSON SSE I/O for native adapters. Together, Gateway and Cloudflare use the
+and JSON SSE/NDJSON I/O for native adapters. Together, Gateway and Cloudflare use the
 same per-request deadline, abort, metadata and error-body handling. Provider adapters own finish/EOF semantics and credential redaction.
 This package does not add an HTTP dependency to the core agent runtime.
 
@@ -879,6 +926,20 @@ Chat reasoning fragments and response-level metadata have separate private
 namespaces. Only reasoning fragments are replayed as Chat continuation. Metadata
 is a compact snapshot of reported fields; raw native methods retain complete
 events without storing every text chunk twice in assistant history.
+
+## Ollama and Dart Frog
+
+Ollama uses native NDJSON rather than the compatible SSE codecs. The adapter
+assembles selected message fields, retains original frames privately and maps
+native call IDs to separate local runtime IDs. It replays thinking, tool indexes
+and native IDs without exposing them through UI hydration. Tools with conflicting
+repeated indexes fail before execution; raw streaming remains available.
+
+Dart Frog handlers use core chat requests, generation tasks, stores and event
+encoding. Authentication supplies owner identity and trusted context. Both chat
+and generation derive identity on the server; generation decoding can use that
+context to bind parameters. The application owns provider/store lifetimes and
+keeps request-context resources valid until its response stream ends.
 
 
 # Source: docs/tools.md
@@ -2994,6 +3055,172 @@ Run a batch sequentially. On failure, return an error for that action and for ev
 The driver owns validation, coordinate conversion, image sizing, environment isolation and approval policy. Documentation specifies key repeat 1–100 (default 1), and hold_key and wait duration up to 300 seconds; the official driver guidance leaves these checks to applications. AgentWeave validates selected repeat and duration bounds before invoking the executor. These declarations and offline fixtures do not demonstrate model acceptance, desktop execution, or live behavior.
 
 
+# Source: docs/ollama.md
+
+# Ollama
+
+Connect AgentWeave to an existing Ollama server and an installed model. Install `agent_weave`, `agent_weave_ollama`, and their dependencies in your Dart project. Set `OLLAMA_MODEL` to an installed model that supports JSON Schema; optionally set `OLLAMA_BASE_URL` (defaults to `http://localhost:11434`). Then run `dart run examples/ollama_demo.dart` from this repository.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart' as weave;
+import 'package:agent_weave_ollama/agent_weave_ollama.dart' as ollama;
+
+Future<void> main() async {
+  final modelId = Platform.environment['OLLAMA_MODEL'];
+  if (modelId == null || modelId.isEmpty) {
+    stderr.writeln(
+      'Set OLLAMA_MODEL to an installed model that supports JSON schema.',
+    );
+    exitCode = 64;
+    return;
+  }
+  final client = ollama.OllamaNativeClient(
+    baseUrl:
+        Platform.environment['OLLAMA_BASE_URL'] ?? 'http://localhost:11434',
+  );
+  try {
+    final model = client.chatModel(
+      model: modelId,
+      options: const ollama.ModelOptions(temperature: 0.2),
+    );
+    final result = await weave.generateObject<String>(
+      model: model,
+      prompt: 'Give a short name for a friendly robot.',
+      schema: {
+        'type': 'object',
+        'properties': {
+          'name': {'type': 'string'},
+        },
+        'required': ['name'],
+        'additionalProperties': false,
+      },
+      decode: (json) => (json as Map<String, Object?>)['name'] as String,
+    );
+    print(result.value);
+  } finally {
+    client.close();
+  }
+}
+```
+
+This client talks to an Ollama HTTP server; it does not run inference inside the Dart or Flutter app. On a phone, `localhost` means the phone itself, so configure a reachable server URL. Device networking and model capabilities vary and have not been verified here.
+
+`OllamaChatModel` supports AgentWeave function tools and structured output, subject to the model's capabilities. AgentWeave validates tool arguments and applies configured approval rules before execution. Assistant thinking and native tool calls are preserved for continuation in private provider data. Ollama may return native call IDs; AgentWeave generates separate local IDs and binds tool results to the original call. When the native ID is absent, replay uses the tool name without inventing an ID on the wire. Private replay, raw frames, response metadata and logprobs can contain sensitive information; do not expose them to end users or logs.
+
+In the pinned Ollama server, its generic parser and reviewed built-in parsers allocate increasing call indices across a response. This is not guaranteed for remote or older servers. AgentWeave accepts repeated identical indexed calls once and rejects conflicting repeats rather than guessing how to merge them. Use `streamChat` directly for protocols that need different handling.
+
+For images, use an AgentWeave `ImagePart` containing an inline `data:image/...;base64,...` URL. Remote image URLs are not fetched. Files, audio, video and native provider-specific tool kinds are unsupported in normalized chat. The native API remains available when the model or server needs a different request shape.
+
+The package re-exports `ollama_dart` 4.0.0 types for typed options, including `ModelOptions`, `ThinkValue`, `KeepAlive` and `EmbedRequest`. The example leaves thinking and keep-alive at server defaults. When supported by your model and desired, pass `think: const ollama.ThinkValue.enabled(true)` or `keepAlive: const ollama.KeepAlive.duration('5m')` to `client.chatModel`. Model options remain model-dependent. `maxOutputTokens` owns `options.num_predict`; `configure` cannot replace runtime-owned model, messages, tools, stream, output schema or output limit.
+
+To embed with an installed embedding-capable model, use `OllamaEmbeddingModel(client).embed(ollama.EmbedRequest(model: embeddingModelId, input: ollama.EmbedInput.list(['first', 'second'])))`. Its result exposes immutable vectors, the raw response, the reported model and input token count. Do not assume every chat model supports embeddings.
+
+For native JSON, use `createChat`, `createGenerate`, `embed`, `show`, or `send`; `streamChat` and `streamGenerate` expose NDJSON frames. The native client accepts a `CancellationToken` and cancels its request on cancellation or stream unsubscribe; these guarantees belong to AgentWeave's transport, not the re-exported SDK. It does not retry, pull or download models. For protected servers, supply an optional `credentialResolver` on the backend; it is called per request, permitting rotation. Diagnostic errors redact the resolved credential, but raw successful data can still be sensitive. Keep credentials off frontend clients.
+
+Token usage and cache counts are reported only when returned by Ollama; durations and other terminal fields remain in private metadata, with full raw frames retained separately. Their presence does not guarantee caching or any model-specific behavior. Consult [the parameter inventory](ollama-parameters.md) for the pinned official schema, nested fields, source gaps and scope. A raw field being forwarded does not imply normalized runtime support. Fixture tests and compilation do not establish live model or device behavior.
+
+
+# Source: docs/ollama-parameters.md
+
+# Ollama API parameter inventory
+
+The [official OpenAPI](https://raw.githubusercontent.com/ollama/ollama/e9fde36d75fea66579d84099956ce1430792737a/docs/openapi.yaml) and [Go API types](https://raw.githubusercontent.com/ollama/ollama/e9fde36d75fea66579d84099956ce1430792737a/api/types.go) are pinned at `e9fde36d75fea66579d84099956ce1430792737a` under MIT. The [machine-readable inventory](ollama-api-inventory.json) records selected operations and nested schema fields, union shapes, and reviewed Go-only additions. The OpenAPI can lag the server types: for example, it omits message `thinking`, `tool_name`, `tool_call_id`, and tool call `id` and `function.index`. Neither source establishes model-specific support.
+
+Agent chat owns model, messages, tools and stream construction and maps selected text and tool events. Raw native access handles other fields; agent chat retains raw frames, including logprobs, and terminal metadata in private provider output, without dedicated normalized events for every field. Generate, embed and show have no automatic agent execution. Check the implementation and tests for the actual extent of raw access; inventory is source coverage, not live verification.
+
+Chat and generate stream **newline-delimited JSON**, not SSE; stream defaults to true. Embed and show return JSON. Image bytes are base64 strings in JSON. Go types allow embed input as text, batches, or multimodal text/image/audio maps; audio and image blobs are base64. The `format` union includes `json` or a JSON schema object; `think` is boolean or a model-defined string. `keep_alive` accepts seconds or a Go duration string; negative means keep loaded, zero unloads. Duration metrics are nanoseconds; `prompt_eval_cached_count` is a reported metric, not a cache setting.
+
+Chat history may include assistant thinking, tool calls, tool result `tool_name` and `tool_call_id`. Tool-call `id` is optional; `function.index` is an integer and arguments are an object. Responses may contain part of a message; the pinned types do not define a universal merge rule for repeated call fragments. Preserve raw events and avoid assuming that a repeated index always represents an appendable delta.
+
+Run `python3 tool/ollama_contract.py --check` offline; `--upstream` compares the official current source bytes without changing the pin. The OpenAPI JSON snapshot is a parsed representation of the retained YAML. Review both source diffs, update the JSON snapshot, fixtures and dispositions before refreshing. No model download or live model call is required.
+
+
+# Source: docs/dart-frog.md
+
+# Dart Frog
+
+`agent_weave_dart_frog` exposes native Dart Frog handlers for streaming chat,
+owner-scoped history, and typed generation. Add `agent_weave`,
+`agent_weave_dart_frog`, and `dart_frog` to your application dependencies.
+
+The following complete example runs without a provider key:
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_dart_frog/agent_weave_dart_frog.dart';
+import 'package:dart_frog/dart_frog.dart';
+
+Future<void> main() async {
+  final token = Platform.environment['DEMO_TOKEN'];
+  if (token == null || token.isEmpty) {
+    stderr.writeln('Set DEMO_TOKEN to run this local demonstration.');
+    exitCode = 1;
+    return;
+  }
+  final handler = chatHandler<void>(
+    agent: AiAgent<void>(model: const OfflineModel()),
+    authenticate: (context) =>
+        context.request.headers['authorization'] == 'Bearer $token'
+        ? (ownerId: 'demo-user', context: null)
+        : null,
+  );
+  final server = await serve(handler, InternetAddress.loopbackIPv4, 8080);
+  print('Demo listening at http://${server.address.address}:${server.port}');
+}
+
+final class OfflineModel implements ChatModel {
+  const OfflineModel();
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities();
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) async* {
+    cancellation.throwIfCancelled();
+    yield const TextDelta('Hello from the offline Dart Frog example.');
+    yield const ModelFinished();
+  }
+}
+```
+
+For an existing Dart Frog application, return the handler's response from your route. Authentication must
+verify the request and supply the owner from trusted server-side identity, not
+from JSON. The handler accepts POST chat requests and GET history using
+`?threadId=...`, with optional `limit` and `before`. Reconnect to a run
+with `?runId=...&offset=...` to replay events after a sequence. The streaming response
+uses server-sent events. Cancellation follows the Dart stream subscription;
+network disconnect detection depends on the HTTP server and intermediaries.
+
+For typed generation, use `generationHandler<C, P, R>` with a
+`GenerationTask<P, R>`, the same authentication callback, and a `decode`
+function that receives both request parameters and the trusted authenticated
+context: `decode: (input, context) => ...`. Use the context to bind any
+user-specific parameters rather than trusting identity fields in the body. Both
+handlers limit request bodies to 1 MiB
+by default; configure `maxRequestBytes` when needed.
+
+Run the offline example from the workspace root:
+
+```sh
+DEMO_TOKEN=local-example dart run examples/dart_frog/server.dart
+curl -N -H 'Authorization: Bearer local-example' -H 'Content-Type: application/json' \
+  -d '{"threadId":"demo","runId":"first","messages":[{"id":"u1","role":"user","content":"Hello"}]}' \
+  http://127.0.0.1:8080/
+```
+
+The fixed token and fixed owner are for local demonstration only, not production
+authentication. The default in-memory store is process-local and is not durable.
+
+Your application owns the agent, store, and provider client lifetimes. Keep any
+authenticated context resources valid until the response stream finishes.
+Close shared provider clients when the application shuts down.
+
+
 # Source: docs/openai-options-audit.md
 
 # OpenAI options audit
@@ -3096,6 +3323,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
 | Cloudflare Workers AI / AI Gateway | Native run, model discovery and selected embedding, transcription, image and traditional chat adapters; Gateway run and compatible Chat and Responses. | Model-specific schemas, availability, live acceptance, caching, binary audio and billing remain unverified. Native traditional tool continuation covers the documented Hermes single-call format only. See [Cloudflare](cloudflare.md). |
+| Ollama native local API | Native JSON/NDJSON chat and generate transport, agent chat with thinking/tool replay, typed SDK options and embeddings. The [inventory](ollama-parameters.md) covers four selected operations and reviewed Go-only fields. | No real daemon, downloaded model or Flutter device has been tested. Model availability, remote/legacy tool fragment rules, other endpoints and exhaustive option semantics remain unverified. See [Ollama](ollama.md). |
 | Other providers | Custom `ChatModel` can be implemented by users. | No blanket support or parity claim. Add named provider/API/version inventory entries and evidence before advertising them. Model availability, feature support and defaults are not stable constants. |
 
 ## Architecture requirements
@@ -3196,6 +3424,15 @@ not a claim of full TanStack AI core parity.
   acceptance and live gateway behavior are unverified. Native traditional tool
   continuation is limited to the documented Hermes single-call format. See
   [Cloudflare](cloudflare.md).
+- Ollama native chat uses NDJSON with private thinking, native call ID and metadata
+  replay. Typed options and embeddings are available; a real daemon, model and
+  Flutter device remain untested. External image URLs are not fetched, only inline
+  base64 images are accepted. Conflicting repeated tool indexes fail explicitly.
+  See [Ollama](ollama.md).
+- Dart Frog handlers support authenticated chat, history, replay and typed
+  generation over actual local HTTP. Production authentication, reverse-proxy
+  disconnects and durable restart require application-level verification. See
+  [Dart Frog](dart-frog.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 
@@ -3388,6 +3625,26 @@ numeric limits and stopping a batch after failure. The official SDK declaration
 currently omits the documented `allowed_callers` field. Parameter forwarding is
 not evidence of real desktop operation or complete provider support.
 
+## Ollama native contracts
+
+`tool/contracts/ollama` retains the official OpenAPI and Go API declarations at
+the revision recorded in its README. Review both sources: the OpenAPI omits
+some fields already present in the Go server types. The selected operation and
+field inventory distinguishes raw access from normalized runtime behavior.
+
+```sh
+python3 tool/test_ollama_contract.py
+python3 tool/ollama_contract.py --check
+python3 tool/ollama_contract.py --upstream --check
+```
+
+After reviewing a new pin, update source hashes, the parsed OpenAPI snapshot,
+Go-only field dispositions and runtime fixtures together. Re-run native NDJSON
+transport, private replay, tool-ID/index, cancellation, embedding and independent
+consumer checks. The manual upstream workflow compares official source bytes.
+Do not infer model acceptance or a universal tool-fragment merge rule from the
+source inventory; record actual model/version evidence separately.
+
 
 # Source: docs/validation.md
 
@@ -3414,10 +3671,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest Anthropic computer increment was checked on Dart 3.12.2. The prior
+The latest local-model and Dart Frog increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 333 Dart unit and regression tests: tool validation, approvals, client tools,
+- 375 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 15 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -3430,6 +3687,9 @@ The latest Anthropic computer increment was checked on Dart 3.12.2. The prior
   generation, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
+- 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
+  local fake Ollama NDJSON service: text, schema, approval/resume and authenticated
+  typed generation, including owner isolation, privacy and safe errors.
 - 2 offline checks for the upstream operation-index parser.
 - The offline chat example executes successfully.
 
@@ -3780,6 +4040,41 @@ other native toolsets remain unfinished. SDK PR #431 is still needed for its
 published typed decoder to represent file-ID sources; native normalization does
 not require that unreleased change.
 
+## Ollama and Dart Frog increment
+
+Thirty-three Ollama tests cover native JSON and NDJSON, rotating optional
+credentials, queries, immutable snapshots, errors and completion/EOF, independent
+cancellation, stalled requests and borrowed clients. Agent fixtures check typed
+options, runtime-owned request guards, schema output, thinking/native ID/index
+replay, private raw frames, truncated/conflicting tool calls, inline images and
+immutable embedding vectors with validated metadata. A root guard rejects foreign
+native tools and history before sending. No Ollama daemon or model was available,
+and no model was downloaded.
+
+Six shared HTTP tests add fragmented UTF-8 and CRLF NDJSON, valid final lines,
+malformed/non-object data, cancellation and deadlines across preparation, headers
+and body, sibling isolation, pause/resume and borrowed-client reuse.
+
+Two Dart Frog test groups exercise actual HTTP chat, approval/resume, owner-scoped
+history and replay, authentication-bound context in typed generation and invalid
+requests. Independent consumers additionally test disconnect cancellation. The
+pinned official JavaScript client passes four scenarios through the real handler
+and native Ollama client against a local fixture. These do not prove proxy
+behavior, production authentication or durable restart for this adapter.
+
+The Ollama source inventory covers four selected operations, nested OpenAPI
+schemas and reviewed Go-only additions. Three extractor tests and the explicit
+upstream byte comparison pass. First guide programs match their runnable examples
+and analyze on Dart 3.12.2. The Ollama program also compiles without execution;
+the offline Dart Frog server ran and returned a completed SSE response.
+
+The independent scores are 8.0/10 for Dart Frog and 7.8/10 for the exercised
+Ollama path. A separate selective provider review remains 6/10 and reproduced
+a Cloudflare bug: request cache overrides wrongly discarded an inherited Gateway
+ID during validation. The fix and consumer regression preserve default/override
+precedence and response request/cache metadata. These judgments are scoped, not
+an SDK-wide acceptance pass. No paid requests or package publications were made.
+
 
 # Source: CONTRIBUTING.md
 
@@ -3820,7 +4115,7 @@ TypeScript API conventions into the Dart developer API.
 - Provider-specific types stay in `packages/agent_weave_openai` and
   `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
   `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and
-  `packages/agent_weave_cloudflare`.
+  `packages/agent_weave_cloudflare`, and `packages/agent_weave_ollama`.
   Shared JSON HTTP transport belongs in `packages/agent_weave_http`.
   The Anthropic normalizer consumes raw events; preserve opaque block fields
   and signed thinking before SDK decoding. Typed SDK configuration must apply
@@ -3828,6 +4123,9 @@ TypeScript API conventions into the Dart developer API.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
+  Dart Frog handlers live in `packages/agent_weave_dart_frog`.
+  Ollama uses native NDJSON transport, not the compatible SSE codecs.
+  Preserve native IDs privately and use distinct local tool-call IDs.
 - Native client transport lives in `packages/agent_weave_serverpod_client`.
 - Optional storage is a Serverpod module, `agent_weave_serverpod_storage_server`,
   with a generated `agent_weave_serverpod_storage_client`.

@@ -158,6 +158,17 @@ final class JsonSseDone extends JsonSseEvent {
     : responseHeaders = Map.unmodifiable(responseHeaders);
 }
 
+/// A JSON object from one NDJSON line and its response headers.
+final class JsonLineData {
+  final JsonObject data;
+  final Map<String, String> responseHeaders;
+  JsonLineData(
+    JsonObject data, {
+    Map<String, String> responseHeaders = const {},
+  }) : data = snapshotJson(data),
+       responseHeaders = Map.unmodifiable(responseHeaders);
+}
+
 final class _Scope {
   final CancellationToken cancellation;
   final abort = Completer<void>();
@@ -380,6 +391,85 @@ final class JsonHttpClient {
       scope.check();
       return result;
     } on http.RequestAbortedException {
+      scope.check();
+      rethrow;
+    } finally {
+      _release(scope);
+    }
+  }
+
+  /// Streams newline-delimited JSON objects from a POST response.
+  Stream<JsonLineData> streamJsonLines(
+    String path, {
+    required FutureOr<HttpRequestData> Function() prepare,
+    CancellationToken? cancellation,
+    Map<String, List<String>> query = const {},
+  }) {
+    _Scope? scope;
+    StreamSubscription<JsonLineData>? source;
+    late final StreamController<JsonLineData> controller;
+    controller = StreamController<JsonLineData>(
+      onListen: () {
+        if (_closed) {
+          controller.addError(StateError('The HTTP client is closed.'));
+          unawaited(controller.close());
+          return;
+        }
+        final active = _start(cancellation);
+        scope = active;
+        source = _streamLines(path, prepare, active, query).listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+      },
+      onPause: () => source?.pause(),
+      onResume: () => source?.resume(),
+      onCancel: () {
+        if (scope case final active?) _release(active);
+        return source?.cancel();
+      },
+    );
+    return controller.stream;
+  }
+
+  Stream<JsonLineData> _streamLines(
+    String path,
+    FutureOr<HttpRequestData> Function() prepare,
+    _Scope scope,
+    Map<String, List<String>> query,
+  ) async* {
+    try {
+      final response = await _send(
+        path,
+        prepare,
+        scope,
+        query,
+        HttpMethod.post,
+      );
+      await for (final line in _bytes(
+        response.stream,
+        scope,
+      ).transform(utf8.decoder).transform(const LineSplitter())) {
+        scope.check();
+        if (line.trim().isEmpty) continue;
+        final Object? value;
+        try {
+          value = jsonDecode(line);
+        } on FormatException {
+          throw JsonHttpException('Invalid NDJSON JSON');
+        }
+        if (value is! Map<String, dynamic>) {
+          throw JsonHttpException('Expected an NDJSON JSON object');
+        }
+        yield JsonLineData(value, responseHeaders: response.headers);
+      }
+      scope.check();
+    } on RunCancelled {
+      if (scope.closed) return;
+      rethrow;
+    } on http.RequestAbortedException {
+      if (scope.closed) return;
       scope.check();
       rethrow;
     } finally {

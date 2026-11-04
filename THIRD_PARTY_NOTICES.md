@@ -68,3 +68,11 @@ complete provider support.
 source under Apache License 2.0. The exact repository, revision and path are in
 `source.json`; the complete license is retained beside the snapshot. The source
 is reference material for a selected contract inventory, not copied runtime code.
+
+## Ollama contract sources
+
+`tool/contracts/ollama` retains selected official Ollama OpenAPI and Go API
+source under MIT. The exact revision, source URLs, hashes and complete license
+are retained alongside the snapshots. They are review inputs, not runtime code.
+The adapter reuses types from the independently maintained `ollama_dart` package;
+its own dependency license notices remain in that published package.

@@ -17,6 +17,8 @@ using it in production.
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, private replay, cache controls, and cancellation |
+| [`agent_weave_ollama`](packages/agent_weave_ollama) | Local Ollama chat, typed options, embeddings and native NDJSON |
+| [`agent_weave_dart_frog`](packages/agent_weave_dart_frog) | Authenticated Dart Frog chat, history, replay and generation handlers |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
@@ -108,6 +110,8 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 
 - [Acceptance roadmap and open work](ROADMAP.md)
 - [Dart API, typed results, and application recipes](docs/dart-api.md)
+- [Dart Frog backend](docs/dart-frog.md)
+- [Ollama local models](docs/ollama.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Typed tools and approvals](docs/tools.md)
 - [Provider author guide](docs/providers.md)

@@ -11,7 +11,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   multiple scenarios and score discoverability, clarity, type safety, debugging,
   and testing. Record failures and rerun after fixes. Use GPT-6.1 Terra with low
   or medium reasoning. The latest general review is 8.0/10. The native Anthropic transport path scored
-  8.4/10 and its computer-tool path scored 7.8/10. Neither is an acceptance pass.
+  8.4/10 and its computer-tool path scored 7.8/10. The targeted Dart Frog and Ollama
+  paths scored 8.0/10 and 7.8/10. Neither is an acceptance pass.
 - Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
   Vercel AI Gateway, and Cloudflare, with a documented custom-provider contract.
   Track each endpoint, nested parameter, tool/event union, query, header, cache
@@ -31,6 +32,9 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   recreation/restart behavior and failure recovery with PostgreSQL.
 - Provide equivalent framework-independent recipes and adapters for Dart Frog
   and other HTTP servers; verify Flutter device/local-provider behavior.
+  Dart Frog now has local HTTP and official JavaScript client fixtures. Ollama
+  has native NDJSON fixtures and a consumer example; neither establishes live
+  model, device, proxy or production deployment behavior.
 - Evaluate whether protocol events should move into an optional TanStack adapter
   package. Keep existing client compatibility tests throughout any migration.
 - Publish searchable, accessible GitHub Pages documentation with executable

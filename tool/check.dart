@@ -39,6 +39,8 @@ Future<void> main() async {
     'packages/agent_weave_http/test',
     'packages/agent_weave_cloudflare/test',
     'packages/agent_weave_vercel_gateway/test',
+    'packages/agent_weave_ollama/test',
+    'packages/agent_weave_dart_frog/test',
     'packages/agent_weave_serverpod_client/test',
   ]);
   await run('npm', [
@@ -80,6 +82,14 @@ Future<void> main() async {
     '--concurrency=1',
   ], directory: example);
   await run('node', ['tool/interop/test.mjs']);
+  await run('node', ['tool/interop/dart-frog.mjs']);
+  for (final consumer in ['ollama', 'dart_frog', 'provider_options']) {
+    await run('dart', [
+      '--enable-asserts',
+      'run',
+      'examples/review_cases/$consumer.dart',
+    ]);
+  }
   await run('dart', ['run', 'examples/review_cases/consumer.dart']);
   await run('dart', ['run', 'examples/review_cases/failures.dart']);
   await run('dart', ['run', 'examples/review_cases/reliability.dart']);
@@ -134,6 +144,8 @@ Future<void> main() async {
   await run('python3', ['tool/cloudflare_contract.py', '--check']);
   await run('python3', ['tool/test_openrouter_contract.py']);
   await run('python3', ['tool/openrouter_contract.py', '--check']);
+  await run('python3', ['tool/test_ollama_contract.py']);
+  await run('python3', ['tool/ollama_contract.py', '--check']);
   final secret = RegExp(
     r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|sk-ant-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',
   );

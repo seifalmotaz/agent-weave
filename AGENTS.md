@@ -11,7 +11,7 @@ TypeScript API conventions into the Dart developer API.
 - Provider-specific types stay in `packages/agent_weave_openai` and
   `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
   `packages/agent_weave_together`, `packages/agent_weave_vercel_gateway`, and
-  `packages/agent_weave_cloudflare`.
+  `packages/agent_weave_cloudflare`, and `packages/agent_weave_ollama`.
   Shared JSON HTTP transport belongs in `packages/agent_weave_http`.
   The Anthropic normalizer consumes raw events; preserve opaque block fields
   and signed thinking before SDK decoding. Typed SDK configuration must apply
@@ -19,6 +19,9 @@ TypeScript API conventions into the Dart developer API.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
+  Dart Frog handlers live in `packages/agent_weave_dart_frog`.
+  Ollama uses native NDJSON transport, not the compatible SSE codecs.
+  Preserve native IDs privately and use distinct local tool-call IDs.
 - Native client transport lives in `packages/agent_weave_serverpod_client`.
 - Optional storage is a Serverpod module, `agent_weave_serverpod_storage_server`,
   with a generated `agent_weave_serverpod_storage_client`.

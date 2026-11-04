@@ -286,3 +286,42 @@ After the final API freeze, the guide's first Dart block matched the executable 
 A subsequent safety fix stops all later executors in the same mixed turn after a computer error. The final rerun passed all 13 consumer modes, including mixed error and no regular effect, and all 17 JavaScript interop scenarios, with one computer effect and zero ordinary effects. Analysis remained clean.
 
 Final guide review: the mixed-turn failure wording now matches the verified halt behavior, and its Dart block still matches the executable example exactly. The scoped 7.8/10 assessment remains unchanged.
+
+
+## Round 13: Local model and Dart Frog consumer review
+
+Baseline: **0/10 runnable integration for each new path**. At the start of the review, the Ollama package and both review cases were absent; the Dart Frog package contained only its pubspec. No consumer integration could be compiled or run. These are path-specific baseline scores, not an SDK-wide assessment.
+
+Review uses loopback HTTP and scripted fixtures only. No model downloads, external provider calls, or paid usage.
+
+Dart Frog final provisional score: **8/10 for the tested adapter path**. The handler and trusted identity callback are straightforward; the consumer still owns authentication, durable storage, deployment, and disconnection behavior through intermediaries. The loopback fixture passed with Dart 3.12.2 and assertions enabled: HTTP method/auth/invalid payload handling, forged body owner isolation, approval and server-stored continuation, history, typed generation, event replay with offset and foreign-owner isolation, and client subscription disconnect stopping the model. This is local HTTP evidence only, not proof for reverse proxies, production authentication, persistent-store restart, or every official client interaction. The guide's example compiles; workspace analysis initially reported a missing direct `dart_frog` dependency for example imports, sent to the implementation owner.
+
+Ollama provisional score: **7.8/10 for the exercised local-model path**, not an SDK-wide score. Native client construction, typed SDK options and embeddings, structured generation, and approval continuation are approachable. Replay state and provider metadata remain deliberately server-side; the application must know that URLs are not fetched for image input and supply inline data. The first compile exposed the missing `EmbeddingModel.embed` implementation while it was being developed; the owner fixed it before the final run. The embedding method name corrected the earlier announced API.
+
+Dart 3.12.2 with assertions enabled passed loopback tests for schema output, typed temperature, approval with no execution before resume, thinking and unknown fields plus native ID/index replay, hidden thinking and provider ID in UI hydration, terminal duration and cached token usage, immutable vector results, HTTP and malformed NDJSON errors followed by successful stream, inline image bytes, pre-cancelled token with no HTTP request, stream unsubscription with a surviving sibling, and borrowed HTTP client reuse after client close. Analysis of both review scripts and the Dart Frog example passed with no issues. The test does not establish real Ollama/model behavior, model downloads, production deployment, in-flight cancellation-token timing, every error/status or provider endpoint, or live JavaScript interoperability for the Dart Frog handler.
+
+Final guide and API check: the first Dart block in `docs/ollama.md` matches `examples/ollama_demo.dart` byte-for-byte and compiles unchanged to a Dart kernel artifact. The guide's SDK option and embedding signatures match the current API; no live server or model was used. After the Dart Frog generation decoder gained trusted application context, the loopback fixture was updated to derive an execution parameter from that context and passed again. Analysis of both review scripts and both demo examples reports no issues. Scores remain unchanged.
+
+Additional official JavaScript integration: the pinned TanStack client passed text, schema and stored approval/resume over a real Dart Frog SSE handler backed by `OllamaNativeClient` and a local fake NDJSON server. The fake verified thinking, unknown field, original native call ID/index and tool name/result on continuation; counters confirmed no tool effect before approval and one afterward. Owner isolation, private data absent from history, authenticated typed generation and redacted generation failure also passed. Dart analysis is clean. This is a local protocol fixture, not a live model, durable restart or proxy test; scores remain unchanged.
+
+
+## Round 13: provider option review
+
+
+Scope: selected pinned provider inventories, adapters and offline tests; not a complete field-by-field audit. No external provider or paid calls. Score: 6/10 for the reviewed all-provider developer experience: useful typed options and replay examples, but the requested complete parity is explicitly unfinished; this review found and then verified a fix for a common Gateway override failure.
+
+### Finding and fix verification
+
+Before the fix, Cloudflare Gateway `@cf/` requests rejected a client-default gateway ID whenever a per-request options object contains only another header, such as cache TTL. `_run` validated `(gateway ?? client.gateway)` in `packages/agent_weave_cloudflare/lib/agent_weave_cloudflare.dart` near line 470, whereas `_send` merges the client and per-request header maps. The input is valid under the merge semantics documented in `docs/cloudflare.md`. Validation now follows the merged headers; per-request keys override client defaults, absent per-request keys inherit client defaults, and do not mutate either map.
+
+Reproduction: `.dart_tool/dart-3.12.2/dart-sdk/bin/dart --enable-asserts run examples/review_cases/provider_options.dart`. Before the fix it failed immediately with `Invalid argument(s): @cf models require a gateway ID.` After the fix, the same command passed with Dart 3.12.2. The consumer checks request cache/default precedence, default immutability, cache/request ID response headers and Together query/header forwarding after the Cloudflare check. The original failure occurred only when the request omitted the inherited Gateway ID; explicitly repeating it already worked.
+
+### Coverage boundaries
+
+The provider coverage page is appropriately qualified as an incremental inventory. Anthropic hosted tools and pause-turn, OpenRouter management/hosted tools/media, Together native legacy calls and multiple choices in the adapter, Vercel model semantics, and Cloudflare model-specific/live behavior are explicit gaps rather than newly discovered defects. OpenRouter tests cover selected ordered reasoning replay, Together tests exercise headers/query and reasoning replay, and Anthropic documents its raw/typed replay limitations. Fixture evidence cannot prove live billing, acceptance, cache hits or complete nested field semantics. This review did not exercise every option, streaming branch, native tool, or provider.
+
+Existing Together test `dart test packages/agent_weave_together/test/together_test.dart --name 'native options snapshot and numeric logprobs; tools, schema and replay'` passed with the pinned Dart SDK. It verifies query, custom header, options snapshots, tool calls, schema, and reasoning replay through a loopback server.
+
+### Guide and integration verification
+
+Extracted the first Dart block from each Ollama and Dart Frog guide and analyzed both without executing them: no issues found with Dart 3.12.2. The Ollama and Dart Frog offline consumer programs passed. `node tool/interop/dart-frog.mjs` passed all four official JavaScript client scenarios using the pinned Dart SDK and local fixture server. These checks are offline, not live provider evidence.

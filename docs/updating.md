@@ -180,3 +180,23 @@ Review documentation-only constraints separately, including direct callers,
 numeric limits and stopping a batch after failure. The official SDK declaration
 currently omits the documented `allowed_callers` field. Parameter forwarding is
 not evidence of real desktop operation or complete provider support.
+
+## Ollama native contracts
+
+`tool/contracts/ollama` retains the official OpenAPI and Go API declarations at
+the revision recorded in its README. Review both sources: the OpenAPI omits
+some fields already present in the Go server types. The selected operation and
+field inventory distinguishes raw access from normalized runtime behavior.
+
+```sh
+python3 tool/test_ollama_contract.py
+python3 tool/ollama_contract.py --check
+python3 tool/ollama_contract.py --upstream --check
+```
+
+After reviewing a new pin, update source hashes, the parsed OpenAPI snapshot,
+Go-only field dispositions and runtime fixtures together. Re-run native NDJSON
+transport, private replay, tool-ID/index, cancellation, embedding and independent
+consumer checks. The manual upstream workflow compares official source bytes.
+Do not infer model acceptance or a universal tool-fragment merge rule from the
+source inventory; record actual model/version evidence separately.

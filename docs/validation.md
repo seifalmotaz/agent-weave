@@ -21,10 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest Anthropic computer increment was checked on Dart 3.12.2. The prior
+The latest local-model and Dart Frog increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 333 Dart unit and regression tests: tool validation, approvals, client tools,
+- 375 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 15 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -37,6 +37,9 @@ The latest Anthropic computer increment was checked on Dart 3.12.2. The prior
   generation, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
+- 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
+  local fake Ollama NDJSON service: text, schema, approval/resume and authenticated
+  typed generation, including owner isolation, privacy and safe errors.
 - 2 offline checks for the upstream operation-index parser.
 - The offline chat example executes successfully.
 
@@ -386,3 +389,38 @@ were verified, and no paid requests or package publication occurred. Browser and
 other native toolsets remain unfinished. SDK PR #431 is still needed for its
 published typed decoder to represent file-ID sources; native normalization does
 not require that unreleased change.
+
+## Ollama and Dart Frog increment
+
+Thirty-three Ollama tests cover native JSON and NDJSON, rotating optional
+credentials, queries, immutable snapshots, errors and completion/EOF, independent
+cancellation, stalled requests and borrowed clients. Agent fixtures check typed
+options, runtime-owned request guards, schema output, thinking/native ID/index
+replay, private raw frames, truncated/conflicting tool calls, inline images and
+immutable embedding vectors with validated metadata. A root guard rejects foreign
+native tools and history before sending. No Ollama daemon or model was available,
+and no model was downloaded.
+
+Six shared HTTP tests add fragmented UTF-8 and CRLF NDJSON, valid final lines,
+malformed/non-object data, cancellation and deadlines across preparation, headers
+and body, sibling isolation, pause/resume and borrowed-client reuse.
+
+Two Dart Frog test groups exercise actual HTTP chat, approval/resume, owner-scoped
+history and replay, authentication-bound context in typed generation and invalid
+requests. Independent consumers additionally test disconnect cancellation. The
+pinned official JavaScript client passes four scenarios through the real handler
+and native Ollama client against a local fixture. These do not prove proxy
+behavior, production authentication or durable restart for this adapter.
+
+The Ollama source inventory covers four selected operations, nested OpenAPI
+schemas and reviewed Go-only additions. Three extractor tests and the explicit
+upstream byte comparison pass. First guide programs match their runnable examples
+and analyze on Dart 3.12.2. The Ollama program also compiles without execution;
+the offline Dart Frog server ran and returned a completed SSE response.
+
+The independent scores are 8.0/10 for Dart Frog and 7.8/10 for the exercised
+Ollama path. A separate selective provider review remains 6/10 and reproduced
+a Cloudflare bug: request cache overrides wrongly discarded an inherited Gateway
+ID during validation. The fix and consumer regression preserve default/override
+precedence and response request/cache metadata. These judgments are scoped, not
+an SDK-wide acceptance pass. No paid requests or package publications were made.

@@ -36,6 +36,7 @@ class DocumentationTest(unittest.TestCase):
                          'cloudflare-api-inventory.json', 'openrouter-api-reference/index.html',
                          'openrouter-api-inventory.json', 'computer-use/index.html',
                          'computer-parameters/index.html', 'computer-api-inventory.json',
+                         'ollama/index.html', 'ollama-parameters/index.html', 'ollama-api-inventory.json', 'dart-frog/index.html',
                          'anthropic/index.html', 'anthropic-parameters/index.html', 'anthropic-api-inventory.json', 'anthropic-computer/index.html', 'anthropic-computer-parameters/index.html', 'anthropic-computer-inventory.json', 'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
@@ -56,6 +57,12 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('openrouter-api-reference/', locations)
             self.assertIn('computer-use/', locations)
             self.assertIn('computer-parameters/', locations)
+            self.assertIn('ollama/', locations)
+            self.assertIn('ollama-parameters/', locations)
+            self.assertIn('dart-frog/', locations)
+            ollama = json.loads((target / 'ollama-api-inventory.json').read_text())
+            self.assertEqual(len(ollama['paths']), 4)
+            self.assertIn('ToolCallFunction', ollama['goSupplement'])
             self.assertIn('anthropic/', locations)
             self.assertIn('anthropic-parameters/', locations)
             self.assertIn('anthropic-computer/', locations)
