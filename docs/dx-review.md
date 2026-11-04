@@ -213,3 +213,21 @@ Run: `.dart_tool/dart-3.12.2/dart-sdk/bin/dart --enable-asserts run examples/rev
 No defect was reproduced in those scenarios. Fixtures do not establish live Cloudflare behavior, model or account availability, license status, or all model schemas. Live service errors, actual Gateway billing and real inference were not checked in this independent example. Native traditional continuation is limited to the documented single-call replay; multiple-call continuation is not verified or claimed.
 
 The first `docs/cloudflare.md` Dart block was extracted unchanged, verified identical to `examples/cloudflare_demo.dart`, analyzed, and compiled with Dart 3.12.2. It was not executed; no live or paid calls were made. The API inventory classifies operations rather than claiming parity.
+
+
+## Round 9: native OpenRouter consumer
+
+
+Offline loopback review with Dart 3.12.2 and assertions enabled; no real OpenRouter calls or credentials. Scores are qualitative judgments of this targeted workflow, not an SDK acceptance assessment.
+
+| Criterion | Before | After | Evidence and limits |
+| --- | ---: | ---: | --- |
+| Discoverability | 6/10 | 8/10 | The guide identifies native client, Chat and Responses entry points and private metadata namespaces. |
+| Clarity | 7/10 | 8/10 | The guide explains ownership, endpoints, private metadata, migration and limits; raw metadata still requires JSON inspection. |
+| Types | 6/10 | 7/10 | Routing options and typed generation help; native requests and provider metadata remain JSON by design. |
+| Diagnosis | 6/10 | 7/10 | A loopback 400 exposes status while redacting a fixture credential, but this is not a live error survey. |
+| Testing | 6/10 | 8/10 | The independent network consumer covers the workflows below; it cannot prove upstream behavior. |
+
+The original delegated adapter documented missing metadata and continuation. The new native path passes `dart --enable-asserts run examples/review_cases/openrouter_native.dart` and `dart analyze examples/review_cases/openrouter_native.dart`. The fixture exercises raw JSON provider and cost, Chat and Responses schema generation, two tool turns with persisted approvals and recreated agents, exact ordered replay of unknown and encrypted reasoning details, hydration privacy, unrelated provider state isolation, reported model/token/provider/cost preservation, absent usage remaining absent, rotating credentials and attribution headers, and HTTP error redaction. It also tests pre-cancellation, cancellation while headers are pending, unsubscribe after a flushed SSE event with a shared-parent sibling continuing, and borrowed HTTP client ownership. These are local fixtures, not evidence of actual billing, live model behavior, or provider compatibility. The native client did not expose a GET operation at initial review, so GET was not tested. Responses approval is independently exercised through a recreated agent and two loopback invocations: the continuation preserves ordered reasoning, opaque encrypted content, signature, unknown fields, assistant message and function call IDs and statuses, followed by the matching tool result. Cancellation through a real upstream, retries and all upstream unions remain unverified here.
+
+The updated guide describes the tested scenarios and separates fixture evidence from live behavior. Its first complete Dart block was copied unchanged, compared byte-for-byte with `examples/openrouter_demo.dart`, analyzed, and compiled with Dart 3.12.2 without executing it. Other behaviors beyond the scenarios listed remain outside this independent fixture.

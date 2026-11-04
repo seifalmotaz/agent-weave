@@ -1,5 +1,8 @@
 # Unreleased
 
+- Preserve raw Responses reasoning/tool output input fields and snapshot configuration guards before callbacks.
+- Protect absent history fields, alternate Chat token bounds and stream options.
+
 - Allow compatible Responses transports to omit OpenAI encrypted-reasoning includes.
 
 - Extract reusable typed Chat/Responses protocol models and isolate provider replay.

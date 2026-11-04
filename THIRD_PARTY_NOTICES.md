@@ -45,3 +45,10 @@ BSD-3-Clause. Public model documentation schemas are attributed to Cloudflare
 under CC BY 4.0. Original source URLs, revision, hashes, retained licenses and
 extraction details are in `tool/contracts/cloudflare/README.md`. Generated
 inventories reorganize those schemas; AgentWeave remains independent.
+
+## OpenRouter contract source
+
+The pinned official OpenRouter OpenAPI document declares the MIT license. The
+example-redacted snapshot, attribution and license are in `tool/contracts/openrouter/`.
+Its content hash is separate from the official TypeScript SDK's Git revision and
+Apache-2.0 license. No TypeScript SDK implementation is copied into the adapter.

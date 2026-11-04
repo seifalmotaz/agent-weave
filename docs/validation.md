@@ -21,10 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest Cloudflare/cancellation increment was checked on Dart 3.12.2. The prior
+The latest OpenRouter/replay increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 247 Dart unit and regression tests: tool validation, approvals, client tools,
+- 270 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -228,3 +228,43 @@ was accepted, and no paid Cloudflare or other provider calls were made. Live
 model availability, Gateway routing/cache hits, binary audio Content-Type
 acceptance, billing, management operations and exhaustive provider parity remain
 unverified or unimplemented as listed in the inventory.
+
+## Native OpenRouter and lossless Responses replay
+
+Fourteen OpenRouter fixtures cover native typed options and guarded JSON
+extensions, ordered Chat reasoning, stateless Responses replay, raw metadata,
+per-request credentials, malformed SSE, resolver errors, cancellation and client
+ownership. The shared Responses codec now uses immutable raw input snapshots,
+retaining reasoning and valid tool-output fields the typed input decoder could
+reject or omit. Forty Chat/Responses codec tests include unknown fields,
+actual SDK encrypted-reasoning replay, pre-callback canonical snapshots, missing
+instructions, alternate token bounds and stream-option protections. Usage
+model identity comes only from reported response data, including earlier stream
+frames; it is not guessed from a requested alias. Together has the same rule.
+
+The independent native consumer tests schema generation through both protocols,
+persisted approval and resumed tools, recreated agents, opaque ordered reasoning,
+IDs/statuses and matching tool outputs, no private replay in UI hydration,
+actual model/provider/cost metadata, absence of usage, credential rotation,
+redaction, network cancellation and borrowed-client ownership. The guide's first
+program was compiled unchanged without paid execution. Its five qualitative
+ratings average 7.6/10 after the guide and fixture changes. This is a targeted
+review, not SDK-wide acceptance or live service evidence.
+
+The OpenRouter source inventory accounts for 146 operations across 108 paths
+and records reusable component fields without expanding recursive references
+at every use. Six new extractor tests and the five Cloudflare extractor tests
+pass; the refactored shared helper produces the unchanged Cloudflare inventory.
+The explicit upstream OpenRouter comparison matched the pinned document hash.
+Only Chat and Responses have selected integrations; other operations remain
+not integrated. Source forwarding does not implement every response union or
+background job.
+
+No new paid requests or package publications were made. Live OpenRouter routing,
+cache hits, cost/billing, model-specific reasoning fragments, management APIs,
+hosted tools and output media remain unverified or unfinished.
+
+OpenRouter credential-shaped source examples are deterministically redacted
+before storage and generation. Original-source and retained-snapshot hashes
+are verified separately. The local credential scan also checks OpenRouter key
+formats and includes the full source snapshots.

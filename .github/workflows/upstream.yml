@@ -19,3 +19,4 @@ jobs:
       - run: node tool/interop/inventory.mjs --upstream
       - run: node tool/interop/gateway-inventory.mjs --upstream
       - run: python3 tool/cloudflare_contract.py --upstream --check
+      - run: python3 tool/openrouter_contract.py --upstream --check

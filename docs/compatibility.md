@@ -46,12 +46,14 @@ not a claim of full TanStack AI core parity.
 - Document support varies by adapter. Responses accepts URLs, inline data, and
   OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
   file IDs are blocked by the pinned SDK. Gateway Responses accepts URLs and
-  inline data but blocks file IDs. Chat Completions, OpenRouter, and Together
-  reject documents. See [documents](documents.md) for storage
+  inline data but blocks file IDs. OpenRouter Responses also accepts URL/inline
+  documents and rejects foreign file IDs. OpenRouter Chat, OpenAI Chat
+  Completions, and Together reject document parts. See [documents](documents.md) for storage
   implications.
-- OpenRouter supports selected typed request options; plugins, top-level cache
-  control, newer routing fields, and response provider, cost, and reasoning
-  continuation metadata are not preserved. See [OpenRouter](openrouter.md).
+- OpenRouter has separate native Chat and stateless Responses adapters. Selected
+  routing, plugin and cache options, ordered private reasoning replay and compact
+  provider/cost metadata have offline fixtures. Complete management, background,
+  hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter
   supports one choice; model acceptance of tools, schema, and media remains
   unverified. See [Together](together.md).

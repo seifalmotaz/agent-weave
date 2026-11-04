@@ -21,7 +21,7 @@ using it in production.
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
 | [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
-| [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
+| [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter native Chat/Responses, routing, replay and metadata |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
 | [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
 | [`agent_weave_serverpod_client`](packages/agent_weave_serverpod_client) | Connect the existing TanStack Dart client to generated Serverpod streaming methods |

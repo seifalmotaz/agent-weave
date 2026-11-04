@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 from urllib.request import Request, urlopen
 
+from openapi_contract import resolve, schema_fields
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / 'tool/contracts/cloudflare'
 REVISION = '193e683baba9c46b675d91c959c3b9a726b2d184'
@@ -28,15 +30,6 @@ MODEL_SOURCES = {
     'flux-input.json': 'https://developers.cloudflare.com/workers-ai/models/flux-1-schnell/schema-input.json',
     'flux-output.json': 'https://developers.cloudflare.com/workers-ai/models/flux-1-schnell/schema-output.json',
 }
-
-
-def resolve(document, reference):
-    if not reference.startswith('#/'):
-        raise ValueError(f'External reference requires review: {reference}')
-    value = document
-    for token in reference[2:].split('/'):
-        value = value[token.replace('~1', '/').replace('~0', '~')]
-    return value
 
 
 def selected_path(path):
@@ -70,38 +63,6 @@ def extract(document):
         components.setdefault(group, {})[name] = resolve(document, reference)
     return {'openapi': document['openapi'], 'info': document['info'],
             'paths': paths, 'components': components}
-
-
-def schema_fields(schema, document, path='$', required=None, ancestors=frozenset()):
-    """Enumerate nested properties, unions, map values and recursive references."""
-    if not isinstance(schema, dict):
-        return [{'path': path, 'schema': schema}]
-    summary = {key: value for key, value in schema.items()
-               if key not in {'properties', 'items', 'allOf', 'anyOf', 'oneOf', 'not', 'additionalProperties', 'description', 'example', 'examples'}}
-    if isinstance(schema.get('additionalProperties'), bool):
-        summary['additionalProperties'] = schema['additionalProperties']
-    row = {'path': path, **summary}
-    if required is not None:
-        row['requiredByParent'] = required
-    rows = [row]
-    if '$ref' in schema:
-        reference = schema['$ref']
-        if reference in ancestors:
-            row['recursiveReference'] = True
-        else:
-            rows += schema_fields(resolve(document, reference), document,
-                                  path + '/$ref', required, ancestors | {reference})
-    for name, child in sorted(schema.get('properties', {}).items()):
-        escaped = name.replace('~', '~0').replace('/', '~1')
-        rows += schema_fields(child, document, path + '/properties/' + escaped,
-                              name in schema.get('required', []), ancestors)
-    for name in ['items', 'not', 'additionalProperties']:
-        if isinstance(schema.get(name), dict):
-            rows += schema_fields(schema[name], document, path + '/' + name, ancestors=ancestors)
-    for union in ['allOf', 'anyOf', 'oneOf']:
-        for index, child in enumerate(schema.get(union, [])):
-            rows += schema_fields(child, document, f'{path}/{union}/{index}', ancestors=ancestors)
-    return rows
 
 
 def dereference(value, document):

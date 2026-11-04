@@ -296,6 +296,242 @@ void main() {
     },
   );
 
+  test(
+    'Responses preserves raw reasoning and tool output input fields',
+    () async {
+      final items = <JsonObject>[
+        {
+          'type': 'reasoning',
+          'id': 'reasoning-1',
+          'encrypted_content': 'private',
+          'summary': <Object?>[],
+          'signature': 'opaque-signature',
+          'future': {
+            'nested': [1, 2],
+          },
+        },
+        {
+          'type': 'function_call_output',
+          'call_id': 'call',
+          'output': 'done',
+          'name': 'lookup',
+          'namespace': 'app',
+        },
+      ];
+      final model = openai.ResponsesProtocolModel(
+        model: 'fixture',
+        providerDataKey: 'router.responses',
+        configure: (request) => request.copyWith(temperature: 0.2),
+        transport: (request, _) {
+          expect((request.toJson()['input'] as List).take(2).toList(), items);
+          expect(request.toJson()['temperature'], 0.2);
+          return Stream.value(
+            responseEvent('response.completed', {'response': responseJson()}),
+          );
+        },
+      );
+      await model
+          .stream(
+            ModelRequest(
+              messages: [
+                ChatMessage(
+                  id: 'a',
+                  role: MessageRole.assistant,
+                  providerData: {'router.responses': items},
+                ),
+                ChatMessage.user('next', id: 'u'),
+              ],
+            ),
+            cancellation: CancellationToken(),
+          )
+          .toList();
+    },
+  );
+  test(
+    'Responses SDK facade replays encrypted reasoning on the next call',
+    () async {
+      var calls = 0;
+      final client = fixtureClient(
+        [
+          responseEvent('response.completed', {
+            'response': {
+              ...responseJson(),
+              'output': [
+                {
+                  'type': 'reasoning',
+                  'id': 'reasoning-1',
+                  'summary': <Object?>[],
+                  'encrypted_content': 'private',
+                },
+              ],
+            },
+          }),
+        ],
+        (request) {
+          if (++calls == 2) {
+            final input = (jsonDecode(request.body) as Map)['input'] as List;
+            expect(input.first['type'], 'reasoning');
+            expect(input.first['encrypted_content'], 'private');
+          }
+        },
+      );
+      final model = openai.OpenAIResponsesModel(
+        client: client,
+        model: 'fixture',
+      );
+      final first = await model
+          .stream(modelRequest, cancellation: CancellationToken())
+          .toList();
+      await model
+          .stream(
+            ModelRequest(
+              messages: [
+                ChatMessage(
+                  id: 'a',
+                  role: MessageRole.assistant,
+                  providerData: {
+                    'openai.responses': first
+                        .whereType<ProviderOutput>()
+                        .single
+                        .items,
+                  },
+                ),
+                ChatMessage.user('next', id: 'u'),
+              ],
+            ),
+            cancellation: CancellationToken(),
+          )
+          .toList();
+      expect(calls, 2);
+    },
+  );
+  for (final overrides in <Map<String, Object?>>[
+    {'max_tokens': 1000000},
+    {
+      'stream_options': {'include_usage': false},
+    },
+  ]) {
+    test(
+      'Chat configure cannot inject alternate bounds or stream controls: $overrides',
+      () async {
+        final model = openai.ChatCompletionsProtocolModel(
+          model: 'fixture',
+          transport: (_, _) => throw StateError('must not dispatch'),
+          configure: (request) => openai.ChatCompletionCreateRequest.fromJson({
+            ...request.toJson(),
+            ...overrides,
+          }),
+        );
+        await expectLater(
+          model
+              .stream(modelRequest, cancellation: CancellationToken())
+              .toList(),
+          throwsArgumentError,
+        );
+      },
+    );
+  }
+  test('Responses configure cannot add absent runtime instructions', () async {
+    final model = openai.ResponsesProtocolModel(
+      model: 'fixture',
+      transport: (_, _) => throw StateError('must not dispatch'),
+      configure: (request) => request.copyWith(instructions: 'overridden'),
+    );
+    await expectLater(
+      model
+          .stream(
+            ModelRequest(messages: [ChatMessage.user('hi', id: 'u')]),
+            cancellation: CancellationToken(),
+          )
+          .toList(),
+      throwsArgumentError,
+    );
+  });
+  test(
+    'Chat configure mutation cannot change the canonical history baseline',
+    () async {
+      final model = openai.ChatCompletionsProtocolModel(
+        model: 'fixture',
+        transport: (_, _) => throw StateError('must not dispatch'),
+        configure: (request) {
+          request.messages.clear();
+          return request;
+        },
+      );
+      await expectLater(
+        model.stream(modelRequest, cancellation: CancellationToken()).toList(),
+        throwsA(anyOf(isA<ArgumentError>(), isA<UnsupportedError>())),
+      );
+    },
+  );
+
+  for (final reported in <String?>[null, 'actual/routed']) {
+    test(
+      'Chat usage retains only reported model identity: $reported',
+      () async {
+        final finish = chatEvent(finish: 'stop')..remove('model');
+        if (reported != null) finish['model'] = reported;
+        final usage = chatEvent(
+          usage: {'prompt_tokens': 1, 'completion_tokens': 2},
+        )..remove('model');
+        final model = openai.ChatCompletionsProtocolModel(
+          model: 'requested/alias',
+          transport: (_, _) => Stream.fromIterable([finish, usage]),
+        );
+        final events = await model
+            .stream(modelRequest, cancellation: CancellationToken())
+            .toList();
+        expect(events.whereType<TokenUsage>().single.model, reported);
+      },
+    );
+    test(
+      'Responses usage retains only reported model identity: $reported',
+      () async {
+        final response = responseJson()..remove('model');
+        final model = openai.ResponsesProtocolModel(
+          model: 'requested/alias',
+          transport: (_, _) => Stream.fromIterable([
+            if (reported != null)
+              responseEvent('response.created', {
+                'response': {'model': reported},
+              }),
+            responseEvent('response.completed', {'response': response}),
+          ]),
+        );
+        final events = await model
+            .stream(modelRequest, cancellation: CancellationToken())
+            .toList();
+        expect(events.whereType<TokenUsage>().single.model, reported);
+      },
+    );
+  }
+
+  test(
+    'Chat accepts native reasoning text without duplicating aliases',
+    () async {
+      for (final delta in [
+        {'reasoning': 'native thought'},
+        {
+          'reasoning_content': 'primary thought',
+          'reasoning': 'duplicate thought',
+        },
+      ]) {
+        final model = openai.ChatCompletionsProtocolModel(
+          model: 'fixture',
+          transport: (_, _) =>
+              Stream.value(chatEvent(delta: delta, finish: 'stop')),
+        );
+        final events = await model
+            .stream(modelRequest, cancellation: CancellationToken())
+            .toList();
+        expect(
+          events.whereType<ReasoningDelta>().single.text,
+          delta['reasoning_content'] ?? delta['reasoning'],
+        );
+      }
+    },
+  );
+
   test('protocol isolates replay and guards conversation ownership', () async {
     Map<String, dynamic>? sent;
     final model = openai.ResponsesProtocolModel(

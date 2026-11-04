@@ -46,7 +46,7 @@ Future<void> main() async {
     );
     await request.response.close();
   });
-  final client = router.openRouterClient(
+  final client = router.OpenRouterClient.withApiKey(
     apiKey: 'fixture',
     baseUrl: 'http://127.0.0.1:${server.port}/api/v1',
     appName: 'Review',
@@ -55,8 +55,8 @@ Future<void> main() async {
     final model = router.OpenRouterChatModel(
       client: client,
       model: 'example/model',
-      provider: const router.OpenRouterProviderPreferences(
-        allowFallbacks: false,
+      options: router.OpenRouterChatOptions(
+        provider: router.OpenRouterProviderPreferences(allowFallbacks: false),
       ),
     );
     final result = await generateText(model: model, prompt: 'Summarize this');
@@ -76,7 +76,7 @@ Future<void> main() async {
     );
     await request.response.close();
   });
-  final errorClient = router.openRouterClient(
+  final errorClient = router.OpenRouterClient.withApiKey(
     apiKey: 'fixture',
     baseUrl: 'http://127.0.0.1:${errorServer.port}/api/v1',
   );
@@ -95,7 +95,7 @@ Future<void> main() async {
     assert(failure is AgentRunException && failure.code == 'MODEL_FAILED');
     assert(
       (failure as AgentRunException).cause.toString().contains(
-        'upstream failed',
+        'OpenRouter request failed',
       ),
     );
     await errorHandled;

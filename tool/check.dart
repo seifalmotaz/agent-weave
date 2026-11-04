@@ -80,6 +80,11 @@ Future<void> main() async {
   await run('dart', [
     '--enable-asserts',
     'run',
+    'examples/review_cases/openrouter_native.dart',
+  ]);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
     'examples/review_cases/together.dart',
   ]);
   await run('dart', [
@@ -95,12 +100,14 @@ Future<void> main() async {
   await run('python3', ['tool/test_audit_openai.py']);
   await run('python3', ['tool/test_cloudflare_contract.py']);
   await run('python3', ['tool/cloudflare_contract.py', '--check']);
+  await run('python3', ['tool/test_openrouter_contract.py']);
+  await run('python3', ['tool/openrouter_contract.py', '--check']);
   final secret = RegExp(
-    r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',
+    r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|sk-or-v1-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',
   );
   for (final path in files) {
     final file = File(path);
-    if (!file.existsSync() || file.lengthSync() > 2000000) continue;
+    if (!file.existsSync()) continue;
     final text = utf8.decode(file.readAsBytesSync(), allowMalformed: true);
     if (secret.hasMatch(text)) {
       throw StateError('Credential pattern found in $path');

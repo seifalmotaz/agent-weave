@@ -95,6 +95,7 @@ nav:
       - OpenAI options audit: openai-options-audit.md
       - Provider coverage: provider-coverage.md
       - Cloudflare API inventory: cloudflare-api-reference.md
+      - OpenRouter API inventory: openrouter-api-reference.md
       - Developer reviews: dx-review.md
       - Coding-agent guide: agent-guide.md
       - Build these docs: docs-site.md

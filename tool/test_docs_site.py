@@ -33,7 +33,8 @@ class DocumentationTest(unittest.TestCase):
                          'together/index.html', 'together-options/index.html', 'together-chat-inventory.json',
                          'vercel-gateway/index.html', 'gateway-options/index.html', 'gateway-options-inventory.json',
                          'cloudflare/index.html', 'cloudflare-api-reference/index.html',
-                         'cloudflare-api-inventory.json', 'assets/styles.css', 'llms.txt']:
+                         'cloudflare-api-inventory.json', 'openrouter-api-reference/index.html',
+                         'openrouter-api-inventory.json', 'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
             self.assertIn('Your AI logic.', html)
@@ -50,6 +51,9 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('gateway-options/', locations)
             self.assertIn('cloudflare/', locations)
             self.assertIn('cloudflare-api-reference/', locations)
+            self.assertIn('openrouter-api-reference/', locations)
+            openrouter = json.loads((target / 'openrouter-api-inventory.json').read_text())
+            self.assertEqual(openrouter['operationCount'], 146)
             cloudflare = json.loads((target / 'cloudflare-api-inventory.json').read_text())
             self.assertEqual(cloudflare['operationCount'], 82)
             self.assertEqual(len(cloudflare['modelSchemas']), 6)

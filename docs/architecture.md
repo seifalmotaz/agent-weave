@@ -100,3 +100,22 @@ This package does not add an HTTP dependency to the core agent runtime.
 listener. Late subscribers still receive cancellation. Native request scopes and
 linked model subscriptions dispose that listener after completion or cancellation
 so a long-lived parent token does not retain completed request callbacks.
+
+## Native OpenRouter fields
+
+OpenRouter uses the shared Chat/Responses codecs for canonical agent messages,
+tools, schema and token bounds, then appends native options through its explicit
+JSON transport. This preserves fields the OpenAI SDK does not represent. Keeping
+the old SDK-only transport would discard those fields; copying a complete codec
+would duplicate continuation and validation logic.
+
+Responses replay uses the SDK's existing raw `ResponseInput.fromOutputItems`
+constructor with immutable snapshots. Re-parsing returned output through typed
+input unions would reject reasoning items or drop valid output fields. Typed
+configuration is compared against a pre-callback snapshot, including absent
+runtime fields and Chat's alternate token bound and stream options.
+
+Chat reasoning fragments and response-level metadata have separate private
+namespaces. Only reasoning fragments are replayed as Chat continuation. Metadata
+is a compact snapshot of reported fields; raw native methods retain complete
+events without storing every text chunk twice in assistant history.

@@ -106,3 +106,23 @@ The manual upstream workflow compares the selected Cloudflare OpenAPI paths and
 six public model schemas with the reviewed snapshots. It fails on drift and
 never rewrites the pin. See `tool/contracts/cloudflare/README.md` for refreshing
 the revision, retained licenses and operation dispositions.
+
+## OpenRouter contracts
+
+The OpenRouter source is a SHA-256-pinned official OpenAPI document
+with a stated MIT license. Credential-shaped example values are redacted in the
+retained snapshot, which has a separate hash. The updater verifies both hashes
+and the deterministic transformation. Its inventory retains references and records component
+fields once, avoiding repeated expansion of recursive schemas. All operations
+receive an explicit status; only selected Chat/Responses behavior is integrated.
+
+```sh
+python3 tool/openrouter_contract.py --upstream --check
+python3 tool/test_openrouter_contract.py
+python3 tool/openrouter_contract.py --check
+```
+
+Review source drift, the field statuses, implementation and fixture behavior
+together before changing the hash. New fields forwarded through native JSON
+still need a disposition and tests for any claimed orchestration. See
+`tool/contracts/openrouter/README.md` for provenance and retained license.

@@ -147,9 +147,16 @@ final class ResponsesProtocolModel implements ChatModel {
         });
       }
     }
+    final replayInput = api.ResponseInput.fromOutputItems(
+      List<Map<String, dynamic>>.unmodifiable(
+        input.map(
+          (item) => Map<String, dynamic>.unmodifiable(immutableJson(item)),
+        ),
+      ),
+    );
     var params = api.CreateResponseRequest.fromJson({
       'model': model,
-      'input': input,
+      'input': <Object?>[],
       'store': false,
       if (includeEncryptedReasoning) 'include': ['reasoning.encrypted_content'],
       'max_output_tokens': request.maxOutputTokens,
@@ -174,12 +181,13 @@ final class ResponsesProtocolModel implements ChatModel {
             'strict': true,
           },
         },
-    });
+    }).copyWith(input: replayInput);
+    final canonical = Map<String, dynamic>.from(immutableJson(params.toJson()));
     final configured = configure?.call(params) ?? params;
     final options = _preserveRequest(
-      params.toJson(),
+      canonical,
       configured.toJson(),
-      owned: ['input', 'instructions', 'max_output_tokens'],
+      owned: ['input', 'instructions', 'max_output_tokens', 'stream'],
       schemaField: 'text',
     );
     final includes = <Object?>{
@@ -191,11 +199,20 @@ final class ResponsesProtocolModel implements ChatModel {
     } else {
       options['include'] = includes.toList();
     }
-    params = api.CreateResponseRequest.fromJson(options);
+    params = api.CreateResponseRequest.fromJson({
+      ...options,
+      'input': <Object?>[],
+    }).copyWith(input: replayInput);
 
     var terminal = false;
+    String? actualModel;
     await for (final json in transport(params, cancellation)) {
       cancellation.throwIfCancelled();
+      if (json['response'] case final Map<String, Object?> response) {
+        if (response['model'] case final String reported) {
+          actualModel = reported;
+        }
+      }
       switch (json['type']) {
         case 'response.output_text.delta':
           yield TextDelta(json['delta'] as String);
@@ -243,7 +260,7 @@ final class ResponsesProtocolModel implements ChatModel {
             yield TokenUsage(
               inputTokens: usage['input_tokens'] as int,
               outputTokens: usage['output_tokens'] as int,
-              model: response['model'] as String? ?? params.model,
+              model: actualModel,
               cachedInputTokens:
                   (usage['input_tokens_details'] as Map?)?['cached_tokens']
                       as int?,
@@ -425,12 +442,19 @@ final class ChatCompletionsProtocolModel implements ChatModel {
           },
         },
     });
+    final canonical = Map<String, dynamic>.from(immutableJson(params.toJson()));
     final configured = configure?.call(params) ?? params;
     params = api.ChatCompletionCreateRequest.fromJson(
       _preserveRequest(
-        params.toJson(),
+        canonical,
         configured.toJson(),
-        owned: ['messages', 'max_completion_tokens'],
+        owned: [
+          'messages',
+          'max_completion_tokens',
+          'max_tokens',
+          'stream',
+          'stream_options',
+        ],
         schemaField: 'response_format',
       ),
     );
@@ -444,14 +468,15 @@ final class ChatCompletionsProtocolModel implements ChatModel {
       throw ArgumentError('Unsupported Chat Completions output mode.');
     }
     final calls = <int, _CallBuffer>{};
-    String? finishReason;
+    String? finishReason, actualModel;
     await for (final json in transport(params, cancellation)) {
       cancellation.throwIfCancelled();
+      if (json['model'] case final String reported) actualModel = reported;
       if (json['usage'] case final Map<String, dynamic> usage) {
         yield TokenUsage(
           inputTokens: usage['prompt_tokens'] as int,
           outputTokens: usage['completion_tokens'] as int,
-          model: json['model'] as String? ?? params.model,
+          model: actualModel,
           cachedInputTokens:
               (usage['prompt_tokens_details'] as Map?)?['cached_tokens']
                   as int?,
@@ -471,7 +496,8 @@ final class ChatCompletionsProtocolModel implements ChatModel {
         }
         if (delta['content'] case final String text) yield TextDelta(text);
         if (delta['refusal'] case final String text) yield TextDelta(text);
-        if (delta['reasoning_content'] case final String text) {
+        if (delta['reasoning_content'] ?? delta['reasoning']
+            case final String text) {
           yield ReasoningDelta(text);
         }
         for (final raw in delta['tool_calls'] as List? ?? []) {
@@ -527,11 +553,8 @@ Map<String, dynamic> _preserveRequest(
   required String schemaField,
 }) {
   for (final key in owned) {
-    if (canonical.containsKey(key) &&
-        canonicalJson(canonical[key]) != canonicalJson(configured[key])) {
-      throw ArgumentError(
-        'configure cannot replace runtime-owned $key. Set it on AiAgent instead.',
-      );
+    if (canonicalJson(canonical[key]) != canonicalJson(configured[key])) {
+      throw ArgumentError('configure cannot replace runtime-owned $key.');
     }
   }
   final canonicalSchema = canonical[schemaField];

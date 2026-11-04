@@ -24,6 +24,31 @@ void main() {
     await server.close(force: true);
   });
   test(
+    'missing model identity is not inferred from the requested alias',
+    () async {
+      handler = (request) async {
+        await request.drain<void>();
+        request.response.headers.contentType = ContentType(
+          'text',
+          'event-stream',
+        );
+        request.response.write(
+          'data: {"choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}\n\ndata: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":2}}\n\ndata: [DONE]\n\n',
+        );
+        await request.response.close();
+      };
+      final events =
+          await TogetherChatModel(client: client, model: 'requested/alias')
+              .stream(
+                ModelRequest(messages: [ChatMessage.user('hi', id: 'u')]),
+                cancellation: CancellationToken(),
+              )
+              .toList();
+      expect(events.whereType<TokenUsage>().single.model, isNull);
+    },
+  );
+
+  test(
     'native options snapshot and numeric logprobs; tools, schema and replay',
     () async {
       final stop = ['end'];

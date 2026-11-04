@@ -43,7 +43,6 @@ void main() {
           'allow_fallbacks': false,
         });
         expect(body['reasoning'], {'effort': 'low'});
-        expect(body['usage'], {'include': true});
         expect(body['max_completion_tokens'], 50);
         expect(body['response_format']['json_schema']['schema'], {
           'type': 'object',
@@ -91,7 +90,7 @@ void main() {
         request.response.write('data: [DONE]\n\n');
         await request.response.close();
       });
-      final client = router.openRouterClient(
+      final client = router.OpenRouterClient.withApiKey(
         apiKey: 'fixture',
         baseUrl: 'http://127.0.0.1:${server.port}/api/v1',
         siteUrl: 'https://example.com',
@@ -102,15 +101,18 @@ void main() {
       final model = router.OpenRouterChatModel(
         client: client,
         model: 'initial/model',
-        fallbackModels: ['fallback/model'],
-        route: 'fallback',
         configure: (request) => request.copyWith(temperature: 0.2),
-        provider: const router.OpenRouterProviderPreferences(
-          order: ['provider'],
-          allowFallbacks: false,
+        options: router.OpenRouterChatOptions(
+          fallbackModels: ['fallback/model'],
+          route: 'fallback',
+          provider: router.OpenRouterProviderPreferences(
+            order: ['provider'],
+            allowFallbacks: false,
+          ),
+          reasoning: router.OpenRouterReasoning(
+            effort: router.OpenRouterReasoningEffort.low,
+          ),
         ),
-        reasoning: const router.OpenRouterReasoning(effort: 'low'),
-        usage: const router.OpenRouterUsageConfig(include: true),
       );
       final events = await model
           .stream(
@@ -152,7 +154,7 @@ void main() {
       );
       await request.response.close();
     });
-    final client = router.openRouterClient(
+    final client = router.OpenRouterClient.withApiKey(
       apiKey: 'fixture',
       baseUrl: 'http://127.0.0.1:${server.port}/api/v1',
     );
@@ -168,13 +170,13 @@ void main() {
         isA<Exception>().having(
           (error) => error.toString(),
           'message',
-          contains('upstream failed'),
+          contains('OpenRouter request failed'),
         ),
       ),
     );
   });
   test('pre-cancellation does not send a request', () async {
-    final client = router.openRouterClient(apiKey: 'fixture');
+    final client = router.OpenRouterClient.withApiKey(apiKey: 'fixture');
     addTearDown(client.close);
     final token = CancellationToken()..cancel();
     await expectLater(

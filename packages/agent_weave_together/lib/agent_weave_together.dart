@@ -349,7 +349,7 @@ final class TogetherChatModel implements ChatModel {
         yield TokenUsage(
           inputTokens: (usage['prompt_tokens'] as num).toInt(),
           outputTokens: (usage['completion_tokens'] as num).toInt(),
-          model: actualModel ?? model,
+          model: actualModel,
           cachedInputTokens:
               (usage['prompt_tokens_details'] as Map?)?['cached_tokens']
                   as int?,

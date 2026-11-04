@@ -1,21 +1,23 @@
 # AgentWeave OpenRouter
 
-OpenRouter Chat Completions for AgentWeave. Keep API keys on the backend and close the client on shutdown.
+OpenRouter Chat Completions and stateless Responses for AgentWeave. Keep credentials on the backend and close the client on shutdown.
 
 ```dart
 import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_openrouter/agent_weave_openrouter.dart' as router;
 
-final client = router.openRouterClient(apiKey: apiKey);
+final client = router.OpenRouterClient.withApiKey(apiKey: apiKey);
 final model = router.OpenRouterChatModel(
   client: client,
-  model: modelId, // A model available to your OpenRouter account.
-  fallbackModels: [fallbackModelId],
-  provider: const router.OpenRouterProviderPreferences(
-    order: ['OpenAI'],
-    allowFallbacks: true,
+  model: modelId,
+  options: router.OpenRouterChatOptions(
+    fallbackModels: [fallbackModelId],
+    provider: router.OpenRouterProviderPreferences(
+      order: ['openai'],
+      allowFallbacks: true,
+    ),
+    reasoning: router.OpenRouterReasoning(effort: router.OpenRouterReasoningEffort.low),
   ),
-  reasoning: const router.OpenRouterReasoning(effort: 'low'),
 );
 try {
   final result = await generateText(model: model, prompt: 'Hello');
@@ -25,10 +27,8 @@ try {
 }
 ```
 
-This adapter delegates to AgentWeave's OpenAI Chat Completions adapter and `openai_dart` 11.0.1. It forwards SDK-represented OpenRouter provider preferences, fallback models, route, reasoning and usage settings. `configure` exposes other SDK request options; runtime messages, registered tools, output schema and maximum tokens remain protected by the delegated adapter. Set attribution and session headers on `openRouterClient`; arbitrary extra headers can be supplied with `headers`. Capabilities vary by model and provider.
+`OpenRouterResponsesModel` supports the Responses API with full history and a separate replay namespace. OpenRouter does not support stateful Responses continuation; do not set `store: true` or `previous_response_id`. Chat reasoning details and Responses output items are retained as private provider data for continuation. Provider metadata, including reported cost and actual provider, is private provider data and should be treated as sensitive. Costs are never inferred.
 
-The SDK does not represent every OpenRouter request field. In particular, plugins, top-level cache control, and newer provider-routing fields are not available through this adapter. OpenRouter-specific response metadata, provider identity, cost and reasoning continuation data are not exposed by AgentWeave's delegated adapter; do not rely on it for billing or provider audit. Token usage and the model reported on usage events are forwarded when supplied. Direct model streams propagate HTTP and inline streaming errors from the SDK. `generateText` wraps failures in `AgentRunException`; inspect its `cause` only in trusted backend logs, not client responses. Model-specific behavior, billing, cache hits and live cancellation have not been verified against OpenRouter.
+Use `OpenRouterClient` with a `credentialResolver` for per-request rotating keys. Attribution and session headers are optional constructor parameters. The client owns its transport; `OpenRouterClient.withTransport` borrows it, and an injected HTTP client remains caller-owned. The raw `createChat`, `streamChat`, `createResponse`, and `streamResponse` methods accept JSON and preserve provider envelopes and unknown fields. Stream events expose SSE data and safe response headers. Provider options support extra JSON for new fields; model options reject runtime-owned history, tools, schema, token bounds, and streaming controls. `configure` offers compatible typed OpenAI request options under the same runtime protections.
 
-See the [complete setup recipe](https://seifalmotaz.github.io/agent-weave/openrouter/).
-
-References: [Chat Completions API](https://openrouter.ai/docs/api/api-reference/chat/send-chat-completion-request), [provider routing](https://openrouter.ai/docs/guides/routing/provider-selection), [streaming](https://openrouter.ai/docs/api/reference/streaming).
+Only Chat Completions and Responses are integrated. Capabilities vary by model and provider; this package does not claim coverage of other OpenRouter APIs or all native unions. The local tests use fixtures and loopback requests, not live OpenRouter billing or model behavior.

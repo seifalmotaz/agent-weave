@@ -11,6 +11,7 @@ const documents = [
   'docs/documents.md',
   'docs/openai.md',
   'docs/openrouter.md',
+  'docs/openrouter-api-reference.md',
   'docs/together.md',
   'docs/cloudflare.md',
   'docs/cloudflare-api-reference.md',

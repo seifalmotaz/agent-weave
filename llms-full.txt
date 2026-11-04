@@ -23,7 +23,7 @@ using it in production.
 | [`agent_weave_vercel_gateway`](packages/agent_weave_vercel_gateway) | Vercel AI Gateway Chat and Responses adapters |
 | [`agent_weave_cloudflare`](packages/agent_weave_cloudflare) | Workers AI and AI Gateway REST clients and selected model adapters |
 | [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
-| [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
+| [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter native Chat/Responses, routing, replay and metadata |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
 | [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
 | [`agent_weave_serverpod_client`](packages/agent_weave_serverpod_client) | Connect the existing TanStack Dart client to generated Serverpod streaming methods |
@@ -633,6 +633,24 @@ No defect was reproduced in those scenarios. Fixtures do not establish live Clou
 The first `docs/cloudflare.md` Dart block was extracted unchanged, verified identical to `examples/cloudflare_demo.dart`, analyzed, and compiled with Dart 3.12.2. It was not executed; no live or paid calls were made. The API inventory classifies operations rather than claiming parity.
 
 
+## Round 9: native OpenRouter consumer
+
+
+Offline loopback review with Dart 3.12.2 and assertions enabled; no real OpenRouter calls or credentials. Scores are qualitative judgments of this targeted workflow, not an SDK acceptance assessment.
+
+| Criterion | Before | After | Evidence and limits |
+| --- | ---: | ---: | --- |
+| Discoverability | 6/10 | 8/10 | The guide identifies native client, Chat and Responses entry points and private metadata namespaces. |
+| Clarity | 7/10 | 8/10 | The guide explains ownership, endpoints, private metadata, migration and limits; raw metadata still requires JSON inspection. |
+| Types | 6/10 | 7/10 | Routing options and typed generation help; native requests and provider metadata remain JSON by design. |
+| Diagnosis | 6/10 | 7/10 | A loopback 400 exposes status while redacting a fixture credential, but this is not a live error survey. |
+| Testing | 6/10 | 8/10 | The independent network consumer covers the workflows below; it cannot prove upstream behavior. |
+
+The original delegated adapter documented missing metadata and continuation. The new native path passes `dart --enable-asserts run examples/review_cases/openrouter_native.dart` and `dart analyze examples/review_cases/openrouter_native.dart`. The fixture exercises raw JSON provider and cost, Chat and Responses schema generation, two tool turns with persisted approvals and recreated agents, exact ordered replay of unknown and encrypted reasoning details, hydration privacy, unrelated provider state isolation, reported model/token/provider/cost preservation, absent usage remaining absent, rotating credentials and attribution headers, and HTTP error redaction. It also tests pre-cancellation, cancellation while headers are pending, unsubscribe after a flushed SSE event with a shared-parent sibling continuing, and borrowed HTTP client ownership. These are local fixtures, not evidence of actual billing, live model behavior, or provider compatibility. The native client did not expose a GET operation at initial review, so GET was not tested. Responses approval is independently exercised through a recreated agent and two loopback invocations: the continuation preserves ordered reasoning, opaque encrypted content, signature, unknown fields, assistant message and function call IDs and statuses, followed by the matching tool result. Cancellation through a real upstream, retries and all upstream unions remain unverified here.
+
+The updated guide describes the tested scenarios and separates fixture evidence from live behavior. Its first complete Dart block was copied unchanged, compared byte-for-byte with `examples/openrouter_demo.dart`, analyzed, and compiled with Dart 3.12.2 without executing it. Other behaviors beyond the scenarios listed remain outside this independent fixture.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -737,6 +755,25 @@ This package does not add an HTTP dependency to the core agent runtime.
 listener. Late subscribers still receive cancellation. Native request scopes and
 linked model subscriptions dispose that listener after completion or cancellation
 so a long-lived parent token does not retain completed request callbacks.
+
+## Native OpenRouter fields
+
+OpenRouter uses the shared Chat/Responses codecs for canonical agent messages,
+tools, schema and token bounds, then appends native options through its explicit
+JSON transport. This preserves fields the OpenAI SDK does not represent. Keeping
+the old SDK-only transport would discard those fields; copying a complete codec
+would duplicate continuation and validation logic.
+
+Responses replay uses the SDK's existing raw `ResponseInput.fromOutputItems`
+constructor with immutable snapshots. Re-parsing returned output through typed
+input unions would reject reasoning items or drop valid output fields. Typed
+configuration is compared against a pre-callback snapshot, including absent
+runtime fields and Chat's alternate token bound and stream options.
+
+Chat reasoning fragments and response-level metadata have separate private
+namespaces. Only reasoning fragments are replayed as Chat continuation. Metadata
+is a compact snapshot of reported fields; raw native methods retain complete
+events without storing every text chunk twice in assistant history.
 
 
 # Source: docs/tools.md
@@ -1047,11 +1084,15 @@ handling. It preserves data but does not implement missing tool/job lifecycles.
 
 # Use OpenRouter
 
-`agent_weave_openrouter` sends Chat Completions through the OpenAI adapter.
-From the workspace root, run `dart pub get`, then save this example as
-`examples/openrouter_demo.dart`. Set `OPENROUTER_API_KEY` and
-`OPENROUTER_MODEL` in your backend environment. Choose a model available to your
-account. Running the example makes a paid provider request.
+`agent_weave_openrouter` has a native JSON/SSE client and separate Chat and
+Responses adapters. It reuses AgentWeave's compatible wire codecs, while native
+routing, plugins, reasoning, cache options and metadata bypass the OpenAI SDK's
+request serializer. This is selected integration, not complete OpenRouter parity.
+
+Set `OPENROUTER_API_KEY` and `OPENROUTER_MODEL` in your backend environment for a
+model available to your account. From the workspace root, run `dart pub get`,
+then `dart run examples/openrouter_demo.dart`. This sends a real request and may
+incur charges. The complete program is:
 
 ```dart
 import 'dart:io';
@@ -1065,12 +1106,18 @@ Future<void> main() async {
   if (apiKey == null || modelId == null) {
     throw StateError('Set OPENROUTER_API_KEY and OPENROUTER_MODEL.');
   }
-  final client = router.openRouterClient(apiKey: apiKey, appName: 'My app');
+  final client = router.OpenRouterClient.withApiKey(
+    apiKey: apiKey,
+    appName: 'My app',
+    headers: {'X-OpenRouter-Metadata': 'enabled'},
+  );
   try {
     final model = router.OpenRouterChatModel(
       client: client,
       model: modelId,
-      provider: const router.OpenRouterProviderPreferences(allowFallbacks: false),
+      options: router.OpenRouterChatOptions(
+        provider: router.OpenRouterProviderPreferences(requireParameters: true),
+      ),
     );
     final result = await generateText(model: model, prompt: 'Say hello.');
     print(result.text);
@@ -1080,41 +1127,288 @@ Future<void> main() async {
 }
 ```
 
-Run `dart run examples/openrouter_demo.dart` to print the response. Keep the API
-key on the backend. Provider and model availability depend on your account.
+The example was analyzed and compiled without execution. Keep credentials on the
+backend. The caller closes the client at shutdown. An injected HTTP client or
+`OpenRouterClient.withTransport` transport remains caller-owned. For rotating
+secrets, use `OpenRouterClient(credentialResolver: yourTokenLoader)`; resolution
+occurs per request within the request deadline. Attribution and session headers
+are configured on the client; authorization belongs to the resolver.
 
-## Configure requests
+## Native options
 
-`OpenRouterChatModel` exposes typed `provider`, `fallbackModels`, `route`,
-`reasoning`, and `usage` options represented by the pinned SDK. Use `configure`
-for other SDK request options. The adapter protects runtime messages, registered
-tools, output schema, and token bounds. `openRouterClient` accepts attribution,
-session, and extra headers. See the [package README](https://github.com/seifalmotaz/agent-weave/tree/main/packages/agent_weave_openrouter#readme)
-for an example of routing and reasoning options.
-
-Plugins, top-level cache control, and newer provider-routing fields are not
-available through the adapter. It does not preserve OpenRouter response provider
-identity, cost, or reasoning continuation metadata. Do not use it for billing or
-provider audit. Token usage and the model on usage events are forwarded when
-supplied. The adapter rejects document inputs.
-
-Direct model streams propagate HTTP and inline streaming errors from the SDK.
-`generateText` wraps failures in `AgentRunException`; its `code` and `cause`
-help diagnose failures on the backend. Keep the cause out of client responses:
+`OpenRouterChatOptions` and `OpenRouterResponsesOptions` keep native fields
+separate from runtime-owned messages, tools, schema, token bounds and streaming.
+They take immutable snapshots, including nested `extra` values. OpenRouter
+reports usage automatically; deprecated usage-inclusion flags do not control it.
 
 ```dart
-try {
-  final result = await generateText(model: model, prompt: 'Say hello.');
-  print(result.text);
-} on AgentRunException catch (error) {
-  // Record error.code and error.cause only in trusted backend logs.
-  print('Request failed: ${error.code}');
-}
+final options = router.OpenRouterChatOptions(
+  provider: router.OpenRouterProviderPreferences(
+    order: ['provider-selected-by-your-app'],
+    allowFallbacks: false,
+    requireParameters: true,
+    dataCollection: router.OpenRouterDataCollection.deny,
+    sort: router.OpenRouterProviderSort.price,
+    maxPrice: {'prompt': '1', 'completion': '2'},
+  ),
+  reasoning: router.OpenRouterReasoning(
+    effort: router.OpenRouterReasoningEffort.low,
+  ),
+  cacheControl: router.OpenRouterCacheControl(),
+  plugins: [router.OpenRouterPlugin(id: 'response-healing')],
+  extra: {'prompt_cache_key': 'application-scoped-key'},
+);
 ```
 
-Check the account configuration if a request fails. Offline fixtures cover selected request
-and stream behavior. Live model behavior, billing, cache hits, and cancellation
-have not been verified. See [provider coverage](provider-coverage.md).
+This is configuration syntax, not a tested provider/model combination. Provider
+availability, supported parameters, plugin behavior and price units follow the
+[official routing contract](https://openrouter.ai/docs/guides/routing/provider-selection).
+Do not assume every combination works. `requireParameters` asks OpenRouter to
+filter providers that cannot support the requested parameters.
+
+Provider preferences also expose allow/ignore lists, ZDR, quantizations,
+distillable-text enforcement, provider-specific options and performance
+preferences. Nested price, percentile and provider-option structures remain
+JSON so their schema unions and unknown fields survive. `extra` supports newer
+native options. A recognized field is not proof of orchestration or acceptance.
+
+The optional `configure` callback remains SDK-typed for compatible request
+parameters. Prefer `request.copyWith(...)`; rebuilding a request through the
+SDK's typed JSON input decoder can reject raw reasoning items. Native fields
+belong in `options` or `extra`. Neither path can replace runtime history or
+registered function definitions. Native JSON client methods are separate for
+requests the normalized agent does not implement.
+
+## Responses and private replay
+
+Use `OpenRouterResponsesModel(client: client, model: modelId, options: ...)`
+for `/responses`. It has its own private replay namespace. OpenRouter Responses
+is stateless: send complete input history. The adapter rejects `store: true` and
+non-null `previous_response_id`; it does not depend on a server-stored response.
+It excludes automatic OpenAI encrypted-reasoning includes; OpenRouter documents
+automatic encrypted content for supported reasoning providers.
+
+Returned Responses output items retain opaque fields and order through the next
+tool turn. Chat retains ordered `reasoning_details` fragments as returned, in
+`openrouter.chat.reasoning`, and replays them only to the Chat endpoint. It does
+not sort or deduplicate blocks. If only plaintext `reasoning` is returned, it
+streams as reasoning text and is privately retained in
+`openrouter.chat.reasoning_text` for the next turn. Structured details take
+precedence when both representations are returned. The fixture verifies ordered replay, not every
+provider's incremental-fragment behavior. Unknown or cross-provider private
+history is not substituted for this provider's replay. File handles owned by
+another provider are rejected; Responses URL and inline document sources remain
+separate from provider-owned IDs. Chat document parts are not implemented.
+
+## Metadata and native responses
+
+`X-OpenRouter-Metadata: enabled` opts into router metadata when supplied by the
+service. The adapter retains actual generation/model/provider identity, usage,
+cost and unknown response metadata in private assistant `providerData` under
+`openrouter.chat.metadata` or `openrouter.responses.metadata`. Missing values
+stay absent. It does not infer the provider or compute an invoice. Reasoning and
+metadata stay out of UI hydration; `AgentResult` is trusted backend data.
+
+Normalized metadata is a compact merged snapshot. It is not a log of every
+stream frame. For complete native envelopes, headers and event IDs, use
+`client.createChat`, `streamChat`, `createResponse`, or `streamResponse`. Native
+JSON responses expose `data`, `statusCode` and headers. Streaming preserves
+unknown event fields and detects inline errors and premature EOF.
+
+The native client does not implement management APIs or every modality. Hosted
+server tools, background-job handling, output media and all model variants still
+need dedicated runtime behavior. See the [API inventory](openrouter-api-reference.md)
+for all pinned operations and fields, including those not integrated.
+
+## Errors and cancellation
+
+Direct streams propagate redacted `JsonHttpException` diagnostics.
+`generateText` wraps failures in `AgentRunException`; use its `code`, and inspect
+`cause` only on the trusted backend. Error details and headers may contain private
+provider information, so do not send them to a UI. Resolver failures and malformed
+stream payloads use generic messages. Known request credentials are redacted.
+
+Requests have per-call deadlines and cancellation. Cancelling one subscription
+signals that call without cancelling siblings sharing a parent token; cancelling
+the parent signals all active calls. This does not undo requests already accepted
+remotely. The client does not automatically retry POSTs.
+
+## Validation and migration
+
+Offline loopback cases exercise Chat and Responses schema output, persisted tool
+approval and replay, opaque reasoning, metadata, error privacy, rotating
+credentials, cancellation and client ownership. They do not establish live model
+support, cache hits, routing, billing, or all native fields.
+
+Earlier development versions returned an `OpenAIClient` from `openRouterClient`
+and exported SDK routing types. `openRouterClient` now returns `OpenRouterClient`.
+Use `options: OpenRouterChatOptions(...)` for provider/reasoning/fallback settings;
+use native enums and non-const option constructors for immutable snapshots.
+Consumers explicitly typing the old SDK client must migrate. `configure` remains
+available for SDK-compatible parameters. See [coverage](provider-coverage.md),
+[validation](validation.md) and [the independent review](dx-review.md).
+
+
+# Source: docs/openrouter-api-reference.md
+
+# OpenRouter API inventory
+
+Source: [OpenRouter OpenAPI](https://openrouter.ai/openapi.json), reviewed 2026-11-04, SHA-256 `07b8b1ac91ba9e522540417420cd74004db5246d5341e5c86d68443e4438af82`. The source declares the MIT license.
+
+The pinned schema describes 146 operations across 108 paths. Chat completions and Responses have selected integrations; all other operations are inventoried and not integrated.
+
+The [machine-readable inventory](openrouter-api-inventory.json) records each operation, request, response, parameter and header contract, and each component field, union and constraint. Credential-shaped example values are redacted. Original-source and sanitized-snapshot hashes are separate. References point to the schema snapshot in `tool/contracts/openrouter/openapi.json`. A schema entry or native field forwarding does not establish supported runtime orchestration or model behavior.
+
+Run `python3 tool/openrouter_contract.py --check` offline to verify the snapshot and generated outputs. `--upstream` compares the current official document without updating any files. See `tool/contracts/openrouter/README.md` for attribution and source provenance.
+
+| Method | Path | Status |
+| --- | --- | --- |
+| GET | `/activity` | not-integrated |
+| GET | `/analytics/meta` | not-integrated |
+| POST | `/analytics/query` | not-integrated |
+| POST | `/api/alpha/decisions` | not-integrated |
+| POST | `/api/alpha/extractions` | not-integrated |
+| POST | `/audio/speech` | not-integrated |
+| POST | `/audio/transcriptions` | not-integrated |
+| POST | `/auth/keys` | not-integrated |
+| POST | `/auth/keys/code` | not-integrated |
+| GET | `/batches` | not-integrated |
+| POST | `/batches` | not-integrated |
+| DELETE | `/batches/{id}` | not-integrated |
+| GET | `/batches/{id}` | not-integrated |
+| GET | `/benchmarks` | not-integrated |
+| GET | `/byok` | not-integrated |
+| POST | `/byok` | not-integrated |
+| DELETE | `/byok/{id}` | not-integrated |
+| GET | `/byok/{id}` | not-integrated |
+| PATCH | `/byok/{id}` | not-integrated |
+| POST | `/chat/completions` | integrated-selected-behavior |
+| GET | `/classifications/task` | not-integrated |
+| GET | `/containers/{container_id}/files` | not-integrated |
+| GET | `/containers/{container_id}/files/{file_id}` | not-integrated |
+| GET | `/containers/{container_id}/files/{file_id}/content` | not-integrated |
+| POST | `/containers/{container_id}/files/{file_id}/promote` | not-integrated |
+| GET | `/credits` | not-integrated |
+| POST | `/credits/coinbase` | not-integrated |
+| GET | `/datasets/app-rankings` | not-integrated |
+| GET | `/datasets/rankings-daily` | not-integrated |
+| GET | `/datasets/session-cost` | not-integrated |
+| POST | `/embeddings` | not-integrated |
+| GET | `/embeddings/models` | not-integrated |
+| GET | `/endpoints/zdr` | not-integrated |
+| GET | `/external-users` | not-integrated |
+| POST | `/external-users` | not-integrated |
+| DELETE | `/external-users/{user}` | not-integrated |
+| GET | `/external-users/{user}` | not-integrated |
+| PATCH | `/external-users/{user}` | not-integrated |
+| GET | `/files` | not-integrated |
+| POST | `/files` | not-integrated |
+| DELETE | `/files/{file_id}` | not-integrated |
+| GET | `/files/{file_id}` | not-integrated |
+| GET | `/files/{file_id}/content` | not-integrated |
+| GET | `/generation` | not-integrated |
+| GET | `/generation/content` | not-integrated |
+| POST | `/generation/feedback` | not-integrated |
+| GET | `/guardrails` | not-integrated |
+| POST | `/guardrails` | not-integrated |
+| GET | `/guardrails/assignments/keys` | not-integrated |
+| GET | `/guardrails/assignments/members` | not-integrated |
+| DELETE | `/guardrails/{id}` | not-integrated |
+| GET | `/guardrails/{id}` | not-integrated |
+| PATCH | `/guardrails/{id}` | not-integrated |
+| GET | `/guardrails/{id}/assignments/keys` | not-integrated |
+| POST | `/guardrails/{id}/assignments/keys` | not-integrated |
+| POST | `/guardrails/{id}/assignments/keys/remove` | not-integrated |
+| GET | `/guardrails/{id}/assignments/members` | not-integrated |
+| POST | `/guardrails/{id}/assignments/members` | not-integrated |
+| POST | `/guardrails/{id}/assignments/members/remove` | not-integrated |
+| POST | `/images` | not-integrated |
+| GET | `/images/models` | not-integrated |
+| GET | `/images/models/{author}/{slug}/endpoints` | not-integrated |
+| GET | `/key` | not-integrated |
+| GET | `/keys` | not-integrated |
+| POST | `/keys` | not-integrated |
+| DELETE | `/keys/{hash}` | not-integrated |
+| GET | `/keys/{hash}` | not-integrated |
+| PATCH | `/keys/{hash}` | not-integrated |
+| POST | `/messages` | not-integrated |
+| GET | `/model/{author}/{slug}` | not-integrated |
+| GET | `/models` | not-integrated |
+| GET | `/models/count` | not-integrated |
+| GET | `/models/user` | not-integrated |
+| GET | `/models/{author}/{slug}/endpoints` | not-integrated |
+| GET | `/oauth/jwks` | not-integrated |
+| POST | `/oauth/token` | not-integrated |
+| GET | `/observability/destinations` | not-integrated |
+| POST | `/observability/destinations` | not-integrated |
+| DELETE | `/observability/destinations/{id}` | not-integrated |
+| GET | `/observability/destinations/{id}` | not-integrated |
+| PATCH | `/observability/destinations/{id}` | not-integrated |
+| GET | `/organization/members` | not-integrated |
+| GET | `/organization/settings` | not-integrated |
+| PATCH | `/organization/settings` | not-integrated |
+| GET | `/presets` | not-integrated |
+| GET | `/presets/{slug}` | not-integrated |
+| POST | `/presets/{slug}/chat/completions` | not-integrated |
+| POST | `/presets/{slug}/messages` | not-integrated |
+| POST | `/presets/{slug}/responses` | not-integrated |
+| GET | `/presets/{slug}/versions` | not-integrated |
+| GET | `/presets/{slug}/versions/{version}` | not-integrated |
+| GET | `/private-endpoints` | not-integrated |
+| POST | `/private-endpoints` | not-integrated |
+| DELETE | `/private-endpoints/{id}` | not-integrated |
+| GET | `/private-endpoints/{id}` | not-integrated |
+| PATCH | `/private-endpoints/{id}` | not-integrated |
+| POST | `/private-endpoints/{id}/activate` | not-integrated |
+| POST | `/private-endpoints/{id}/disable` | not-integrated |
+| POST | `/private-endpoints/{id}/enable` | not-integrated |
+| PUT | `/private-endpoints/{id}/parameters` | not-integrated |
+| PUT | `/private-endpoints/{id}/pricing` | not-integrated |
+| POST | `/private-endpoints/{id}/validate` | not-integrated |
+| GET | `/private-providers` | not-integrated |
+| POST | `/private-providers` | not-integrated |
+| DELETE | `/private-providers/{slug}` | not-integrated |
+| GET | `/private-providers/{slug}` | not-integrated |
+| PATCH | `/private-providers/{slug}` | not-integrated |
+| GET | `/providers` | not-integrated |
+| POST | `/rerank` | not-integrated |
+| POST | `/responses` | integrated-selected-behavior |
+| GET | `/scim/group-mappings` | not-integrated |
+| POST | `/scim/group-mappings` | not-integrated |
+| DELETE | `/scim/group-mappings/{id}` | not-integrated |
+| GET | `/scim/group-mappings/{id}` | not-integrated |
+| PATCH | `/scim/group-mappings/{id}` | not-integrated |
+| GET | `/scim/groups` | not-integrated |
+| POST | `/scim/sync-jobs` | not-integrated |
+| GET | `/scim/sync-jobs/{id}` | not-integrated |
+| POST | `/systemone` | not-integrated |
+| GET | `/tools` | not-integrated |
+| GET | `/tools/{name}` | not-integrated |
+| GET | `/vault/interns/{internId}/connections` | not-integrated |
+| GET | `/vault/interns/{internId}/effective-secrets` | not-integrated |
+| GET | `/vault/interns/{internId}/secrets` | not-integrated |
+| POST | `/vault/interns/{internId}/secrets/copy` | not-integrated |
+| DELETE | `/vault/interns/{internId}/secrets/{name}` | not-integrated |
+| PUT | `/vault/interns/{internId}/secrets/{name}` | not-integrated |
+| GET | `/vault/secrets` | not-integrated |
+| DELETE | `/vault/secrets/{name}` | not-integrated |
+| PUT | `/vault/secrets/{name}` | not-integrated |
+| POST | `/videos` | not-integrated |
+| GET | `/videos/models` | not-integrated |
+| GET | `/videos/{jobId}` | not-integrated |
+| GET | `/videos/{jobId}/content` | not-integrated |
+| GET | `/workspaces` | not-integrated |
+| POST | `/workspaces` | not-integrated |
+| DELETE | `/workspaces/{id}` | not-integrated |
+| GET | `/workspaces/{id}` | not-integrated |
+| PATCH | `/workspaces/{id}` | not-integrated |
+| GET | `/workspaces/{id}/members` | not-integrated |
+| POST | `/workspaces/{id}/members/add` | not-integrated |
+| POST | `/workspaces/{id}/members/remove` | not-integrated |
+| GET | `/workspaces/{workspace_ref}/budgets` | not-integrated |
+| DELETE | `/workspaces/{workspace_ref}/budgets/{interval}` | not-integrated |
+| GET | `/workspaces/{workspace_ref}/budgets/{interval}` | not-integrated |
+| PUT | `/workspaces/{workspace_ref}/budgets/{interval}` | not-integrated |
 
 
 # Source: docs/together.md
@@ -1931,13 +2225,13 @@ Status: incremental inventory, not an assertion of complete provider support. Re
 
 ## What exists
 
-The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. The Vercel Gateway package implements public Chat and Responses adapters with offline fixtures. The Cloudflare package implements selected native Workers AI, Gateway run, and compatible Chat and Responses contracts with offline fixtures. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package has a native JSON transport, separate Chat and stateless Responses adapters, native options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. The Vercel Gateway package implements public Chat and Responses adapters with offline fixtures. The Cloudflare package implements selected native Workers AI, Gateway run, and compatible Chat and Responses contracts with offline fixtures. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; some fixture coverage. | See [OpenAI audit](openai-options-audit.md): non-function tool continuation, events, transport, media and complete field-by-field coverage remain open. |
 | Anthropic native Messages | Native Messages adapter with text, URL-image and URL or inline PDF/plain-text document input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
-| OpenRouter Chat and Responses | Dedicated Chat adapter exposes selected typed provider preferences, fallback models, route, reasoning, and usage options with offline fixtures. Responses is not implemented. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Plugins, top-level cache control and newer routing fields are unavailable. The adapter does not preserve response provider identity, cost or reasoning continuation metadata. Inventory nested options, routing, sticky/cache behavior, plugins, headers and usage/cost; preserve actual provider metadata. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
+| OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, all hosted tools/media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
 | Cloudflare Workers AI / AI Gateway | Native run, model discovery and selected embedding, transcription, image and traditional chat adapters; Gateway run and compatible Chat and Responses. | Model-specific schemas, availability, live acceptance, caching, binary audio and billing remain unverified. Native traditional tool continuation covers the documented Hermes single-call format only. See [Cloudflare](cloudflare.md). |
@@ -2008,12 +2302,14 @@ not a claim of full TanStack AI core parity.
 - Document support varies by adapter. Responses accepts URLs, inline data, and
   OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
   file IDs are blocked by the pinned SDK. Gateway Responses accepts URLs and
-  inline data but blocks file IDs. Chat Completions, OpenRouter, and Together
-  reject documents. See [documents](documents.md) for storage
+  inline data but blocks file IDs. OpenRouter Responses also accepts URL/inline
+  documents and rejects foreign file IDs. OpenRouter Chat, OpenAI Chat
+  Completions, and Together reject document parts. See [documents](documents.md) for storage
   implications.
-- OpenRouter supports selected typed request options; plugins, top-level cache
-  control, newer routing fields, and response provider, cost, and reasoning
-  continuation metadata are not preserved. See [OpenRouter](openrouter.md).
+- OpenRouter has separate native Chat and stateless Responses adapters. Selected
+  routing, plugin and cache options, ordered private reasoning replay and compact
+  provider/cost metadata have offline fixtures. Complete management, background,
+  hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter
   supports one choice; model acceptance of tools, schema, and media remains
   unverified. See [Together](together.md).
@@ -2143,6 +2439,26 @@ six public model schemas with the reviewed snapshots. It fails on drift and
 never rewrites the pin. See `tool/contracts/cloudflare/README.md` for refreshing
 the revision, retained licenses and operation dispositions.
 
+## OpenRouter contracts
+
+The OpenRouter source is a SHA-256-pinned official OpenAPI document
+with a stated MIT license. Credential-shaped example values are redacted in the
+retained snapshot, which has a separate hash. The updater verifies both hashes
+and the deterministic transformation. Its inventory retains references and records component
+fields once, avoiding repeated expansion of recursive schemas. All operations
+receive an explicit status; only selected Chat/Responses behavior is integrated.
+
+```sh
+python3 tool/openrouter_contract.py --upstream --check
+python3 tool/test_openrouter_contract.py
+python3 tool/openrouter_contract.py --check
+```
+
+Review source drift, the field statuses, implementation and fixture behavior
+together before changing the hash. New fields forwarded through native JSON
+still need a disposition and tests for any claimed orchestration. See
+`tool/contracts/openrouter/README.md` for provenance and retained license.
+
 
 # Source: docs/validation.md
 
@@ -2169,10 +2485,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest Cloudflare/cancellation increment was checked on Dart 3.12.2. The prior
+The latest OpenRouter/replay increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 247 Dart unit and regression tests: tool validation, approvals, client tools,
+- 270 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -2376,6 +2692,46 @@ was accepted, and no paid Cloudflare or other provider calls were made. Live
 model availability, Gateway routing/cache hits, binary audio Content-Type
 acceptance, billing, management operations and exhaustive provider parity remain
 unverified or unimplemented as listed in the inventory.
+
+## Native OpenRouter and lossless Responses replay
+
+Fourteen OpenRouter fixtures cover native typed options and guarded JSON
+extensions, ordered Chat reasoning, stateless Responses replay, raw metadata,
+per-request credentials, malformed SSE, resolver errors, cancellation and client
+ownership. The shared Responses codec now uses immutable raw input snapshots,
+retaining reasoning and valid tool-output fields the typed input decoder could
+reject or omit. Forty Chat/Responses codec tests include unknown fields,
+actual SDK encrypted-reasoning replay, pre-callback canonical snapshots, missing
+instructions, alternate token bounds and stream-option protections. Usage
+model identity comes only from reported response data, including earlier stream
+frames; it is not guessed from a requested alias. Together has the same rule.
+
+The independent native consumer tests schema generation through both protocols,
+persisted approval and resumed tools, recreated agents, opaque ordered reasoning,
+IDs/statuses and matching tool outputs, no private replay in UI hydration,
+actual model/provider/cost metadata, absence of usage, credential rotation,
+redaction, network cancellation and borrowed-client ownership. The guide's first
+program was compiled unchanged without paid execution. Its five qualitative
+ratings average 7.6/10 after the guide and fixture changes. This is a targeted
+review, not SDK-wide acceptance or live service evidence.
+
+The OpenRouter source inventory accounts for 146 operations across 108 paths
+and records reusable component fields without expanding recursive references
+at every use. Six new extractor tests and the five Cloudflare extractor tests
+pass; the refactored shared helper produces the unchanged Cloudflare inventory.
+The explicit upstream OpenRouter comparison matched the pinned document hash.
+Only Chat and Responses have selected integrations; other operations remain
+not integrated. Source forwarding does not implement every response union or
+background job.
+
+No new paid requests or package publications were made. Live OpenRouter routing,
+cache hits, cost/billing, model-specific reasoning fragments, management APIs,
+hosted tools and output media remain unverified or unfinished.
+
+OpenRouter credential-shaped source examples are deterministically redacted
+before storage and generation. Original-source and retained-snapshot hashes
+are verified separately. The local credential scan also checks OpenRouter key
+formats and includes the full source snapshots.
 
 
 # Source: CONTRIBUTING.md
