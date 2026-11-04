@@ -118,3 +118,34 @@ The round-four hydration behavior is now a checked-in regression suite:
 covers real serialized interruptions with ephemeral/server persistence and
 registered/unregistered tool schemas. The process-restart command above runs
 the complete CLI directly, rather than a private review-only script.
+
+
+## Round 5: document and OpenRouter consumers
+
+Tested with pinned Dart 3.12.2, no API keys or paid calls. Scores reflect these specific journeys, not complete provider coverage.
+
+| Journey | Discoverability | Clarity | Types | Debugging | Testing | Overall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Portable document inputs | 4/10 | 6/10 | 8/10 | 7/10 | 7/10 | 6.4/10 |
+| OpenRouter text and routing | 7/10 | 8/10 | 8/10 | 6/10 | 7/10 | 7.2/10 |
+
+Document constructors are straightforward once located, with typed variants and a scoped provider ID. At review time there was no complete public document recipe, so discovering construction, supported formats, provider-specific IDs, and storage implications required source reading. Anthropic file-ID and unsupported inline formats fail with useful messages; a non-OpenAI handle is rejected by Responses. The wire/history round trip preserves filename and content, but hydration contains the original base64 data and URLs. Explain that document contents and signed URLs can persist in server history and be returned to authorized history clients, and recommend appropriate retention/access controls. Actual persistence and restart depend on the configured store and were not tested.
+
+`documents.dart` constructs URL, inline text and scoped file-ID documents, asserts native JSON and hydration/request round trips, verifies actual mock HTTP request bodies for OpenAI Responses and Anthropic, and checks invalid URL/base64/empty ID and explicit unsupported cases. Anthropic file-ID is unsupported by the pinned SDK. OpenAI Chat Completions and OpenRouter document inputs are unsupported by the current adapter. This probe uses in-process fixtures, not provider endpoints.
+
+`openrouter_consumer.dart` follows the public README shape, uses a loopback HTTP endpoint, verifies the path, model, message, attribution header and routing preference, then receives streamed text through `generateText`. It demonstrates a practical setup without exposing a credential. The README clearly states that billing, provider identity, some OpenRouter features and live behavior are not verified. Troubleshooting remains less certain without a real service or an inline error consumer probe.
+
+Reproduce the checked-in consumer cases:
+
+```sh
+dart --enable-asserts run examples/review_cases/documents.dart
+dart --enable-asserts run examples/review_cases/openrouter.dart
+```
+
+### Follow-up after guides and canonical wire sources
+
+The original scores above remain the first review. After reading `docs/documents.md` and `docs/openrouter.md` and re-running the examples, the document journey scores **8.0/10** (discoverability 8, clarity 8, types 8, debugging 8, testing 8). The guide now provides a runnable bytes example, URL/base64/file-ID alternatives, a provider matrix, and concrete history/privacy guidance. It still requires choosing a compatible provider/model and performing a paid call to verify actual acceptance; an offline fixture cannot establish file limits or durable restart.
+
+The OpenRouter text/routing journey scores **7.8/10** (discoverability 8, clarity 8, types 8, debugging 7, testing 8). The new guide describes setup and limits. A new inline stream error consumer probe found that `generateText` wraps the underlying SDK failure as `AgentRunException`; the original guide implied direct propagation. The guide and package README now explain the distinction and trusted backend access to `cause`. Provider-specific metadata and live model behavior remain outside the tested contract.
+
+The polished, reusable cases are `examples/review_cases/documents.dart` and `examples/review_cases/openrouter.dart`. Run with assertions enabled using the commands in the file headers. They pass on Dart 3.12.2 and strict `dart analyze` reports no issues. Document checks now assert canonical `source.value` for URL, inline bytes and scoped ID in hydration, and verify Anthropic PDF/base64 and text request serialization alongside Responses. The OpenRouter case verifies both the successful loopback and an inline error reaching the high-level exception's trusted backend `cause`. No actual provider calls, persistent store restart, billing, cancellation, or complete format support were tested.

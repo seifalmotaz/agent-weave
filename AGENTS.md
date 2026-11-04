@@ -9,7 +9,8 @@ TypeScript API conventions into the Dart developer API.
 - Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
 - Core model contracts and agent execution live in `packages/agent_weave`.
 - Provider-specific types stay in `packages/agent_weave_openai` and
-  `packages/agent_weave_anthropic`. Native provider protocols require their own
+  `packages/agent_weave_anthropic`, and `packages/agent_weave_openrouter`.
+  Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
 - Native client transport lives in `packages/agent_weave_serverpod_client`.

@@ -25,6 +25,7 @@ final class AnthropicChatModel implements ChatModel {
   ModelCapabilities get capabilities => const ModelCapabilities(
     tools: true,
     imageInput: true,
+    fileInput: true,
     structuredOutput: true,
   );
 
@@ -52,6 +53,8 @@ final class AnthropicChatModel implements ChatModel {
         for (final part in message.content) {
           blocks.add(switch (part) {
             TextPart(:final text) => {'type': 'text', 'text': text},
+            DocumentPart part when message.role == MessageRole.user =>
+              _anthropicDocument(part),
             ImagePart(:final url) when message.role == MessageRole.user => {
               'type': 'image',
               'source': {'type': 'url', 'url': url},
@@ -297,3 +300,27 @@ Object? _ownedValue(String field, Object? value) {
   }
   return value;
 }
+
+Map<String, dynamic> _anthropicDocument(DocumentPart part) => {
+  'type': 'document',
+  if (part.filename != null) 'title': part.filename,
+  'source': switch (part) {
+    UrlDocumentPart(:final url) => {'type': 'url', 'url': url},
+    Base64DocumentPart(:final data, mimeType: 'application/pdf') => {
+      'type': 'base64',
+      'media_type': 'application/pdf',
+      'data': data,
+    },
+    Base64DocumentPart(:final data, mimeType: 'text/plain') => {
+      'type': 'text',
+      'media_type': 'text/plain',
+      'data': utf8.decode(base64Decode(data)),
+    },
+    Base64DocumentPart() => throw UnsupportedError(
+      'Anthropic inline documents support PDF or UTF-8 plain text.',
+    ),
+    FileIdDocumentPart() => throw UnsupportedError(
+      'The pinned Anthropic SDK cannot represent file-ID document sources. Use a URL or inline data.',
+    ),
+  },
+};

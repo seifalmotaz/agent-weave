@@ -84,6 +84,90 @@ final request = ModelRequest(
   ],
 );
 void main() {
+  for (final (part, source) in <(DocumentPart, Map<String, Object?>)>[
+    (
+      DocumentPart.url(
+        'https://example.com/report.pdf',
+        filename: 'report.pdf',
+      ),
+      {'type': 'url', 'url': 'https://example.com/report.pdf'},
+    ),
+    (
+      DocumentPart.bytes(
+        utf8.encode('fixture'),
+        mimeType: 'application/pdf',
+        filename: 'report.pdf',
+      ),
+      {
+        'type': 'base64',
+        'media_type': 'application/pdf',
+        'data': 'Zml4dHVyZQ==',
+      },
+    ),
+    (
+      DocumentPart.bytes(
+        utf8.encode('مرحبا'),
+        mimeType: 'text/plain',
+        filename: 'report.pdf',
+      ),
+      {'type': 'text', 'media_type': 'text/plain', 'data': 'مرحبا'},
+    ),
+  ]) {
+    test(
+      'Messages encodes ${part.runtimeType} document as the native source',
+      () async {
+        final client = fixture([start(), finish('end_turn'), done], (request) {
+          final body = jsonDecode(request.body) as Map;
+          final content =
+              (((body['messages'] as List).single as Map)['content'] as List)
+                      .single
+                  as Map;
+          expect(content['type'], 'document');
+          expect(content['source'], source);
+          expect(content['title'], 'report.pdf');
+        });
+        await AnthropicChatModel(client: client, model: 'fixture')
+            .stream(
+              ModelRequest(
+                messages: [
+                  ChatMessage(id: 'u', role: MessageRole.user, content: [part]),
+                ],
+              ),
+              cancellation: CancellationToken(),
+            )
+            .drain<void>();
+      },
+    );
+  }
+  for (final part in <DocumentPart>[
+    DocumentPart.fileId('file', provider: 'anthropic'),
+    DocumentPart.bytes([1, 2, 3], mimeType: 'application/zip'),
+  ]) {
+    test(
+      'unsupported native document source fails before dispatch: ${part.runtimeType}',
+      () async {
+        final client = fixture([], (_) => fail('Must not submit'));
+        await expectLater(
+          AnthropicChatModel(client: client, model: 'fixture')
+              .stream(
+                ModelRequest(
+                  messages: [
+                    ChatMessage(
+                      id: 'u',
+                      role: MessageRole.user,
+                      content: [part],
+                    ),
+                  ],
+                ),
+                cancellation: CancellationToken(),
+              )
+              .toList(),
+          throwsUnsupportedError,
+        );
+      },
+    );
+  }
+
   test(
     'streams tools, thinking and usage, and replays the exact blocks',
     () async {

@@ -28,6 +28,7 @@ the core runtime owns the tool loop and approval validation.
 ## Implemented and fixture-tested
 
 - System instructions separate from message blocks; text and URL images.
+- User documents by URL, inline PDF, and inline plain text. See [documents](documents.md).
 - Fragmented tool JSON, native tool-use/results, multiple calls, and replay.
 - Native JSON schema format for `generateObject` and `AiAgent.outputSchema`.
 - Thinking deltas with private signed/redacted block continuation.
@@ -46,12 +47,15 @@ return private provider continuation blocks to the UI.
 
 ## Explicit limits
 
-The adapter does not implement file-ID documents, audio/video input, hosted
+The pinned SDK does not support file-ID documents.
+[Upstream PR #431](https://github.com/davidmigloz/ai_clients_dart/pull/431) adds
+the missing source type; an open PR is not an available SDK release. The adapter also does not
+implement audio/video input, hosted
 server-tool output or `pause_turn` continuation. Unsupported stream blocks and
 stop reasons fail explicitly. Other endpoints are available directly through
 the provider SDK, with its own support and constraints.
 
-Eight offline fixture tests cover selected serialization and stream contracts.
+Thirteen offline fixture tests cover selected serialization and stream contracts.
 No live Anthropic request or device behavior has been tested. Complete nested
 parameter, header, event and endpoint coverage remains open in the
 [provider inventory](provider-coverage.md).

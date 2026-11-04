@@ -67,6 +67,89 @@ final modelRequest = ModelRequest(
 );
 
 void main() {
+  for (final (part, field, value) in <(DocumentPart, String, String)>[
+    (
+      DocumentPart.url(
+        'https://example.com/report.pdf',
+        filename: 'report.pdf',
+      ),
+      'file_url',
+      'https://example.com/report.pdf',
+    ),
+    (
+      DocumentPart.bytes(
+        utf8.encode('fixture'),
+        mimeType: 'application/pdf',
+        filename: 'report.pdf',
+      ),
+      'file_data',
+      'data:application/pdf;base64,Zml4dHVyZQ==',
+    ),
+    (
+      DocumentPart.fileId(
+        'file-123',
+        provider: 'openai',
+        filename: 'report.pdf',
+      ),
+      'file_id',
+      'file-123',
+    ),
+  ]) {
+    test(
+      'Responses encodes ${part.runtimeType} without dropping document metadata',
+      () async {
+        final client = fixtureClient(
+          [
+            responseEvent('response.completed', {'response': responseJson()}),
+          ],
+          (request) {
+            final body = jsonDecode(request.body) as Map;
+            final content =
+                (((body['input'] as List).single as Map)['content'] as List)
+                        .single
+                    as Map;
+            expect(content['type'], 'input_file');
+            expect(content[field], value);
+            expect(content['filename'], 'report.pdf');
+          },
+        );
+        await openai.OpenAIResponsesModel(client: client, model: 'fixture')
+            .stream(
+              ModelRequest(
+                messages: [
+                  ChatMessage(id: 'u', role: MessageRole.user, content: [part]),
+                ],
+              ),
+              cancellation: CancellationToken(),
+            )
+            .drain<void>();
+      },
+    );
+  }
+  test('a foreign provider file handle is rejected before dispatch', () async {
+    final client = fixtureClient([], (_) => fail('Must not submit'));
+    final model = openai.OpenAIResponsesModel(client: client, model: 'fixture');
+    await expectLater(
+      model
+          .stream(
+            ModelRequest(
+              messages: [
+                ChatMessage(
+                  id: 'u',
+                  role: MessageRole.user,
+                  content: [
+                    DocumentPart.fileId('anthropic-id', provider: 'anthropic'),
+                  ],
+                ),
+              ],
+            ),
+            cancellation: CancellationToken(),
+          )
+          .toList(),
+      throwsArgumentError,
+    );
+  });
+
   test(
     'computer-use actions fail explicitly instead of silently completing',
     () async {

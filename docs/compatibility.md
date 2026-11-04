@@ -20,7 +20,8 @@ override only after checking the published package and rerunning interop tests.
   normalization helpers.
 
 The official JavaScript test verifies text, reasoning, structured output, server tools,
-default approvals, client tools, and generation against a Dart HTTP server. The Dart tests exercise the client against
+default approvals, client tools, generation, and supported media input/history
+round trips against a Dart HTTP server. The Dart tests exercise the client against
 the runtime and a generated Serverpod endpoint over a real WebSocket. This is
 not a claim of full TanStack AI core parity.
 
@@ -42,6 +43,13 @@ not a claim of full TanStack AI core parity.
 - OpenAI resource coverage combines typed SDK delegation and an explicit raw
   JSON helper. Complete typed endpoint parity and exhaustive endpoint tests
   remain unfinished.
+- Document support varies by adapter. Responses accepts URLs, inline data, and
+  OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
+  file IDs are blocked by the pinned SDK. Chat Completions and OpenRouter
+  reject documents. See [documents](documents.md) for storage implications.
+- OpenRouter supports selected typed request options; plugins, top-level cache
+  control, newer routing fields, and response provider, cost, and reasoning
+  continuation metadata are not preserved. See [OpenRouter](openrouter.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 

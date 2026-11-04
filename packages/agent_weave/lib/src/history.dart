@@ -32,19 +32,31 @@ JsonObject chatHydration(JsonObject? state) {
                   TextPart(:final text) => {'type': 'text', 'content': text},
                   ImagePart(:final url) => {
                     'type': 'image',
-                    'source': {'type': 'url', 'url': url},
+                    'source': {'type': 'url', 'value': url},
+                  },
+                  DocumentPart part => {
+                    'type': 'document',
+                    'source': part.sourceJson,
+                    if (part.filename != null)
+                      'metadata': {'filename': part.filename},
                   },
                   FilePart(:final fileId) => {
                     'type': 'document',
-                    'source': {'type': 'file', 'fileId': fileId},
+                    'source': {'type': 'file', 'value': fileId},
                   },
                   AudioPart(:final data, :final format) => {
                     'type': 'audio',
-                    'source': {'type': 'data', 'data': data, 'format': format},
+                    'source': {
+                      'type': 'data',
+                      'value': data,
+                      'mimeType': format == 'mp3'
+                          ? 'audio/mpeg'
+                          : 'audio/$format',
+                    },
                   },
                   VideoPart(:final url) => {
                     'type': 'video',
-                    'source': {'type': 'url', 'url': url},
+                    'source': {'type': 'url', 'value': url},
                   },
                 },
               for (final call in message.toolCalls)

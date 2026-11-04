@@ -34,6 +34,7 @@ Future<void> main() async {
     'packages/agent_weave/test',
     'packages/agent_weave_openai/test',
     'packages/agent_weave_anthropic/test',
+    'packages/agent_weave_openrouter/test',
     'packages/agent_weave_serverpod_client/test',
   ]);
   await run('npm', [
@@ -56,6 +57,16 @@ Future<void> main() async {
   await run('dart', ['run', 'examples/review_cases/failures.dart']);
   await run('dart', ['run', 'examples/review_cases/reliability.dart']);
   await run('dart', ['run', 'examples/review_cases/anthropic.dart']);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/documents.dart',
+  ]);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/openrouter.dart',
+  ]);
   await run('python3', ['tool/test_audit_openai.py']);
   final secret = RegExp(
     r'(sk-(?:proj|svcacct)-[A-Za-z0-9_-]{20,}|gh[pousr]_[A-Za-z0-9]{30,})',

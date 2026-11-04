@@ -165,13 +165,31 @@ final class AiAgent<C> {
       runId: request.runId,
       parentRunId: request.parentRunId,
     );
-    final messages = <ChatMessage>[
-      if (!previous.containsKey('messages'))
-        ...initialMessages
-      else
-        for (final raw in previous['messages'] as List)
-          ChatMessage.fromJson(Map<String, Object?>.from(raw as Map)),
-    ];
+    late final List<ChatMessage> messages;
+    late final int generation;
+    try {
+      messages = <ChatMessage>[
+        if (!previous.containsKey('messages'))
+          ...initialMessages
+        else
+          for (final raw in previous['messages'] as List)
+            ChatMessage.fromJson(Map<String, Object?>.from(raw as Map)),
+      ];
+      generation = (previous['generation'] as int? ?? 0) + 1;
+    } catch (error, stack) {
+      // A newer or corrupt snapshot must not strand the acquired reservation.
+      await store.save(
+        ownerId: ownerId,
+        threadId: request.threadId,
+        runId: request.runId,
+        state: previous,
+        release: true,
+      );
+      reportError(onError, error, stack);
+      throw const FormatException(
+        'Stored conversation cannot be decoded by this SDK.',
+      );
+    }
     final previousIds = messages.map((m) => m.id).toSet();
     Object? failure;
     StackTrace? failureStack;
@@ -182,7 +200,6 @@ final class AiAgent<C> {
     final journal = <JsonObject>[];
     final pending = <JsonObject>[];
     final usage = <TokenUsage>[];
-    final generation = (previous['generation'] as int? ?? 0) + 1;
     var status = RunStatus.running;
     var released = false;
     var accepted = false;
@@ -297,7 +314,7 @@ final class AiAgent<C> {
           throw const FormatException('The model does not accept images.');
         }
         if (!model.capabilities.fileInput &&
-            message.content.any((p) => p is FilePart)) {
+            message.content.any((p) => p is FilePart || p is DocumentPart)) {
           throw const FormatException('The model does not accept files.');
         }
         if (!model.capabilities.audioInput &&

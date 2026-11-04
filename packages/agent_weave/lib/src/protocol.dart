@@ -113,30 +113,56 @@ ChatMessage _wireMessage(JsonObject json) {
         parts.add(TextPart((part['content'] ?? part['text']) as String));
       case 'image':
         final source = part['source'];
-        final url = part['url'] ?? (source is Map ? source['url'] : null);
+        final url =
+            part['url'] ??
+            (source is Map ? (source['value'] ?? source['url']) : null);
         if (url is! String) throw const FormatException('Expected image URL.');
         parts.add(ImagePart(url));
       case 'video':
         final source = part['source'];
-        final url = part['url'] ?? (source is Map ? source['url'] : null);
+        final url =
+            part['url'] ??
+            (source is Map ? (source['value'] ?? source['url']) : null);
         if (url is! String) throw const FormatException('Expected video URL.');
         parts.add(VideoPart(url));
       case 'audio':
         final source = part['source'];
-        final data = part['data'] ?? (source is Map ? source['data'] : null);
+        final data =
+            part['data'] ??
+            (source is Map ? (source['value'] ?? source['data']) : null);
         final format =
-            part['format'] ?? (source is Map ? source['format'] : null);
+            part['format'] ??
+            (source is Map ? source['format'] : null) ??
+            switch (source is Map ? source['mimeType'] : null) {
+              'audio/mpeg' => 'mp3',
+              'audio/wav' => 'wav',
+              _ => null,
+            };
         if (data is! String || format is! String) {
           throw const FormatException('Expected audio data and format.');
         }
         parts.add(AudioPart(data: data, format: format));
       case 'document':
         final source = part['source'];
-        final id = part['fileId'] ?? (source is Map ? source['fileId'] : null);
-        if (id is! String) {
-          throw const FormatException('Expected document file identifier.');
+        final id =
+            part['fileId'] ??
+            (source is Map && source['type'] == 'file'
+                ? (source['value'] ?? source['fileId'])
+                : null);
+        if (id is String && (source is! Map || source['provider'] == null)) {
+          // Preserve the existing unscoped OpenAI handle wire format.
+          parts.add(FilePart(id));
+        } else {
+          final metadata = part['metadata'];
+          parts.add(
+            DocumentPart.fromJson({
+              ...part,
+              'filename':
+                  part['filename'] ??
+                  (metadata is Map ? metadata['filename'] : null),
+            }),
+          );
         }
-        parts.add(FilePart(id));
       case 'tool-call':
         final args = part['input'] ?? part['arguments'] ?? part['args'] ?? '{}';
         calls.add(

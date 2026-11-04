@@ -57,6 +57,20 @@ Future<void> main() async {
       break;
     }
     try {
+      if (request.method == 'GET' && request.uri.path == '/history') {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode(
+            chatHydration(
+              await agent.store.load(
+                ownerId: 'test',
+                threadId: request.uri.queryParameters['threadId']!,
+              ),
+            ),
+          ),
+        );
+        continue;
+      }
       final json = Map<String, Object?>.from(
         jsonDecode(await utf8.decoder.bind(request).join()) as Map,
       );
@@ -99,15 +113,35 @@ Future<void> main() async {
 final class InteropModel implements ChatModel {
   const InteropModel();
   @override
-  ModelCapabilities get capabilities =>
-      const ModelCapabilities(tools: true, structuredOutput: true);
+  ModelCapabilities get capabilities => const ModelCapabilities(
+    tools: true,
+    structuredOutput: true,
+    fileInput: true,
+    imageInput: true,
+    audioInput: true,
+    videoInput: true,
+  );
   @override
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
   }) async* {
     final last = request.messages.last;
-    if (last.text == 'structured') {
+    if (last.content.any((part) => part is! TextPart)) {
+      yield TextDelta(
+        jsonEncode([
+          for (final part in last.content)
+            switch (part) {
+              DocumentPart document => document.sourceJson,
+              FilePart(:final fileId) => {'type': 'file', 'value': fileId},
+              ImagePart(:final url) ||
+              VideoPart(:final url) => {'type': 'url', 'value': url},
+              AudioPart(:final data) => {'type': 'data', 'value': data},
+              TextPart() => {'type': 'text'},
+            },
+        ]),
+      );
+    } else if (last.text == 'structured') {
       yield const TextDelta('{"answer":42}');
     } else if (last.role == MessageRole.user &&
         ['tool', 'approval', 'client'].contains(last.text)) {

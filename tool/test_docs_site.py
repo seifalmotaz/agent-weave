@@ -29,6 +29,7 @@ class DocumentationTest(unittest.TestCase):
             for path in ['index.html', 'getting-started/serverpod/index.html',
                          'getting-started/dart/index.html', 'tools/index.html',
                          'providers/index.html', 'compatibility/index.html',
+                         'documents/index.html', 'openrouter/index.html',
                          'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
@@ -38,6 +39,8 @@ class DocumentationTest(unittest.TestCase):
             search = json.loads((target / 'search/search_index.json').read_text())
             locations = {doc['location'] for doc in search['docs']}
             self.assertIn('tools/', locations)
+            self.assertIn('documents/', locations)
+            self.assertIn('openrouter/', locations)
             self.assertIn('architecture/', locations)
             self.assertIn('getting-started/serverpod/', locations)
             serverpod = (target / 'getting-started/serverpod/index.html').read_text()

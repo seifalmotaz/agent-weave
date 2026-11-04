@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'cancellation.dart';
 
 typedef JsonObject = Map<String, Object?>;
@@ -23,6 +24,7 @@ sealed class ContentPart {
     'text' => TextPart(json['text'] as String),
     'image' => ImagePart(json['url'] as String),
     'file' => FilePart(json['fileId'] as String),
+    'document' => DocumentPart.fromJson(json),
     'audio' => AudioPart(
       data: json['data'] as String,
       format: json['format'] as String,
@@ -51,6 +53,147 @@ final class FilePart extends ContentPart {
   const FilePart(this.fileId);
   @override
   JsonObject toJson() => {'type': 'file', 'fileId': fileId};
+}
+
+/// A document reference. File handles are scoped to the issuing provider.
+sealed class DocumentPart extends ContentPart {
+  final String? filename;
+  DocumentPart._(this.filename) {
+    if (filename != null &&
+        (filename!.trim().isEmpty ||
+            filename!.contains(RegExp(r'[\r\n\x00]')))) {
+      throw ArgumentError(
+        'A document filename must be nonempty and contain no control delimiters.',
+      );
+    }
+  }
+  factory DocumentPart.url(String url, {String? filename}) = UrlDocumentPart;
+  factory DocumentPart.base64(
+    String data, {
+    required String mimeType,
+    String? filename,
+  }) = Base64DocumentPart;
+  factory DocumentPart.bytes(
+    List<int> bytes, {
+    required String mimeType,
+    String? filename,
+  }) => Base64DocumentPart(
+    base64Encode(bytes),
+    mimeType: mimeType,
+    filename: filename,
+  );
+
+  factory DocumentPart.fileId(
+    String fileId, {
+    required String provider,
+    String? filename,
+  }) = FileIdDocumentPart;
+
+  factory DocumentPart.fromJson(JsonObject json) {
+    try {
+      final source = json['source'];
+      if (source is! Map<String, Object?>) {
+        throw const FormatException('Expected document source.');
+      }
+      final filename = json['filename'] as String?;
+      return switch (source['type']) {
+        'url' => DocumentPart.url(
+          (source['value'] ?? source['url']) as String,
+          filename: filename,
+        ),
+        'data' => DocumentPart.base64(
+          (source['value'] ?? source['data']) as String,
+          mimeType: source['mimeType'] as String,
+          filename: filename,
+        ),
+        'file' => DocumentPart.fileId(
+          (source['value'] ?? source['fileId']) as String,
+          provider: source['provider'] as String,
+          filename: filename,
+        ),
+        _ => throw const FormatException('Unsupported document source.'),
+      };
+    } on ArgumentError {
+      throw const FormatException('Invalid document source.');
+    } on TypeError {
+      throw const FormatException('Invalid document fields.');
+    }
+  }
+
+  JsonObject get sourceJson;
+  @override
+  JsonObject toJson() => {
+    'type': 'document',
+    'source': sourceJson,
+    'filename': ?filename,
+  };
+}
+
+final class UrlDocumentPart extends DocumentPart {
+  final String url;
+  UrlDocumentPart(this.url, {String? filename}) : super._(filename) {
+    final uri = Uri.tryParse(url);
+    if (uri == null ||
+        !{'http', 'https'}.contains(uri.scheme) ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty) {
+      throw ArgumentError(
+        'Document URLs must be absolute HTTP(S) URLs without credentials.',
+      );
+    }
+  }
+  @override
+  JsonObject get sourceJson => {'type': 'url', 'value': url};
+}
+
+final class Base64DocumentPart extends DocumentPart {
+  final String data;
+  final String mimeType;
+  Base64DocumentPart(String data, {required String mimeType, String? filename})
+    : data = _documentBase64(data),
+      mimeType = mimeType.toLowerCase(),
+      super._(filename) {
+    if (!RegExp(
+      r'^[a-z0-9!#$&^_.+-]+/[a-z0-9!#$&^_.+-]+$',
+    ).hasMatch(this.mimeType)) {
+      throw ArgumentError('Expected a document MIME type without parameters.');
+    }
+  }
+  @override
+  JsonObject get sourceJson => {
+    'type': 'data',
+    'value': data,
+    'mimeType': mimeType,
+  };
+}
+
+final class FileIdDocumentPart extends DocumentPart {
+  final String fileId;
+  final String provider;
+  FileIdDocumentPart(this.fileId, {required this.provider, String? filename})
+    : super._(filename) {
+    if (fileId.trim().isEmpty || provider.trim().isEmpty) {
+      throw ArgumentError(
+        'A document handle requires a file ID and issuing provider.',
+      );
+    }
+  }
+  @override
+  JsonObject get sourceJson => {
+    'type': 'file',
+    'value': fileId,
+    'provider': provider,
+  };
+}
+
+String _documentBase64(String source) {
+  try {
+    final bytes = base64Decode(source);
+    if (bytes.isEmpty) throw const FormatException('Empty document.');
+    return base64Encode(bytes);
+  } on FormatException {
+    throw ArgumentError('Expected nonempty base64 document bytes.');
+  }
 }
 
 final class ToolCall {

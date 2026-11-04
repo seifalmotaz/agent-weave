@@ -21,9 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-On Dart 3.12.2 and 3.13.3:
+The latest document/OpenRouter increment was checked on Dart 3.12.2. The prior
+147-test baseline was also checked on Dart 3.13.3.
 
-- 147 Dart unit and regression tests: tool validation, approvals, client tools,
+- 174 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -31,9 +32,11 @@ On Dart 3.12.2 and 3.13.3:
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 7 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 14 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  and generation.
+  generation, and seven media/history cases. The media cases include document
+  URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
+  inline audio; returned parts pass the official AG-UI schemas.
 - 2 offline checks for the upstream operation-index parser.
 - The offline chat example executes successfully.
 
@@ -75,8 +78,9 @@ system. Keep keys in environment variables only.
 
 ## Package validation
 
-All six package publication dry-runs passed with zero warnings from a clean
-checkout. Core and OpenAI API documentation generated with zero warnings or
+The initial six-package publication dry-runs passed with zero warnings from a
+clean checkout. That evidence predates the Anthropic and OpenRouter packages. The new OpenRouter
+package also passed a publication dry-run with zero warnings on Dart 3.12.2. Core and OpenAI API documentation generated with zero warnings or
 errors. Serverpod code generation was rerun without changing the checked-in
 outputs. The native client reports
 an override hint because its `tanstack_ai_dart 0.4.0` dependency is Git-pinned
@@ -97,7 +101,7 @@ implementation limits.
 
 ## Native Anthropic increment
 
-Eight native Messages fixture tests and a separate consumer over real loopback
+Thirteen native Messages fixture tests and a separate consumer over real loopback
 HTTP verify selected text, schema, tool, thinking replay, cache configuration,
 error and cooperative cancellation contracts. No live Anthropic account, model,
 real cache hit or network-abort behavior was tested. The independent review is
@@ -113,3 +117,18 @@ fresh client rejects the already-completed decision. The independent Terra
 reviewer reran the test successfully on Dart 3.12.2 and scored this targeted
 journey 8.5/10. This is graceful restart evidence, not arbitrary-crash recovery
 or proof of exactly-once external effects.
+
+## Documents and OpenRouter increment
+
+Fifteen core document tests cover construction, validation, storage and authorized
+history round trips, legacy source aliases, capability rejection, and releasing
+reservations without erasing an unreadable snapshot. Provider fixtures verify
+Responses URL/data/file-ID mapping and foreign-provider rejection; Anthropic PDF
+URL, PDF bytes and UTF-8 text plus unsupported ID/format failures.
+
+Three OpenRouter loopback tests verify selected routing/header options, streamed
+tool arguments, actual model usage, inline errors and pre-cancellation. Two
+independent consumer programs, `examples/review_cases/documents.dart` and
+`examples/review_cases/openrouter.dart`, run in the normal check. The reviewed
+journeys scored 8.0/10 and 7.8/10 after documentation fixes. Neither score
+certifies complete provider support. No new live API calls were made.

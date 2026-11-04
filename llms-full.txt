@@ -19,6 +19,7 @@ using it in production.
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
+| [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
 | [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
 | [`agent_weave_serverpod_client`](packages/agent_weave_serverpod_client) | Connect the existing TanStack Dart client to generated Serverpod streaming methods |
@@ -108,7 +109,10 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Architecture and ownership](docs/architecture.md)
 - [Typed tools and approvals](docs/tools.md)
 - [Provider author guide](docs/providers.md)
+- [Documents](docs/documents.md)
 - [OpenAI capabilities](docs/openai.md)
+- [Anthropic Messages](docs/anthropic.md)
+- [OpenRouter](docs/openrouter.md)
 - [Compatibility and limitations](docs/compatibility.md)
 - [Validation evidence](docs/validation.md)
 - [Upstream updates](docs/updating.md)
@@ -527,6 +531,37 @@ registered/unregistered tool schemas. The process-restart command above runs
 the complete CLI directly, rather than a private review-only script.
 
 
+## Round 5: document and OpenRouter consumers
+
+Tested with pinned Dart 3.12.2, no API keys or paid calls. Scores reflect these specific journeys, not complete provider coverage.
+
+| Journey | Discoverability | Clarity | Types | Debugging | Testing | Overall |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Portable document inputs | 4/10 | 6/10 | 8/10 | 7/10 | 7/10 | 6.4/10 |
+| OpenRouter text and routing | 7/10 | 8/10 | 8/10 | 6/10 | 7/10 | 7.2/10 |
+
+Document constructors are straightforward once located, with typed variants and a scoped provider ID. At review time there was no complete public document recipe, so discovering construction, supported formats, provider-specific IDs, and storage implications required source reading. Anthropic file-ID and unsupported inline formats fail with useful messages; a non-OpenAI handle is rejected by Responses. The wire/history round trip preserves filename and content, but hydration contains the original base64 data and URLs. Explain that document contents and signed URLs can persist in server history and be returned to authorized history clients, and recommend appropriate retention/access controls. Actual persistence and restart depend on the configured store and were not tested.
+
+`documents.dart` constructs URL, inline text and scoped file-ID documents, asserts native JSON and hydration/request round trips, verifies actual mock HTTP request bodies for OpenAI Responses and Anthropic, and checks invalid URL/base64/empty ID and explicit unsupported cases. Anthropic file-ID is unsupported by the pinned SDK. OpenAI Chat Completions and OpenRouter document inputs are unsupported by the current adapter. This probe uses in-process fixtures, not provider endpoints.
+
+`openrouter_consumer.dart` follows the public README shape, uses a loopback HTTP endpoint, verifies the path, model, message, attribution header and routing preference, then receives streamed text through `generateText`. It demonstrates a practical setup without exposing a credential. The README clearly states that billing, provider identity, some OpenRouter features and live behavior are not verified. Troubleshooting remains less certain without a real service or an inline error consumer probe.
+
+Reproduce the checked-in consumer cases:
+
+```sh
+dart --enable-asserts run examples/review_cases/documents.dart
+dart --enable-asserts run examples/review_cases/openrouter.dart
+```
+
+### Follow-up after guides and canonical wire sources
+
+The original scores above remain the first review. After reading `docs/documents.md` and `docs/openrouter.md` and re-running the examples, the document journey scores **8.0/10** (discoverability 8, clarity 8, types 8, debugging 8, testing 8). The guide now provides a runnable bytes example, URL/base64/file-ID alternatives, a provider matrix, and concrete history/privacy guidance. It still requires choosing a compatible provider/model and performing a paid call to verify actual acceptance; an offline fixture cannot establish file limits or durable restart.
+
+The OpenRouter text/routing journey scores **7.8/10** (discoverability 8, clarity 8, types 8, debugging 7, testing 8). The new guide describes setup and limits. A new inline stream error consumer probe found that `generateText` wraps the underlying SDK failure as `AgentRunException`; the original guide implied direct propagation. The guide and package README now explain the distinction and trusted backend access to `cause`. Provider-specific metadata and live model behavior remain outside the tested contract.
+
+The polished, reusable cases are `examples/review_cases/documents.dart` and `examples/review_cases/openrouter.dart`. Run with assertions enabled using the commands in the file headers. They pass on Dart 3.12.2 and strict `dart analyze` reports no issues. Document checks now assert canonical `source.value` for URL, inline bytes and scoped ID in hydration, and verify Anthropic PDF/base64 and text request serialization alongside Responses. The OpenRouter case verifies both the successful loopback and an inline error reaching the high-level exception's trusted backend `cause`. No actual provider calls, persistent store restart, billing, cancellation, or complete format support were tested.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -694,6 +729,115 @@ The fixture providers in `packages/agent_weave/test` and the offline example
 demonstrate custom implementations without any OpenAI dependency.
 
 
+# Source: docs/documents.md
+
+# Send documents to a model
+
+Use `DocumentPart` in a user message to send a document by URL, inline data,
+or a provider file ID. The adapter sends the reference or data you provide. It
+does not upload or download files for you.
+
+## Send inline text to OpenAI Responses
+
+From the workspace root, run `dart pub get`. Save this example as
+`examples/document_demo.dart`. Set `OPENAI_API_KEY` and `OPENAI_MODEL` in your
+backend environment, choosing a Responses model available to your account.
+Running the example makes a paid provider request.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+Future<void> main() async {
+  final apiKey = Platform.environment['OPENAI_API_KEY'];
+  final modelId = Platform.environment['OPENAI_MODEL'];
+  if (apiKey == null || modelId == null) {
+    throw StateError('Set OPENAI_API_KEY and OPENAI_MODEL.');
+  }
+  final client = openai.OpenAIClient.withApiKey(apiKey);
+  try {
+    final model = openai.OpenAIResponsesModel(client: client, model: modelId);
+    final request = ModelRequest(messages: [
+      ChatMessage(id: 'user-1', role: MessageRole.user, content: [
+        TextPart('Summarize this document.'),
+        DocumentPart.bytes(
+          'AgentWeave runs agents in Dart.'.codeUnits,
+          mimeType: 'text/plain',
+          filename: 'note.txt',
+        ),
+      ]),
+    ]);
+    await for (final event in model.stream(
+      request,
+      cancellation: CancellationToken(),
+    )) {
+      if (event is TextDelta) stdout.write(event.text);
+    }
+    stdout.writeln();
+  } finally {
+    client.close();
+  }
+}
+```
+
+Run `dart run examples/document_demo.dart`. A supported model prints a
+summary. Provider permissions, model formats, and file size limits still apply.
+
+## Choose a source
+
+Replace the `DocumentPart.bytes` value in the example with one of these:
+
+```dart
+// An absolute HTTP(S) URL without embedded credentials.
+DocumentPart.url('https://example.com/report.pdf', filename: 'report.pdf')
+
+// Base64-encoded, nonempty file content, without a data URL prefix.
+DocumentPart.base64(encodedContent, mimeType: 'application/pdf', filename: 'report.pdf')
+
+// A file already uploaded to OpenAI by your application.
+DocumentPart.fileId(fileId, provider: 'openai', filename: 'report.pdf')
+```
+
+`DocumentPart.bytes` base64-encodes a nonempty byte list. `base64` accepts
+nonempty base64 data and requires a MIME type without parameters. Filenames are
+optional. File IDs belong to their issuing provider and cannot be moved between
+providers. Your application obtains the ID separately.
+
+## Provider support
+
+- OpenAI Responses accepts URLs, inline data, and file IDs with
+  `provider: 'openai'`.
+- Anthropic Messages accepts URLs, inline PDF, and inline plain text. File IDs
+  are blocked until the pinned SDK supports them.
+- OpenAI Chat Completions and the OpenRouter adapter reject document inputs.
+
+These are adapter contracts tested offline. The provider and selected model can
+impose additional format and size limits. See [Anthropic Messages](anthropic.md)
+and [OpenRouter](openrouter.md).
+
+## History and retention
+
+`RunStore` retains inline document bytes and URLs as part of stored messages.
+Authorized history clients receive those values, including signed URLs. Your
+application is responsible for retention, access controls, and payload limits.
+Persistence across restarts depends on the configured store. A signed URL may
+expire even if the history still contains it.
+
+For large inputs, prefer an application-managed URL or a supported provider file
+ID. Base64 increases payload size. The example Serverpod configuration has a
+512 KB global request limit and the chat route has its own 1 MB limit; the
+smaller applicable limit wins. Confirm your deployment's configured limits.
+
+Run `dart --enable-asserts run examples/review_cases/documents.dart` from the
+workspace root to exercise the offline request and history contracts without a
+provider key. No actual PDF parsing or model acceptance is proved by that fixture.
+
+Provider format rules: [OpenAI file inputs](https://developers.openai.com/api/docs/guides/file-inputs)
+and [Anthropic PDF inputs](https://platform.claude.com/docs/en/build-with-claude/pdf-support).
+
+
 # Source: docs/openai.md
 
 # OpenAI integration
@@ -782,6 +926,80 @@ The raw helper buffers responses; it does not add arbitrary SSE or multipart
 handling. It preserves data but does not implement missing tool/job lifecycles.
 
 
+# Source: docs/openrouter.md
+
+# Use OpenRouter
+
+`agent_weave_openrouter` sends Chat Completions through the OpenAI adapter.
+From the workspace root, run `dart pub get`, then save this example as
+`examples/openrouter_demo.dart`. Set `OPENROUTER_API_KEY` and
+`OPENROUTER_MODEL` in your backend environment. Choose a model available to your
+account. Running the example makes a paid provider request.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openrouter/agent_weave_openrouter.dart' as router;
+
+Future<void> main() async {
+  final apiKey = Platform.environment['OPENROUTER_API_KEY'];
+  final modelId = Platform.environment['OPENROUTER_MODEL'];
+  if (apiKey == null || modelId == null) {
+    throw StateError('Set OPENROUTER_API_KEY and OPENROUTER_MODEL.');
+  }
+  final client = router.openRouterClient(apiKey: apiKey, appName: 'My app');
+  try {
+    final model = router.OpenRouterChatModel(
+      client: client,
+      model: modelId,
+      provider: const router.OpenRouterProviderPreferences(allowFallbacks: false),
+    );
+    final result = await generateText(model: model, prompt: 'Say hello.');
+    print(result.text);
+  } finally {
+    client.close();
+  }
+}
+```
+
+Run `dart run examples/openrouter_demo.dart` to print the response. Keep the API
+key on the backend. Provider and model availability depend on your account.
+
+## Configure requests
+
+`OpenRouterChatModel` exposes typed `provider`, `fallbackModels`, `route`,
+`reasoning`, and `usage` options represented by the pinned SDK. Use `configure`
+for other SDK request options. The adapter protects runtime messages, registered
+tools, output schema, and token bounds. `openRouterClient` accepts attribution,
+session, and extra headers. See the [package README](https://github.com/seifalmotaz/agent-weave/tree/main/packages/agent_weave_openrouter#readme)
+for an example of routing and reasoning options.
+
+Plugins, top-level cache control, and newer provider-routing fields are not
+available through the adapter. It does not preserve OpenRouter response provider
+identity, cost, or reasoning continuation metadata. Do not use it for billing or
+provider audit. Token usage and the model on usage events are forwarded when
+supplied. The adapter rejects document inputs.
+
+Direct model streams propagate HTTP and inline streaming errors from the SDK.
+`generateText` wraps failures in `AgentRunException`; its `code` and `cause`
+help diagnose failures on the backend. Keep the cause out of client responses:
+
+```dart
+try {
+  final result = await generateText(model: model, prompt: 'Say hello.');
+  print(result.text);
+} on AgentRunException catch (error) {
+  // Record error.code and error.cause only in trusted backend logs.
+  print('Request failed: ${error.code}');
+}
+```
+
+Check the account configuration if a request fails. Offline fixtures cover selected request
+and stream behavior. Live model behavior, billing, cache hits, and cancellation
+have not been verified. See [provider coverage](provider-coverage.md).
+
+
 # Source: docs/anthropic.md
 
 # Native Anthropic Messages
@@ -814,6 +1032,7 @@ the core runtime owns the tool loop and approval validation.
 ## Implemented and fixture-tested
 
 - System instructions separate from message blocks; text and URL images.
+- User documents by URL, inline PDF, and inline plain text. See [documents](documents.md).
 - Fragmented tool JSON, native tool-use/results, multiple calls, and replay.
 - Native JSON schema format for `generateObject` and `AiAgent.outputSchema`.
 - Thinking deltas with private signed/redacted block continuation.
@@ -832,12 +1051,15 @@ return private provider continuation blocks to the UI.
 
 ## Explicit limits
 
-The adapter does not implement file-ID documents, audio/video input, hosted
+The pinned SDK does not support file-ID documents.
+[Upstream PR #431](https://github.com/davidmigloz/ai_clients_dart/pull/431) adds
+the missing source type; an open PR is not an available SDK release. The adapter also does not
+implement audio/video input, hosted
 server-tool output or `pause_turn` continuation. Unsupported stream blocks and
 stop reasons fail explicitly. Other endpoints are available directly through
 the provider SDK, with its own support and constraints.
 
-Eight offline fixture tests cover selected serialization and stream contracts.
+Thirteen offline fixture tests cover selected serialization and stream contracts.
 No live Anthropic request or device behavior has been tested. Complete nested
 parameter, header, event and endpoint coverage remains open in the
 [provider inventory](provider-coverage.md).
@@ -902,13 +1124,13 @@ Status: incremental inventory, not an assertion of complete provider support. Re
 
 ## What exists
 
-The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. There are still no dedicated OpenRouter, Together, Vercel Gateway or Cloudflare packages. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. There are no dedicated Together, Vercel Gateway or Cloudflare packages. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; some fixture coverage. | See [OpenAI audit](openai-options-audit.md): non-function tool continuation, events, transport, media and complete field-by-field coverage remain open. |
-| Anthropic native Messages | Native Messages adapter with text/URL-image input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
-| OpenRouter Chat and Responses | OpenAI Chat-compatible transport is configurable. Pinned SDK has some OpenRouter fields (`provider`, `models`, route, transforms, reasoning, usage and sampling extensions); callback can set represented fields. No OpenRouter-specific adapter or tests. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Inventory every nested option, model routing, sticky/cache behavior, plugins, headers and usage/cost; expose returned actual provider/model and handle stream errors. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
+| Anthropic native Messages | Native Messages adapter with text, URL-image and URL or inline PDF/plain-text document input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
+| OpenRouter Chat and Responses | Dedicated Chat adapter exposes selected typed provider preferences, fallback models, route, reasoning, and usage options with offline fixtures. Responses is not implemented. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Plugins, top-level cache control and newer routing fields are unavailable. The adapter does not preserve response provider identity, cost or reasoning continuation metadata. Inventory nested options, routing, sticky/cache behavior, plugins, headers and usage/cost; preserve actual provider metadata. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
 | Together inference | OpenAI-compatible Chat transport can be pointed at a suitable endpoint; no Together-specific adapter, native feature mapping, request tests or claims. | Inventory [Together API reference](https://docs.together.ai/reference/chat-completions) by endpoint/model, including sampling, stop, tools, response formats, caching, routing, streaming and media as actually offered. Preserve provider-specific data and errors. Verify documented base URL/auth and serialized request in a fixture before promising compatibility; test native non-chat operations separately. |
 | Vercel AI Gateway | A configurable compatible transport is possible; no Gateway-specific adapter, routing controls or response metadata integration. | Gateway documents distinct [Chat, Responses, Anthropic Messages and other interfaces](https://vercel.com/docs/ai-gateway/sdks-and-apis). Its [provider options](https://vercel.com/docs/ai-gateway/models-and-providers/provider-options) include routing order/filtering, cache behavior, timeouts/fallbacks and request-scoped credentials. Map each API's actual wire format and security boundary rather than copying AI SDK JavaScript option objects into OpenAI requests. Preserve selected provider and usage; protect BYOK secrets. |
 | Cloudflare Workers AI / AI Gateway | Configurable OpenAI Chat/embedding SDK path is possible; no dedicated Workers AI `/run` adapter, Worker binding or Gateway-specific integration. | [Workers AI bindings](https://developers.cloudflare.com/workers-ai/configuration/bindings/) and [model parameters](https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/) are model- and endpoint-specific; [changelog](https://developers.cloudflare.com/changelog/product/workers-ai/2/) also documents Responses for particular models. Inventory `/run`, compatible endpoints and gateway separately; model-specific input/output schemas, auth/account path, streaming, errors, gateway caching and metadata cannot be inferred from OpenAI support. |
@@ -953,7 +1175,8 @@ override only after checking the published package and rerunning interop tests.
   normalization helpers.
 
 The official JavaScript test verifies text, reasoning, structured output, server tools,
-default approvals, client tools, and generation against a Dart HTTP server. The Dart tests exercise the client against
+default approvals, client tools, generation, and supported media input/history
+round trips against a Dart HTTP server. The Dart tests exercise the client against
 the runtime and a generated Serverpod endpoint over a real WebSocket. This is
 not a claim of full TanStack AI core parity.
 
@@ -975,6 +1198,13 @@ not a claim of full TanStack AI core parity.
 - OpenAI resource coverage combines typed SDK delegation and an explicit raw
   JSON helper. Complete typed endpoint parity and exhaustive endpoint tests
   remain unfinished.
+- Document support varies by adapter. Responses accepts URLs, inline data, and
+  OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
+  file IDs are blocked by the pinned SDK. Chat Completions and OpenRouter
+  reject documents. See [documents](documents.md) for storage implications.
+- OpenRouter supports selected typed request options; plugins, top-level cache
+  control, newer routing fields, and response provider, cost, and reasoning
+  continuation metadata are not preserved. See [OpenRouter](openrouter.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 
@@ -1058,9 +1288,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-On Dart 3.12.2 and 3.13.3:
+The latest document/OpenRouter increment was checked on Dart 3.12.2. The prior
+147-test baseline was also checked on Dart 3.13.3.
 
-- 147 Dart unit and regression tests: tool validation, approvals, client tools,
+- 174 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -1068,9 +1299,11 @@ On Dart 3.12.2 and 3.13.3:
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 7 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 14 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  and generation.
+  generation, and seven media/history cases. The media cases include document
+  URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
+  inline audio; returned parts pass the official AG-UI schemas.
 - 2 offline checks for the upstream operation-index parser.
 - The offline chat example executes successfully.
 
@@ -1112,8 +1345,9 @@ system. Keep keys in environment variables only.
 
 ## Package validation
 
-All six package publication dry-runs passed with zero warnings from a clean
-checkout. Core and OpenAI API documentation generated with zero warnings or
+The initial six-package publication dry-runs passed with zero warnings from a
+clean checkout. That evidence predates the Anthropic and OpenRouter packages. The new OpenRouter
+package also passed a publication dry-run with zero warnings on Dart 3.12.2. Core and OpenAI API documentation generated with zero warnings or
 errors. Serverpod code generation was rerun without changing the checked-in
 outputs. The native client reports
 an override hint because its `tanstack_ai_dart 0.4.0` dependency is Git-pinned
@@ -1134,7 +1368,7 @@ implementation limits.
 
 ## Native Anthropic increment
 
-Eight native Messages fixture tests and a separate consumer over real loopback
+Thirteen native Messages fixture tests and a separate consumer over real loopback
 HTTP verify selected text, schema, tool, thinking replay, cache configuration,
 error and cooperative cancellation contracts. No live Anthropic account, model,
 real cache hit or network-abort behavior was tested. The independent review is
@@ -1150,6 +1384,21 @@ fresh client rejects the already-completed decision. The independent Terra
 reviewer reran the test successfully on Dart 3.12.2 and scored this targeted
 journey 8.5/10. This is graceful restart evidence, not arbitrary-crash recovery
 or proof of exactly-once external effects.
+
+## Documents and OpenRouter increment
+
+Fifteen core document tests cover construction, validation, storage and authorized
+history round trips, legacy source aliases, capability rejection, and releasing
+reservations without erasing an unreadable snapshot. Provider fixtures verify
+Responses URL/data/file-ID mapping and foreign-provider rejection; Anthropic PDF
+URL, PDF bytes and UTF-8 text plus unsupported ID/format failures.
+
+Three OpenRouter loopback tests verify selected routing/header options, streamed
+tool arguments, actual model usage, inline errors and pre-cancellation. Two
+independent consumer programs, `examples/review_cases/documents.dart` and
+`examples/review_cases/openrouter.dart`, run in the normal check. The reviewed
+journeys scored 8.0/10 and 7.8/10 after documentation fixes. Neither score
+certifies complete provider support. No new live API calls were made.
 
 
 # Source: CONTRIBUTING.md
@@ -1189,7 +1438,8 @@ TypeScript API conventions into the Dart developer API.
 - Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
 - Core model contracts and agent execution live in `packages/agent_weave`.
 - Provider-specific types stay in `packages/agent_weave_openai` and
-  `packages/agent_weave_anthropic`. Native provider protocols require their own
+  `packages/agent_weave_anthropic`, and `packages/agent_weave_openrouter`.
+  Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
 - Native client transport lives in `packages/agent_weave_serverpod_client`.

@@ -63,6 +63,7 @@ final class OpenAIResponsesModel implements ChatModel {
                   'type': 'input_image',
                   'image_url': url,
                 },
+                DocumentPart part => _responseDocument(part),
                 FilePart(:final fileId) => {
                   'type': 'input_file',
                   'file_id': fileId,
@@ -247,7 +248,7 @@ final class OpenAIChatModel implements ChatModel {
                       'type': 'image_url',
                       'image_url': {'url': url},
                     },
-                    FilePart() => throw const FormatException(
+                    DocumentPart() || FilePart() => throw const FormatException(
                       'Chat model does not accept files.',
                     ),
                     AudioPart(:final data, :final format) => {
@@ -420,3 +421,22 @@ Map<String, dynamic> _preserveRequest(
   }
   return Map<String, dynamic>.from(configured);
 }
+
+JsonObject _responseDocument(DocumentPart part) => {
+  'type': 'input_file',
+  'filename': ?part.filename,
+  ...switch (part) {
+    UrlDocumentPart(:final url) => {'file_url': url},
+    Base64DocumentPart(:final data, :final mimeType) => {
+      'file_data': 'data:$mimeType;base64,$data',
+      if (part.filename == null)
+        'filename': mimeType == 'application/pdf' ? 'document.pdf' : 'document',
+    },
+    FileIdDocumentPart(:final fileId, :final provider)
+        when provider == 'openai' =>
+      {'file_id': fileId},
+    FileIdDocumentPart() => throw ArgumentError(
+      'The document file handle was not issued by OpenAI.',
+    ),
+  },
+};

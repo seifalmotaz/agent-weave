@@ -1,5 +1,7 @@
 # Unreleased
 
+- Add URL, inline-data, and provider-scoped document inputs to Responses.
+
 - Fail explicitly on native tool continuations that the function-tool loop cannot execute.
 
 - Add per-request headers, generic JSON and raw response access, repeated-query downloads, and PUT/HEAD transport.

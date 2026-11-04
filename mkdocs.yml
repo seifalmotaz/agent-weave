@@ -74,7 +74,9 @@ nav:
       - Dart API and recipes: dart-api.md
       - Tools and approvals: tools.md
       - Custom providers: providers.md
+      - Documents: documents.md
       - OpenAI capabilities: openai.md
+      - OpenRouter: openrouter.md
       - Anthropic Messages: anthropic.md
       - Testing your application: testing.md
   - Understand the SDK:
