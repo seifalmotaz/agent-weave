@@ -827,3 +827,19 @@ validation, the saved execution profile, declared fallback policies or uncertain
 native failure handling. The scoped score remains 8/10. The coordinating full
 suite separately passes 694 unit/regression tests and 38 actual PostgreSQL tests;
 these results do not increase the independent score to package-wide acceptance.
+
+## Round 31: Serverpod onboarding
+
+The independent developer wrote and ran
+`examples/review_cases/serverpod_onboarding.dart`. A recreated client attaches to
+a pending server-owned approval through `serverpodConnection` with a matching
+tool schema. It completes the answer with one effect after approval and zero
+before it. The probe uses in-process callbacks and `MemoryRunStore`; it does not
+test PostgreSQL, WebSockets or process restart.
+
+The developer found that the plain-Dart starting guide still directed streaming
+users only to `AiAgent.run` protocol events. The guide now introduces
+`AiAgent.stream`, `streamText` and the final typed result from the same execution,
+and links the runnable streaming recipe. Scoped onboarding DX remains **8/10**:
+matching schemas, persistence mode and `attach` are documented, but setup still
+spans several packages. This review does not establish full framework maturity.

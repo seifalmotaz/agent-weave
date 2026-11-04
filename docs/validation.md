@@ -1049,3 +1049,12 @@ clean it in `finally`; this run used an external-volume `TMPDIR` after the main
 disk ran out of space. No new paid provider request was made. Upstream PR #451's
 GitHub run currently requires maintainer action and has no executed jobs; the
 local SDK tests are separate evidence.
+
+## Serverpod onboarding consumer
+
+`dart run examples/review_cases/serverpod_onboarding.dart` passes offline. It
+checks client recreation, stored approval attachment, matching tool schemas and
+one effect after approval through the public connection helper. The store and
+callbacks are in-process, so PostgreSQL and network verification remain separate
+suite results. The independent developer rated this journey 8/10. The consumer
+is included in `tool/check.dart`.

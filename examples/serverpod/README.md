@@ -39,6 +39,14 @@ database, TLS, and host settings for your deployment.
 
 ## Native Flutter connection
 
+To try client approval restoration before starting a database or server, run
+`dart run examples/review_cases/serverpod_onboarding.dart` from the repository
+root. It uses `serverpodConnection`, a matching client tool schema and server
+persistence mode to restore an approval after recreating the client. Its
+in-process callbacks and memory store make no network or provider requests.
+Use the integration and process-restart tests below to verify actual Serverpod
+transport and PostgreSQL persistence.
+
 Use the generated client with your application's `ClientAuthKeyProvider`:
 
 ```dart
