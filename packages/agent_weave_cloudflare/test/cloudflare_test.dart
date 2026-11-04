@@ -142,6 +142,12 @@ void main() {
       );
       await client.runJson('@cf/model', {'prompt': 'hello'});
       await CloudflareGatewayClient(client: client).runJson('@cf/model', {});
+      await CloudflareGatewayClient(client: client).runJson(
+        '@cf/model',
+        {},
+        gateway: CloudflareGatewayOptions(cacheTtl: 60),
+      );
+      expect(requests.last.headers['cf-aig-cache-ttl'], '60');
       await CloudflareCompatibleClient(
         client: client,
       ).createChat({'model': '@cf/model'});
@@ -150,6 +156,7 @@ void main() {
         gateway: CloudflareGatewayOptions(gatewayId: 'request-gateway'),
       ).createResponse({'model': '@cf/model'});
       expect(requests.map((request) => request.headers['cf-aig-gateway-id']), [
+        'default-gateway',
         'default-gateway',
         'default-gateway',
         'default-gateway',

@@ -467,11 +467,10 @@ final class CloudflareGatewayClient {
     CancellationToken? cancellation,
     required bool requireJson,
   }) {
-    if (model.startsWith('@cf/') &&
-        ((gateway ?? client.gateway)
-                ?.headers['cf-aig-gateway-id']
-                ?.isNotEmpty !=
-            true)) {
+    final gatewayId =
+        gateway?.headers['cf-aig-gateway-id'] ??
+        client.gateway?.headers['cf-aig-gateway-id'];
+    if (model.startsWith('@cf/') && gatewayId?.isNotEmpty != true) {
       throw ArgumentError('@cf models require a gateway ID.');
     }
     return client._send(
