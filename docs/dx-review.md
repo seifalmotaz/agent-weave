@@ -34,3 +34,47 @@ Both exited 0. The first tested text plus usage, schema-validated `int`, typed t
 5. **Provider and SDK capability claims remain separate.** A custom `ChatModel` is straightforward, but scripted model success says nothing about real OpenAI-compatible implementations, tool protocol variants, media, caching or production performance.
 
 No PostgreSQL, Serverpod restart, Flutter device, local model server, paid provider, network, crash recovery, or complete provider option parity was tested.
+
+
+# Independent Dart consumer review — round 3
+
+Reviewed main a4f4a93 on 2026-11-04. Score: **8.0/10** (round 2: 7.7). Equal weight; this reflects the exercised developer journey, not provider parity or production certification.
+
+| Dimension | /10 | Evidence and remaining gap |
+| --- | ---: | --- |
+| Discoverability | 7.5 | Guide links runnable consumer samples and Serverpod example, but the PostgreSQL approval integration is buried in a test rather than linked as a setup recipe. |
+| Clarity | 8 | Typed approval operations are clear; OpenAI integration lists realtime without prominently saying it exposes a connection rather than orchestrated voice and tools. The detailed limitation is in the separate options audit. |
+| Types | 8 | Edited and rejected tool approvals worked. Provider-specific configure callbacks exist; generic options and cross-provider parity were outside this snapshot. |
+| Debugging | 8 | Pre-cancellation and cooperative in-flight cancellation throw RunCancelled; prior round established error codes and partial text. Cancellation during a real HTTP request and storage faults remain untested. |
+| Testing | 8.5 | A real loopback HTTP fixture, application approval cases, and the repository's PostgreSQL-backed approval integration passed offline. Real process restart and failure injection are not established by the integration. |
+
+## Executed
+
+From repository root:
+
+```sh
+dart run examples/review_cases/reliability.dart
+cd examples/serverpod/agent_weave_demo_server
+PATH="$(git rev-parse --show-toplevel)/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart test test/integration/agent_test.dart --plain-name 'a recreated agent resumes a PostgreSQL-backed approval without repeating its tool'
+```
+
+The first example starts a local HTTP server implementing a minimal Chat Completions SSE response; checks the request route and model and resulting text; checks pre-cancellation and cooperative in-flight model cancellation; and checks rejection (no tool execution) and edited approval (one execution, edited output) using a shared MemoryRunStore. It is a fixture, not an actual local inference server. The PostgreSQL test recreates the agent and resumes a pending approval with the same database; it runs in one test process, not a restarted process. The exact executed test command was `cd examples/serverpod/agent_weave_demo_server` followed by `PATH="$(git rev-parse --show-toplevel)/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart test test/integration/agent_test.dart --plain-name 'a recreated agent resumes a PostgreSQL-backed approval without repeating its tool'`.
+
+## Highest priority friction
+
+1. Publish and link a runnable persisted approval example: the Dart guide's Serverpod snippet depends on application-specific definitions; the working PostgreSQL integration is not discoverable from that recipe. Show setup and real human decision boundary, and distinguish process restart, storage faults, and external idempotency from agent recreation. The existing integration passed; it does not prove restart recovery.
+2. State realtime scope beside its entry in the OpenAI guide: the public page lists the connection and says to close it, while the options audit explains it does not provide voice/tool orchestration and connection handshake cancellation is limited. Show a minimal lifecycle example and direct consumers to provider SDK events.
+3. Document what cancellation guarantees: the cooperative fake stops when its token is signalled; this does not prove a provider's in-flight I/O aborts or undo an external effect. Add reproducible transport and storage-failure examples, including effects-before-checkpoint, rather than imply exactly-once behavior.
+4. Switching Dart SDKs in the same workspace caused a sqlite3 build-hook kernel mismatch (expected 138, found 130) before tests ran. Re-running with the SDK that built the cache passed. This is observed environment/cache friction, not evidence of a package bug; a clean separate build cache or consistent SDK version is advisable.
+
+No paid calls, external provider keys, real inference server, real HTTP in-flight cancellation, process restart, injected database failure, or live realtime session was exercised. Source implementation was not edited.
+
+## Anthropic adapter follow-up: 7.8/10
+
+Independent consumer snapshot of the new native adapter, reviewed separately from the main a4f4a93 score: discoverability 7, clarity 8, types 8, debugging 8, testing 8. Equal weighting. A minimal consumer still needs to find the underlying SDK client and understand its ownership; the application-facing API, typed tool and exception code are straightforward. Documentation and exports were being revised concurrently, so this is a point-in-time assessment.
+
+```sh
+PATH="$PWD/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart run examples/review_cases/anthropic.dart
+```
+
+A local real HTTP fixture validated the native Messages path and authentication header, text generation, serialized structured-output schema and decoded object, a two-invocation agent tool loop, signed thinking replay and corresponding tool result. A simulated HTTP 400 surfaced as `AgentRunException` with `MODEL_FAILED` and an `ApiException(400)` cause containing the provider diagnostic. The fake endpoint does not validate actual Anthropic model compatibility, supported schemas or provider-side restrictions. No paid calls were made; no implementation bug was established by these probes.

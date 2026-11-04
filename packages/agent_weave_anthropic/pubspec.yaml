@@ -1,0 +1,14 @@
+name: agent_weave_anthropic
+description: Anthropic Messages adapter for the AgentWeave Dart AI runtime.
+version: 0.1.0-dev.1
+resolution: workspace
+repository: https://github.com/seifalmotaz/agent-weave
+issue_tracker: https://github.com/seifalmotaz/agent-weave/issues
+environment:
+  sdk: ">=3.12.2 <4.0.0"
+dependencies:
+  agent_weave: ^0.1.0-dev.1
+  anthropic_sdk_dart: ^9.0.1
+dev_dependencies:
+  http: ^1.6.0
+  test: ^1.29.0

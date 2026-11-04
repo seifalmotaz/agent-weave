@@ -17,6 +17,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "14.5.0"
+  anthropic_sdk_dart:
+    dependency: transitive
+    description:
+      name: anthropic_sdk_dart
+      sha256: "6b6b17e1ae153f990569c77fa479ba6f0488f17acf40b77ad7d4b71c3c9ccaab"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.0.1"
   archive:
     dependency: transitive
     description:

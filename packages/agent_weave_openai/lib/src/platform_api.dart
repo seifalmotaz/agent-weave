@@ -4,7 +4,7 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:http/http.dart' as http;
 import 'package:openai_dart/openai_dart.dart' as api;
 
-enum OpenAIHttpMethod { get, post, patch, delete }
+enum OpenAIHttpMethod { get, post, put, patch, delete, head }
 
 /// Access JSON operations not yet represented by a typed provider resource.
 ///
@@ -15,48 +15,88 @@ final class OpenAIPlatformApi {
   final api.OpenAIClient client;
   const OpenAIPlatformApi(this.client);
 
+  /// Decode an object response. Use [requestJson] for other JSON root types.
   Future<JsonObject> request(
     String path, {
     OpenAIHttpMethod method = OpenAIHttpMethod.get,
     JsonObject? body,
     Map<String, String>? query,
     Map<String, List<String>>? repeatedQuery,
+    Map<String, String>? headers,
     String? idempotencyKey,
     CancellationToken? cancellation,
   }) async {
-    final response = await _send(
+    final value = await requestJson(
       path,
       method: method,
       body: body,
       query: query,
       repeatedQuery: repeatedQuery,
+      headers: headers,
       idempotencyKey: idempotencyKey,
       cancellation: cancellation,
     );
-    if (response.statusCode == 204 || response.body.isEmpty) return const {};
-    return Map<String, Object?>.from(jsonDecode(response.body) as Map);
+    if (value == null) return const {};
+    if (value is! Map<String, Object?>) {
+      throw const FormatException(
+        'Expected an object response. Use requestJson for other JSON values.',
+      );
+    }
+    return value;
+  }
+
+  /// Preserve any JSON root type, including arrays, primitives and null.
+  Future<Object?> requestJson(
+    String path, {
+    OpenAIHttpMethod method = OpenAIHttpMethod.get,
+    Object? body,
+    Map<String, String>? query,
+    Map<String, List<String>>? repeatedQuery,
+    Map<String, String>? headers,
+    String? idempotencyKey,
+    CancellationToken? cancellation,
+  }) async {
+    final response = await send(
+      path,
+      method: method,
+      body: body,
+      query: query,
+      repeatedQuery: repeatedQuery,
+      headers: headers,
+      idempotencyKey: idempotencyKey,
+      cancellation: cancellation,
+    );
+    if (response.statusCode == 204 || response.body.isEmpty) return null;
+    return jsonDecode(response.body);
   }
 
   Future<Uint8List> download(
     String path, {
     Map<String, String>? query,
+    Map<String, List<String>>? repeatedQuery,
+    Map<String, String>? headers,
     CancellationToken? cancellation,
-  }) async => (await _send(
+  }) async => (await send(
     path,
-    method: OpenAIHttpMethod.get,
     query: query,
+    repeatedQuery: repeatedQuery,
+    headers: headers,
     cancellation: cancellation,
   )).bodyBytes;
 
-  Future<http.Response> _send(
+  /// Buffer the unmodified response, including headers, status and bytes.
+  /// This method is not an SSE or multipart transport. Prefer typed SDK resources.
+  /// Authentication remains owned by the client's auth provider.
+  Future<http.Response> send(
     String path, {
-    required OpenAIHttpMethod method,
-    JsonObject? body,
+    OpenAIHttpMethod method = OpenAIHttpMethod.get,
+    Object? body,
     Map<String, String>? query,
     Map<String, List<String>>? repeatedQuery,
+    Map<String, String>? headers,
     String? idempotencyKey,
     CancellationToken? cancellation,
-  }) {
+  }) async {
     cancellation?.throwIfCancelled();
     final uri = Uri.parse(path);
     if (!path.startsWith('/') ||
@@ -74,6 +114,22 @@ final class OpenAIPlatformApi {
         'path',
         'Expected a relative API path without query or fragment.',
       );
+    }
+    for (final name in headers?.keys ?? const <String>[]) {
+      if (const {
+        'authorization',
+        'proxy-authorization',
+        'host',
+        'cookie',
+        'content-length',
+        'transfer-encoding',
+      }.contains(name.toLowerCase())) {
+        throw ArgumentError.value(
+          name,
+          'headers',
+          'This header is owned by authentication or transport.',
+        );
+      }
     }
     final config = client.config;
     final base = Uri.parse(config.baseUrl);
@@ -100,13 +156,15 @@ final class OpenAIPlatformApi {
               'OpenAI-Organization': config.organization!,
             if (config.project != null) 'OpenAI-Project': config.project!,
             if (config.apiVersion != null) 'OpenAI-Version': config.apiVersion!,
+            ...?headers,
             'Idempotency-Key': ?idempotencyKey,
           });
     if (body != null) request.body = jsonEncode(body);
     return client.interceptorChain.execute(
       request,
       abortTrigger: cancellation?.whenCancelled,
-      allowRetries: method == OpenAIHttpMethod.get,
+      allowRetries:
+          method == OpenAIHttpMethod.get || method == OpenAIHttpMethod.head,
     );
   }
 }

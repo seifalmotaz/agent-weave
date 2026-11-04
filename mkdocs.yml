@@ -75,6 +75,7 @@ nav:
       - Tools and approvals: tools.md
       - Custom providers: providers.md
       - OpenAI capabilities: openai.md
+      - Anthropic Messages: anthropic.md
       - Testing your application: testing.md
   - Understand the SDK:
       - Architecture: architecture.md

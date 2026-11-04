@@ -23,7 +23,7 @@ and interoperability with the pinned official JavaScript client.
 
 On Dart 3.12.2 and 3.13.3:
 
-- 108 Dart unit and regression tests: tool validation, approvals, client tools,
+- 131 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 12 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -37,7 +37,8 @@ On Dart 3.12.2 and 3.13.3:
 - 2 offline checks for the upstream operation-index parser.
 - The offline chat example executes successfully.
 
-Provider fixtures cover Responses and Chat Completions streams, schema output,
+Provider fixtures cover native Anthropic Messages and OpenAI Responses/Chat
+Completions streams, schema output,
 usage, opaque reasoning replay, cancellation, image/audio/embedding/Decisions/
 video requests, binary and multipart transport, and the raw API helper. Realtime
 uses an actual local WebSocket; it does not contact OpenAI.
@@ -93,3 +94,12 @@ Flutter device rendering, microphone permissions, audio playback, WebRTC,
 production authentication, production deployment, and pub.dev publication have
 not been tested or performed. See [compatibility](compatibility.md) for remaining
 implementation limits.
+
+## Native Anthropic increment
+
+Eight native Messages fixture tests and a separate consumer over real loopback
+HTTP verify selected text, schema, tool, thinking replay, cache configuration,
+error and cooperative cancellation contracts. No live Anthropic account, model,
+real cache hit or network-abort behavior was tested. The independent review is
+8.0/10 for the reviewed general SDK journeys and provisionally 7.8/10 for the
+new native provider path; see [the review record](dx-review.md).

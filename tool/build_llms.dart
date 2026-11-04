@@ -9,6 +9,7 @@ const documents = [
   'docs/tools.md',
   'docs/providers.md',
   'docs/openai.md',
+  'docs/anthropic.md',
   'docs/openai-options-audit.md',
   'docs/provider-coverage.md',
   'docs/compatibility.md',

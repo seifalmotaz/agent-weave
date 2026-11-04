@@ -30,3 +30,10 @@ SOFTWARE.
 Provider transport is supplied by openai_dart, maintained by David Miguel.
 Serverpod and the TanStack Dart client are dependencies with their own licenses.
 See each dependency's published package for its notices.
+
+## Anthropic transport
+
+The native Messages adapter depends on anthropic_sdk_dart, maintained by David
+Miguel and contributors, under the MIT license. It is a third-party SDK and
+is not an official Anthropic library. Dependency license notices remain in
+the distributed SDK package.

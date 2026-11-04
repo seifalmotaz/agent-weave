@@ -12,6 +12,7 @@ Development version. Read compatibility and validation before making support cla
 - [docs/tools.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/tools.md)
 - [docs/providers.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/providers.md)
 - [docs/openai.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai.md)
+- [docs/anthropic.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic.md)
 - [docs/openai-options-audit.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai-options-audit.md)
 - [docs/provider-coverage.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/provider-coverage.md)
 - [docs/compatibility.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/compatibility.md)

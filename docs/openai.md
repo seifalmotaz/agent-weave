@@ -44,7 +44,9 @@ generation results. Direct model wrappers retain provider-specific types.
 Non-streaming image requests cannot abort in-flight through the underlying
 SDK. Use its streaming operation when an abortable transport is required.
 Cancelling a video wait does not cancel a provider job or its charges.
-Close realtime connections explicitly when the session ends.
+Close realtime connections explicitly when the session ends. The realtime
+wrapper provides SDK connection access; AgentWeave does not yet orchestrate
+voice turns, realtime tools, or device audio.
 
 Use separate prefixed imports for realtime event classes:
 
@@ -59,3 +61,24 @@ API models are scheduled to shut down on January 6, 2027; new voice integrations
 should evaluate the Realtime API. Check the
 [official speech guide](https://developers.openai.com/api/docs/guides/text-to-speech)
 before choosing a model.
+
+## Request-specific transport access
+
+Use typed SDK resources first. For additional operations, `OpenAIPlatformApi`
+provides `request` for JSON objects, `requestJson` for any JSON root, `send`
+for response status/headers/bytes, and `download` for bytes. These methods accept
+request-specific headers and repeated query values. Authentication and transport
+headers remain client-owned. Mutations are not automatically retried.
+
+```dart
+final platform = openai.OpenAIPlatformApi(client);
+final response = await platform.send(
+  '/responses/your-response-id',
+  repeatedQuery: {'include[]': ['reasoning.encrypted_content']},
+  headers: {'Accept': 'application/json'},
+);
+print(response.headers['x-request-id']);
+```
+
+The raw helper buffers responses; it does not add arbitrary SSE or multipart
+handling. It preserves data but does not implement missing tool/job lifecycles.

@@ -18,6 +18,7 @@ using it in production.
 | Package | Use it for |
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
+| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
 | [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
 | [`agent_weave_serverpod_client`](packages/agent_weave_serverpod_client) | Connect the existing TanStack Dart client to generated Serverpod streaming methods |
@@ -127,7 +128,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Independent developer agents must write and run consumer applications across
   multiple scenarios and score discoverability, clarity, type safety, debugging,
   and testing. Record failures and rerun after fixes. Use GPT-6.1 Terra with low
-  or medium reasoning. The latest review is 7.7/10, not an acceptance pass.
+  or medium reasoning. The latest general review is 8.0/10, and the native Anthropic path is
+  provisionally 7.8/10. Neither is an acceptance pass.
 - Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
   Vercel AI Gateway, and Cloudflare, with a documented custom-provider contract.
   Track each endpoint, nested parameter, tool/event union, query, header, cache
@@ -422,6 +424,50 @@ Both exited 0. The first tested text plus usage, schema-validated `int`, typed t
 No PostgreSQL, Serverpod restart, Flutter device, local model server, paid provider, network, crash recovery, or complete provider option parity was tested.
 
 
+# Independent Dart consumer review — round 3
+
+Reviewed main a4f4a93 on 2026-11-04. Score: **8.0/10** (round 2: 7.7). Equal weight; this reflects the exercised developer journey, not provider parity or production certification.
+
+| Dimension | /10 | Evidence and remaining gap |
+| --- | ---: | --- |
+| Discoverability | 7.5 | Guide links runnable consumer samples and Serverpod example, but the PostgreSQL approval integration is buried in a test rather than linked as a setup recipe. |
+| Clarity | 8 | Typed approval operations are clear; OpenAI integration lists realtime without prominently saying it exposes a connection rather than orchestrated voice and tools. The detailed limitation is in the separate options audit. |
+| Types | 8 | Edited and rejected tool approvals worked. Provider-specific configure callbacks exist; generic options and cross-provider parity were outside this snapshot. |
+| Debugging | 8 | Pre-cancellation and cooperative in-flight cancellation throw RunCancelled; prior round established error codes and partial text. Cancellation during a real HTTP request and storage faults remain untested. |
+| Testing | 8.5 | A real loopback HTTP fixture, application approval cases, and the repository's PostgreSQL-backed approval integration passed offline. Real process restart and failure injection are not established by the integration. |
+
+## Executed
+
+From repository root:
+
+```sh
+dart run examples/review_cases/reliability.dart
+cd examples/serverpod/agent_weave_demo_server
+PATH="$(git rev-parse --show-toplevel)/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart test test/integration/agent_test.dart --plain-name 'a recreated agent resumes a PostgreSQL-backed approval without repeating its tool'
+```
+
+The first example starts a local HTTP server implementing a minimal Chat Completions SSE response; checks the request route and model and resulting text; checks pre-cancellation and cooperative in-flight model cancellation; and checks rejection (no tool execution) and edited approval (one execution, edited output) using a shared MemoryRunStore. It is a fixture, not an actual local inference server. The PostgreSQL test recreates the agent and resumes a pending approval with the same database; it runs in one test process, not a restarted process. The exact executed test command was `cd examples/serverpod/agent_weave_demo_server` followed by `PATH="$(git rev-parse --show-toplevel)/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart test test/integration/agent_test.dart --plain-name 'a recreated agent resumes a PostgreSQL-backed approval without repeating its tool'`.
+
+## Highest priority friction
+
+1. Publish and link a runnable persisted approval example: the Dart guide's Serverpod snippet depends on application-specific definitions; the working PostgreSQL integration is not discoverable from that recipe. Show setup and real human decision boundary, and distinguish process restart, storage faults, and external idempotency from agent recreation. The existing integration passed; it does not prove restart recovery.
+2. State realtime scope beside its entry in the OpenAI guide: the public page lists the connection and says to close it, while the options audit explains it does not provide voice/tool orchestration and connection handshake cancellation is limited. Show a minimal lifecycle example and direct consumers to provider SDK events.
+3. Document what cancellation guarantees: the cooperative fake stops when its token is signalled; this does not prove a provider's in-flight I/O aborts or undo an external effect. Add reproducible transport and storage-failure examples, including effects-before-checkpoint, rather than imply exactly-once behavior.
+4. Switching Dart SDKs in the same workspace caused a sqlite3 build-hook kernel mismatch (expected 138, found 130) before tests ran. Re-running with the SDK that built the cache passed. This is observed environment/cache friction, not evidence of a package bug; a clean separate build cache or consistent SDK version is advisable.
+
+No paid calls, external provider keys, real inference server, real HTTP in-flight cancellation, process restart, injected database failure, or live realtime session was exercised. Source implementation was not edited.
+
+## Anthropic adapter follow-up: 7.8/10
+
+Independent consumer snapshot of the new native adapter, reviewed separately from the main a4f4a93 score: discoverability 7, clarity 8, types 8, debugging 8, testing 8. Equal weighting. A minimal consumer still needs to find the underlying SDK client and understand its ownership; the application-facing API, typed tool and exception code are straightforward. Documentation and exports were being revised concurrently, so this is a point-in-time assessment.
+
+```sh
+PATH="$PWD/.dart_tool/dart-3.12.2/dart-sdk/bin:$PATH" dart run examples/review_cases/anthropic.dart
+```
+
+A local real HTTP fixture validated the native Messages path and authentication header, text generation, serialized structured-output schema and decoded object, a two-invocation agent tool loop, signed thinking replay and corresponding tool result. A simulated HTTP 400 surfaced as `AgentRunException` with `MODEL_FAILED` and an `ApiException(400)` cause containing the provider diagnostic. The fake endpoint does not validate actual Anthropic model compatibility, supported schemas or provider-side restrictions. No paid calls were made; no implementation bug was established by these probes.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -637,7 +683,9 @@ generation results. Direct model wrappers retain provider-specific types.
 Non-streaming image requests cannot abort in-flight through the underlying
 SDK. Use its streaming operation when an abortable transport is required.
 Cancelling a video wait does not cancel a provider job or its charges.
-Close realtime connections explicitly when the session ends.
+Close realtime connections explicitly when the session ends. The realtime
+wrapper provides SDK connection access; AgentWeave does not yet orchestrate
+voice turns, realtime tools, or device audio.
 
 Use separate prefixed imports for realtime event classes:
 
@@ -652,6 +700,88 @@ API models are scheduled to shut down on January 6, 2027; new voice integrations
 should evaluate the Realtime API. Check the
 [official speech guide](https://developers.openai.com/api/docs/guides/text-to-speech)
 before choosing a model.
+
+## Request-specific transport access
+
+Use typed SDK resources first. For additional operations, `OpenAIPlatformApi`
+provides `request` for JSON objects, `requestJson` for any JSON root, `send`
+for response status/headers/bytes, and `download` for bytes. These methods accept
+request-specific headers and repeated query values. Authentication and transport
+headers remain client-owned. Mutations are not automatically retried.
+
+```dart
+final platform = openai.OpenAIPlatformApi(client);
+final response = await platform.send(
+  '/responses/your-response-id',
+  repeatedQuery: {'include[]': ['reasoning.encrypted_content']},
+  headers: {'Accept': 'application/json'},
+);
+print(response.headers['x-request-id']);
+```
+
+The raw helper buffers responses; it does not add arbitrary SSE or multipart
+handling. It preserves data but does not implement missing tool/job lifecycles.
+
+
+# Source: docs/anthropic.md
+
+# Native Anthropic Messages
+
+`agent_weave_anthropic` implements the native Messages wire protocol, using
+`anthropic_sdk_dart 9.0.1` for transport and typed options. That SDK is maintained
+independently of Anthropic. This adapter is not an OpenAI-compatible gateway.
+
+```dart
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
+
+final client = anthropic.AnthropicClient.withApiKey(apiKey);
+final model = anthropic.AnthropicChatModel(
+  client: client,
+  model: yourEnabledModelId,
+);
+try {
+  final result = await generateText(model: model, prompt: 'Hello');
+  print(result.text);
+} finally {
+  client.close();
+}
+```
+
+Model availability is account-specific. Keep API keys on the backend. Use the
+same adapter with `AiAgent<Session>` and `ServerpodRunStore` in a Serverpod app;
+the core runtime owns the tool loop and approval validation.
+
+## Implemented and fixture-tested
+
+- System instructions separate from message blocks; text and URL images.
+- Fragmented tool JSON, native tool-use/results, multiple calls, and replay.
+- Native JSON schema format for `generateObject` and `AiAgent.outputSchema`.
+- Thinking deltas with private signed/redacted block continuation.
+- Cache read/creation input accounted in total input usage; read tokens retained
+  in `cachedInputTokens`. A fixture is not evidence of an actual cache hit.
+- `configure` for typed SDK options; native cache controls on user blocks,
+  single-block system instructions, and tool definitions; strict tool options.
+- Beta headers, user-profile options, cancellation signals and stream failures.
+
+Configuration cannot rewrite authoritative messages, system instructions, tool
+schemas or token bounds. Cache decoration is compared at the native block/tool
+level; a schema property called `cache_control` is not silently ignored.
+
+Thinking and signature replay belongs in server storage. Hydration does not
+return private provider continuation blocks to the UI.
+
+## Explicit limits
+
+The adapter does not implement file-ID documents, audio/video input, hosted
+server-tool output or `pause_turn` continuation. Unsupported stream blocks and
+stop reasons fail explicitly. Other endpoints are available directly through
+the provider SDK, with its own support and constraints.
+
+Eight offline fixture tests cover selected serialization and stream contracts.
+No live Anthropic request or device behavior has been tested. Complete nested
+parameter, header, event and endpoint coverage remains open in the
+[provider inventory](provider-coverage.md).
 
 
 # Source: docs/openai-options-audit.md
@@ -668,7 +798,7 @@ Audit scope: `agent_weave_openai` and installed `openai_dart` 11.0.1, compared w
 | Computer use | SDK parses `computer_call` output (`models/responses/items/output_item.dart`); callback can configure SDK tool types. | **P0:** no action executor, screenshot result, safety-check acknowledgement or correct `computer_call_output` continuation in runtime. SDK `items/item.dart` dispatch does not list `computer_call_output`: verify its round trip and contribute a typed input item upstream if missing. Raw JSON sent independently is not an AgentWeave computer loop. Explicit authorization and sandbox controls belong at the execution boundary. |
 | Function tools | Runtime tool schemas and JSON-object arguments are mapped; tool calls are dispatched. | **P1:** `strict:false` is fixed, arguments are assumed JSON objects, output is text only, and per-tool provider options are absent. Validate schema/arguments, preserve tool IDs and correctly represent multimodal and non-function results. Hosted tools need not be run locally. |
 | Cache and state | SDK supports `prompt_cache_key`, options and retention; adapter reports `cached_tokens` if usage is present. Responses defaults to `store:false`, includes encrypted reasoning, and replays completed output. | **P1:** setting a key is not evidence of a cache hit; no cache hit/miss diagnostics or cache lifetime validation. Changing `include` can drop encrypted reasoning. `store`, `previous_response_id`, conversation state, deletion and retrieval have privacy and replay implications; test exact outgoing payloads and cache usage with an authorized live run. See [prompt caching](https://platform.openai.com/docs/guides/prompt-caching). |
-| Query and transport | SDK `responses.retrieve` and input-item `list` accept typed `include[]` and pagination; `platform_api.dart` supports JSON, binary GET, repeated query keys, idempotency and cancellation with client interceptor chain. | **P1:** these are separate SDK/raw operations, not run lifecycle integration. Raw helper accepts only GET/POST/PATCH/DELETE, JSON object response, and no request-specific arbitrary headers, multipart upload or SSE; binary download lacks repeated queries. Typed stream exposes abort and beta but adapter exposes only abort. Provide per-request transport options without compromising auth, retry, secret redaction or canonical request ownership. |
+| Query and transport | SDK `responses.retrieve` and input-item `list` accept typed `include[]` and pagination; `platform_api.dart` supports JSON, binary GET, repeated query keys, idempotency and cancellation with client interceptor chain. | **P1:** these are separate SDK/raw operations, not run lifecycle integration. Raw helper now supports GET/POST/PUT/PATCH/DELETE/HEAD, per-request safe headers, arbitrary JSON roots, response status/headers/bytes, and repeated queries for downloads. Multipart upload and arbitrary SSE remain outside this helper. Typed stream exposes abort and beta but adapter exposes only abort. Provide per-request transport options without compromising auth, retry, secret redaction or canonical request ownership. |
 | Chat completions | SDK request exposes sampling, penalties, logit bias/logprobs, n, stop, tools, output format, audio/modalities, prediction, search, caching, safety, metadata/store and more through callback. | **P1:** `chat_models.dart:297–318` ignores choices other than index 0; audio output, logprobs and other deltas are not emitted, even when enabled. Either support each requested output or reject unsupported configurations; test `n`, audio and tool streaming. File and video input are explicitly rejected. |
 | Images/audio/embeddings/video | `generation_models.dart` forwards SDK request objects for image generation, speech, transcription, embeddings, decision and video. Speech/transcription streaming and image streaming exist. `generation_tasks.dart` normalizes image, speech and transcription results. | **P1:** forwarding only covers fields represented by the pinned SDK; normalized tasks drop provider-specific metadata (including transcription detail) and create local IDs. Image nonstream and video create cannot abort in-flight through these wrappers; cancellation of local video waiting does not cancel a server job. Image edits/variations, translation and job operations remain direct SDK/raw workflows. Audit individual request serialization and response fields before claiming all media options. |
 | Realtime | `OpenAIRealtimeModel` passes a typed session config including audio, modalities, tools, reasoning, tracing, truncation and include to SDK connection; caller owns returned session. | **P1:** this is connection access, not runtime event, tool, interruption or voice orchestration. Connection cancellation is checked before and after connect rather than aborting the handshake; session lifetime is caller-owned. WebRTC, SIP, client secrets and raw realtime events require separate SDK/API paths and their own verification. |
@@ -688,6 +818,11 @@ Existing tests in `packages/agent_weave_openai/test` use fixtures and cover sele
 
 The current `chat_models.dart` now guards runtime-owned messages/input and token limits, requires each runtime tool exactly once, and protects an existing runtime output schema; it merges `reasoning.encrypted_content` into Responses `include`. Usage reports the returned response model when present, falling back to the configured model. Fixture tests in `chat_models_test.dart` cover rejected conversation replacement, include merging, cache key/metadata serialization, and Responses returned-model usage. These changes supersede the corresponding earlier P0 request-replacement and P1 include/model findings; they do not establish exhaustive configuration coverage or live behavior. The P0 computer and other non-function tool continuation gaps remain open. The guard only compares runtime fields present in the canonical JSON and permits additional provider tools; audit individual conflicting settings before claiming full option safety.
 
+The current raw transport fixtures verify request-specific safe headers, repeated
+queries on binary downloads, raw status/headers/bytes, arbitrary JSON root
+values, authenticated PUT requests, pre-cancellation and mutation retry policy.
+This does not implement SSE, multipart or computer-use orchestration.
+
 
 # Source: docs/provider-coverage.md
 
@@ -697,12 +832,12 @@ Status: incremental inventory, not an assertion of complete provider support. Re
 
 ## What exists
 
-The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). There are no dedicated Anthropic, OpenRouter, Together, Vercel Gateway or Cloudflare packages in this repository. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. There are still no dedicated OpenRouter, Together, Vercel Gateway or Cloudflare packages. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; some fixture coverage. | See [OpenAI audit](openai-options-audit.md): non-function tool continuation, events, transport, media and complete field-by-field coverage remain open. |
-| Anthropic native Messages | No native Messages adapter, SDK dependency, event mapping or fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
+| Anthropic native Messages | Native Messages adapter with text/URL-image input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
 | OpenRouter Chat and Responses | OpenAI Chat-compatible transport is configurable. Pinned SDK has some OpenRouter fields (`provider`, `models`, route, transforms, reasoning, usage and sampling extensions); callback can set represented fields. No OpenRouter-specific adapter or tests. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Inventory every nested option, model routing, sticky/cache behavior, plugins, headers and usage/cost; expose returned actual provider/model and handle stream errors. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
 | Together inference | OpenAI-compatible Chat transport can be pointed at a suitable endpoint; no Together-specific adapter, native feature mapping, request tests or claims. | Inventory [Together API reference](https://docs.together.ai/reference/chat-completions) by endpoint/model, including sampling, stop, tools, response formats, caching, routing, streaming and media as actually offered. Preserve provider-specific data and errors. Verify documented base URL/auth and serialized request in a fixture before promising compatibility; test native non-chat operations separately. |
 | Vercel AI Gateway | A configurable compatible transport is possible; no Gateway-specific adapter, routing controls or response metadata integration. | Gateway documents distinct [Chat, Responses, Anthropic Messages and other interfaces](https://vercel.com/docs/ai-gateway/sdks-and-apis). Its [provider options](https://vercel.com/docs/ai-gateway/models-and-providers/provider-options) include routing order/filtering, cache behavior, timeouts/fallbacks and request-scoped credentials. Map each API's actual wire format and security boundary rather than copying AI SDK JavaScript option objects into OpenAI requests. Preserve selected provider and usage; protect BYOK secrets. |
@@ -855,7 +990,7 @@ and interoperability with the pinned official JavaScript client.
 
 On Dart 3.12.2 and 3.13.3:
 
-- 108 Dart unit and regression tests: tool validation, approvals, client tools,
+- 131 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 12 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -869,7 +1004,8 @@ On Dart 3.12.2 and 3.13.3:
 - 2 offline checks for the upstream operation-index parser.
 - The offline chat example executes successfully.
 
-Provider fixtures cover Responses and Chat Completions streams, schema output,
+Provider fixtures cover native Anthropic Messages and OpenAI Responses/Chat
+Completions streams, schema output,
 usage, opaque reasoning replay, cancellation, image/audio/embedding/Decisions/
 video requests, binary and multipart transport, and the raw API helper. Realtime
 uses an actual local WebSocket; it does not contact OpenAI.
@@ -926,6 +1062,15 @@ production authentication, production deployment, and pub.dev publication have
 not been tested or performed. See [compatibility](compatibility.md) for remaining
 implementation limits.
 
+## Native Anthropic increment
+
+Eight native Messages fixture tests and a separate consumer over real loopback
+HTTP verify selected text, schema, tool, thinking replay, cache configuration,
+error and cooperative cancellation contracts. No live Anthropic account, model,
+real cache hit or network-abort behavior was tested. The independent review is
+8.0/10 for the reviewed general SDK journeys and provisionally 7.8/10 for the
+new native provider path; see [the review record](dx-review.md).
+
 
 # Source: CONTRIBUTING.md
 
@@ -963,7 +1108,9 @@ TypeScript API conventions into the Dart developer API.
 
 - Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
 - Core model contracts and agent execution live in `packages/agent_weave`.
-- Provider-specific types stay in `packages/agent_weave_openai`.
+- Provider-specific types stay in `packages/agent_weave_openai` and
+  `packages/agent_weave_anthropic`. Native provider protocols require their own
+  serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
 - Native client transport lives in `packages/agent_weave_serverpod_client`.
 - Optional storage is a Serverpod module, `agent_weave_serverpod_storage_server`,
