@@ -38,7 +38,8 @@ def on_files(files, config):
     for name in ['llms.txt', 'llms-full.txt']:
         files.append(File.generated(config, name,
             content=(ROOT / name).read_text(encoding='utf-8')))
-    inventory = ROOT / 'docs/openai-api-inventory.json'
-    files.append(File.generated(config, inventory.name,
-        content=inventory.read_text(encoding='utf-8')))
+    for name in ['openai-api-inventory.json', 'together-chat-inventory.json']:
+        inventory = ROOT / 'docs' / name
+        files.append(File.generated(config, inventory.name,
+            content=inventory.read_text(encoding='utf-8')))
     return files

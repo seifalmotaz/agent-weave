@@ -17,6 +17,7 @@ using it in production.
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
+| [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
 | [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
 | [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
@@ -111,6 +112,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [OpenRouter](docs/openrouter.md)
+- [Together Chat Completions](docs/together.md)
 - [Compatibility and limitations](docs/compatibility.md)
 - [Validation evidence](docs/validation.md)
 - [Upstream updates](docs/updating.md)

@@ -1,0 +1,13 @@
+{
+  "provider": "together",
+  "repository": "togethercomputer/together-typescript",
+  "revision": "488006d90b67d589034d8323a11cfab9b588abca",
+  "reviewed": "2026-11-04",
+  "license": "Apache-2.0",
+  "endpoint": "POST /v1/chat/completions",
+  "reference": "https://docs.together.ai/reference/chat-completions",
+  "files": {
+    "chat-completions.ts": "src/resources/chat/completions.ts",
+    "completions.ts": "src/resources/completions.ts"
+  }
+}

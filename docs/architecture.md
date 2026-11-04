@@ -54,3 +54,18 @@ every operation. Replay observes persisted events; it does not rerun the model.
 
 `streamAgent` fits a generated Serverpod endpoint returning `Stream<String>`.
 `serverpodConnection` connects that endpoint to `tanstack_ai_dart`.
+
+## Native provider boundaries
+
+Together uses its own request serializer and HTTP stream transport. Delegating
+its requests to the OpenAI SDK would lose unrepresented fields and change native
+numeric `logprobs` into an OpenAI boolean. Adding hidden HTTP body rewriting
+would also separate the public types from what was actually sent. The native
+boundary keeps those provider differences visible in `TogetherChatOptions`.
+
+`TogetherChatModel` converts one `ModelRequest` into one native request and maps
+streamed text, reasoning, tools and usage back into core events. `AiAgent` owns
+approvals, validation, tool execution and authoritative history. The raw client
+provides a separate JSON contract for native choices and metadata that the agent
+does not normalize. Cancellation and timeout belong to each HTTP request;
+cancelling one stream does not close a shared client.

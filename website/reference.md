@@ -1,10 +1,13 @@
 # Packages and API
 
-The monorepo contains six packages. Use the smallest set needed by your application.
+The monorepo contains nine packages. Use the smallest set needed by your application.
 
 | Package | Owns |
 | --- | --- |
 | `agent_weave` | Provider contracts, typed tools, agent execution, results, generation tasks, protocol events |
+| `agent_weave_anthropic` | Native Anthropic Messages adapter |
+| `agent_weave_openrouter` | OpenRouter Chat Completions adapter |
+| `agent_weave_together` | Native Together Chat Completions client and adapter |
 | `agent_weave_openai` | OpenAI model adapters and typed provider resource access |
 | `agent_weave_serverpod` | Authenticated HTTP/SSE routes and native endpoint helpers |
 | `agent_weave_serverpod_client` | Native transport for the existing TanStack Dart client |

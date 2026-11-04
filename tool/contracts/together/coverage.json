@@ -1,0 +1,121 @@
+{
+  "meaning": "Top-level request field disposition at the pinned contract. This does not prove nested field, response, lifecycle, endpoint, model, or live parity. Raw native methods preserve request and response JSON; agent normalization is a separate contract.",
+  "request": {
+    "messages": {
+      "status": "runtime-owned",
+      "api": "ModelRequest.messages and instructions"
+    },
+    "model": {
+      "status": "runtime-owned",
+      "api": "TogetherChatModel.model"
+    },
+    "chat_template_kwargs": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.chatTemplateKwargs"
+    },
+    "compliance": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.compliance"
+    },
+    "context_length_exceeded_behavior": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.contextLengthExceededBehavior"
+    },
+    "echo": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.echo"
+    },
+    "frequency_penalty": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.frequencyPenalty"
+    },
+    "function_call": {
+      "status": "native-only",
+      "api": "TogetherClient.createChat/streamChat",
+      "reason": "Legacy function calling is not normalized by AiAgent; use registered function tools."
+    },
+    "logit_bias": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.logitBias"
+    },
+    "logprobs": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.logprobs"
+    },
+    "max_tokens": {
+      "status": "runtime-owned",
+      "api": "ModelRequest.maxOutputTokens"
+    },
+    "min_p": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.minP"
+    },
+    "n": {
+      "status": "runtime-owned",
+      "api": "fixed to one completion in the agent adapter"
+    },
+    "presence_penalty": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.presencePenalty"
+    },
+    "reasoning": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.reasoningEnabled"
+    },
+    "reasoning_effort": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.reasoningEffort"
+    },
+    "repetition_penalty": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.repetitionPenalty"
+    },
+    "response_format": {
+      "status": "runtime-owned",
+      "api": "ModelRequest.outputSchema"
+    },
+    "safety_model": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.safetyModel"
+    },
+    "seed": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.seed"
+    },
+    "stop": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.stop"
+    },
+    "stream": {
+      "status": "runtime-owned",
+      "api": "fixed to true in the agent adapter"
+    },
+    "temperature": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.temperature"
+    },
+    "tool_choice": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.toolChoice"
+    },
+    "tools": {
+      "status": "runtime-owned",
+      "api": "registered ModelTool definitions"
+    },
+    "top_k": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.topK"
+    },
+    "top_p": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.topP"
+    }
+  },
+  "remaining": [
+    "Full nested request/response field handling inventory and normalized metadata",
+    "Together resources outside Chat Completions",
+    "Live Together account/model, cache and usage verification",
+    "Message names, URL audio, and provider-native schema overrides require raw native requests",
+    "Prompt echoes, log probabilities, warnings, seeds, and arbitrary response metadata are native-only, not normalized AgentResult fields"
+  ]
+}

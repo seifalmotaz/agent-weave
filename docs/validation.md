@@ -21,10 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest document/OpenRouter increment was checked on Dart 3.12.2. The prior
+The latest native Together increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 174 Dart unit and regression tests: tool validation, approvals, client tools,
+- 192 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -132,3 +132,29 @@ independent consumer programs, `examples/review_cases/documents.dart` and
 `examples/review_cases/openrouter.dart`, run in the normal check. The reviewed
 journeys scored 8.0/10 and 7.8/10 after documentation fixes. Neither score
 certifies complete provider support. No new live API calls were made.
+
+## Native Together increment
+
+Eighteen Together tests run a local HTTP service and cover native numeric
+`logprobs`, immutable options, schema/tool serialization, reasoning replay,
+fragmented tool arguments with repeated IDs/names, usage after finish, bounded
+text output, native metadata, multi-choice EOF, stream/HTTP errors and private
+diagnostics. Cancellation is tested before sending, before response headers and
+during the body. Cancelling the native stream subscription also aborts a
+pending request without closing the shared client; a stalled response tests
+per-request timeout. These are real
+local HTTP tests, not live Together calls.
+
+The independent consumer program exercises schema output, a stored tool approval
+and continuation, reasoning/tool replay, partial output and error diagnostics.
+Its targeted offline DX score remains 8/10; it does not certify production
+behavior or all native fields.
+
+The offline AST tool has three parser/coverage tests. It extracts the pinned
+official SDK declarations and checks all 27 top-level chat request fields have
+reviewed dispositions. An executable Dart fixture serializes every typed option.
+`--upstream` was also run against current official source and found no difference
+in the pinned files. No new paid requests were made.
+
+The Together package publication dry-run passed with zero warnings on Dart
+3.12.2. This is packaging evidence, not a pub.dev publication.

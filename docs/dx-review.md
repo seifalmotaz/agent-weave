@@ -149,3 +149,22 @@ The original scores above remain the first review. After reading `docs/documents
 The OpenRouter text/routing journey scores **7.8/10** (discoverability 8, clarity 8, types 8, debugging 7, testing 8). The new guide describes setup and limits. A new inline stream error consumer probe found that `generateText` wraps the underlying SDK failure as `AgentRunException`; the original guide implied direct propagation. The guide and package README now explain the distinction and trusted backend access to `cause`. Provider-specific metadata and live model behavior remain outside the tested contract.
 
 The polished, reusable cases are `examples/review_cases/documents.dart` and `examples/review_cases/openrouter.dart`. Run with assertions enabled using the commands in the file headers. They pass on Dart 3.12.2 and strict `dart analyze` reports no issues. Document checks now assert canonical `source.value` for URL, inline bytes and scoped ID in hydration, and verify Anthropic PDF/base64 and text request serialization alongside Responses. The OpenRouter case verifies both the successful loopback and an inline error reaching the high-level exception's trusted backend `cause`. No actual provider calls, persistent store restart, billing, cancellation, or complete format support were tested.
+
+
+## Round 6: native Together consumer
+
+Initial score: 8/10. Updated offline developer experience score: 8/10.
+
+| Criterion | Score | Reason |
+| --- | --- | --- |
+| Getting started and documentation | 8/10 | The guide shows client ownership, environment keys, a complete text example, and model-dependent limits. |
+| Typed configuration | 8/10 | Named options and enums are discoverable; raw native JSON remains less discoverable and lacks static field checks. |
+| Agent workflows | 8/10 | The loopback app exercised structured output, approval, tool execution and replay; model-dependent support remains unverified. |
+| Errors and lifecycle | 8/10 | High-level errors retain safe-to-string provider causes and immutable diagnostics; cancellation was checked before sending, not during every network phase. |
+| Streaming and output | 8/10 | Fragmented arguments, repeated call metadata, usage and length-limited partial text passed synthetic fixtures; real provider variants remain unverified. |
+
+The initial review exposed dropped usage after a finish event; the fix passed the consumer test. The updated example also checks HTTP 429 status, request ID, nested immutable details and redacted exception string through `generateText`, as well as partial text and finish reason. It exercises the new enums through the public constructor.
+
+Commands passed: `dart test packages/agent_weave_together/test/consumer_test.dart`; `dart --enable-asserts run examples/review_cases/together.dart`.
+
+All checks used offline loopback responses with synthetic data. No paid calls, live Together model acceptance, billing, real network interruption, or exhaustive native fields were tested.

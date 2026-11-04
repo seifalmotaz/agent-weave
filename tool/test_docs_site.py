@@ -30,6 +30,7 @@ class DocumentationTest(unittest.TestCase):
                          'getting-started/dart/index.html', 'tools/index.html',
                          'providers/index.html', 'compatibility/index.html',
                          'documents/index.html', 'openrouter/index.html',
+                         'together/index.html', 'together-options/index.html', 'together-chat-inventory.json',
                          'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
@@ -41,6 +42,10 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('tools/', locations)
             self.assertIn('documents/', locations)
             self.assertIn('openrouter/', locations)
+            self.assertIn('together/', locations)
+            self.assertIn('together-options/', locations)
+            inventory = json.loads((target / 'together-chat-inventory.json').read_text())
+            self.assertEqual(inventory['dispositions']['logprobs']['status'], 'typed-option')
             self.assertIn('architecture/', locations)
             self.assertIn('getting-started/serverpod/', locations)
             serverpod = (target / 'getting-started/serverpod/index.html').read_text()

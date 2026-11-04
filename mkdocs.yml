@@ -77,6 +77,8 @@ nav:
       - Documents: documents.md
       - OpenAI capabilities: openai.md
       - OpenRouter: openrouter.md
+      - Together: together.md
+      - Together request fields: together-options.md
       - Anthropic Messages: anthropic.md
       - Testing your application: testing.md
   - Understand the SDK:

@@ -1,0 +1,1404 @@
+{
+  "provider": "together",
+  "repository": "togethercomputer/together-typescript",
+  "revision": "488006d90b67d589034d8323a11cfab9b588abca",
+  "reviewed": "2026-11-04",
+  "license": "Apache-2.0",
+  "endpoint": "POST /v1/chat/completions",
+  "reference": "https://docs.together.ai/reference/chat-completions",
+  "files": {
+    "chat-completions.ts": {
+      "source": "https://raw.githubusercontent.com/togethercomputer/together-typescript/488006d90b67d589034d8323a11cfab9b588abca/src/resources/chat/completions.ts",
+      "sha256": "aa15f28a48b6ffe3261129f68f92e6b120ad303e911b3e7450f0394c2fb36ecc",
+      "declarations": {
+        "ChatCompletion": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "id",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "choices",
+              "optional": false,
+              "type": "Array<ChatCompletion.Choice>"
+            },
+            {
+              "name": "created",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "model",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "object",
+              "optional": false,
+              "type": "'chat.completion'"
+            },
+            {
+              "name": "prompt",
+              "optional": false,
+              "type": "ChatCompletionPrompt"
+            },
+            {
+              "name": "usage",
+              "optional": true,
+              "type": "ChatCompletionUsage | null"
+            },
+            {
+              "name": "warnings",
+              "optional": true,
+              "type": "Array<ChatCompletionWarning>"
+            }
+          ]
+        },
+        "ChatCompletion.Choice": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "finish_reason",
+              "optional": true,
+              "type": "'stop' | 'eos' | 'length' | 'tool_calls' | 'function_call'"
+            },
+            {
+              "name": "index",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "logprobs",
+              "optional": true,
+              "type": "CompletionsAPI.LogProbs | null"
+            },
+            {
+              "name": "message",
+              "optional": true,
+              "type": "ChatCompletionsAPI.ChatCompletionMessage"
+            },
+            {
+              "name": "seed",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "text",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "top_logprobs",
+              "optional": true,
+              "type": "{\n    [key: string]: number;\n}"
+            }
+          ]
+        },
+        "ChatCompletionAssistantMessageParam": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "role",
+              "optional": false,
+              "type": "'assistant'"
+            },
+            {
+              "name": "content",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "name",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "reasoning",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "reasoning_content",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "tool_calls",
+              "optional": true,
+              "type": "Array<CompletionsAPI.ToolChoice>"
+            }
+          ]
+        },
+        "ChatCompletionChunk": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "id",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "choices",
+              "optional": false,
+              "type": "Array<ChatCompletionChunk.Choice>"
+            },
+            {
+              "name": "created",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "model",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "object",
+              "optional": false,
+              "type": "'chat.completion.chunk'"
+            },
+            {
+              "name": "system_fingerprint",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "usage",
+              "optional": true,
+              "type": "ChatCompletionUsage | null"
+            },
+            {
+              "name": "warnings",
+              "optional": true,
+              "type": "Array<ChatCompletionWarning>"
+            }
+          ]
+        },
+        "ChatCompletionChunk.Choice": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "delta",
+              "optional": false,
+              "type": "Choice.Delta"
+            },
+            {
+              "name": "finish_reason",
+              "optional": false,
+              "type": "'stop' | 'eos' | 'length' | 'tool_calls' | 'function_call' | null"
+            },
+            {
+              "name": "index",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "logprobs",
+              "optional": true,
+              "type": "number | null"
+            },
+            {
+              "name": "seed",
+              "optional": true,
+              "type": "number | null"
+            },
+            {
+              "name": "top_logprobs",
+              "optional": true,
+              "type": "{\n    [key: string]: number;\n}"
+            }
+          ]
+        },
+        "ChatCompletionChunk.Choice.Delta": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "role",
+              "optional": false,
+              "type": "'system' | 'user' | 'assistant' | 'function' | 'tool'"
+            },
+            {
+              "name": "content",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "reasoning",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "reasoning_content",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "token_id",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tool_calls",
+              "optional": true,
+              "type": "Array<CompletionsAPI.ToolChoice>"
+            }
+          ]
+        },
+        "ChatCompletionMessage": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "content",
+              "optional": false,
+              "type": "string | null"
+            },
+            {
+              "name": "role",
+              "optional": false,
+              "type": "'assistant'"
+            },
+            {
+              "name": "reasoning",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "reasoning_content",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "tool_calls",
+              "optional": true,
+              "type": "Array<CompletionsAPI.ToolChoice>"
+            }
+          ]
+        },
+        "ChatCompletionMessageParam": {
+          "kind": "alias",
+          "type": "ChatCompletionSystemMessageParam | ChatCompletionUserMessageParam | ChatCompletionAssistantMessageParam | ChatCompletionToolMessageParam"
+        },
+        "ChatCompletionPrompt": {
+          "kind": "alias",
+          "type": "Array<ChatCompletionPrompt.ChatCompletionPromptItem>"
+        },
+        "ChatCompletionPrompt.ChatCompletionPromptItem": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "logprobs",
+              "optional": true,
+              "type": "CompletionsAPI.LogProbs"
+            },
+            {
+              "name": "text",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        "ChatCompletionStructuredMessageImageURL": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "image_url",
+              "optional": true,
+              "type": "ChatCompletionStructuredMessageImageURL.ImageURL"
+            },
+            {
+              "name": "type",
+              "optional": true,
+              "type": "'image_url'"
+            }
+          ]
+        },
+        "ChatCompletionStructuredMessageImageURL.ImageURL": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "url",
+              "optional": false,
+              "type": "string"
+            }
+          ]
+        },
+        "ChatCompletionStructuredMessageText": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "text",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'text'"
+            }
+          ]
+        },
+        "ChatCompletionStructuredMessageVideoURL": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'video_url'"
+            },
+            {
+              "name": "video_url",
+              "optional": false,
+              "type": "ChatCompletionStructuredMessageVideoURL.VideoURL"
+            }
+          ]
+        },
+        "ChatCompletionStructuredMessageVideoURL.VideoURL": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "url",
+              "optional": false,
+              "type": "string"
+            }
+          ]
+        },
+        "ChatCompletionSystemMessageParam": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "content",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "role",
+              "optional": false,
+              "type": "'system'"
+            },
+            {
+              "name": "name",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        "ChatCompletionTool": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "function",
+              "optional": false,
+              "type": "ChatCompletionTool.Function"
+            },
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'function'"
+            }
+          ]
+        },
+        "ChatCompletionTool.Function": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "name",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "parameters",
+              "optional": true,
+              "type": "{\n    [key: string]: unknown;\n}"
+            }
+          ]
+        },
+        "ChatCompletionToolMessageParam": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "content",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "role",
+              "optional": false,
+              "type": "'tool'"
+            },
+            {
+              "name": "tool_call_id",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        "ChatCompletionUsage": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "completion_tokens",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "prompt_tokens",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "total_tokens",
+              "optional": false,
+              "type": "number"
+            }
+          ]
+        },
+        "ChatCompletionUserMessageParam": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "content",
+              "optional": false,
+              "type": "string | Array<ChatCompletionStructuredMessageText | ChatCompletionStructuredMessageImageURL | ChatCompletionStructuredMessageVideoURL | ChatCompletionUserMessageParam.Audio | ChatCompletionUserMessageParam.InputAudio>"
+            },
+            {
+              "name": "role",
+              "optional": false,
+              "type": "'user'"
+            },
+            {
+              "name": "name",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        "ChatCompletionUserMessageParam.Audio": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "audio_url",
+              "optional": false,
+              "type": "Audio.AudioURL"
+            },
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'audio_url'"
+            }
+          ]
+        },
+        "ChatCompletionUserMessageParam.Audio.AudioURL": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "url",
+              "optional": false,
+              "type": "string"
+            }
+          ]
+        },
+        "ChatCompletionUserMessageParam.InputAudio": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "input_audio",
+              "optional": false,
+              "type": "InputAudio.InputAudio"
+            },
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'input_audio'"
+            }
+          ]
+        },
+        "ChatCompletionUserMessageParam.InputAudio.InputAudio": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "data",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "format",
+              "optional": false,
+              "type": "'wav'"
+            }
+          ]
+        },
+        "ChatCompletionWarning": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "message",
+              "optional": false,
+              "type": "string"
+            }
+          ]
+        },
+        "CompletionCreateParams": {
+          "kind": "alias",
+          "type": "CompletionCreateParamsNonStreaming | CompletionCreateParamsStreaming"
+        },
+        "CompletionCreateParamsBase": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "messages",
+              "optional": false,
+              "type": "Array<ChatCompletionMessageParam>"
+            },
+            {
+              "name": "model",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "chat_template_kwargs",
+              "optional": true,
+              "type": "unknown"
+            },
+            {
+              "name": "compliance",
+              "optional": true,
+              "type": "'hipaa'"
+            },
+            {
+              "name": "context_length_exceeded_behavior",
+              "optional": true,
+              "type": "'truncate' | 'error'"
+            },
+            {
+              "name": "echo",
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "frequency_penalty",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "function_call",
+              "optional": true,
+              "type": "'none' | 'auto' | CompletionCreateParams.Name"
+            },
+            {
+              "name": "logit_bias",
+              "optional": true,
+              "type": "{\n    [key: string]: number;\n}"
+            },
+            {
+              "name": "logprobs",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "max_tokens",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "min_p",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "n",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "presence_penalty",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "reasoning",
+              "optional": true,
+              "type": "CompletionCreateParams.Reasoning"
+            },
+            {
+              "name": "reasoning_effort",
+              "optional": true,
+              "type": "'low' | 'medium' | 'high'"
+            },
+            {
+              "name": "repetition_penalty",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "response_format",
+              "optional": true,
+              "type": "CompletionCreateParams.Text | CompletionCreateParams.JsonSchema | CompletionCreateParams.JsonObject"
+            },
+            {
+              "name": "safety_model",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "seed",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "stop",
+              "optional": true,
+              "type": "Array<string>"
+            },
+            {
+              "name": "stream",
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "temperature",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tool_choice",
+              "optional": true,
+              "type": "string | CompletionsAPI.ToolChoice"
+            },
+            {
+              "name": "tools",
+              "optional": true,
+              "type": "Array<CompletionsAPI.Tools>"
+            },
+            {
+              "name": "top_k",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "top_p",
+              "optional": true,
+              "type": "number"
+            }
+          ]
+        },
+        "CompletionCreateParams.Name": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "name",
+              "optional": false,
+              "type": "string"
+            }
+          ]
+        },
+        "CompletionCreateParams.Reasoning": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "enabled",
+              "optional": true,
+              "type": "boolean"
+            }
+          ]
+        },
+        "CompletionCreateParams.Text": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'text'"
+            }
+          ]
+        },
+        "CompletionCreateParams.JsonSchema": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "json_schema",
+              "optional": false,
+              "type": "JsonSchema.JsonSchema"
+            },
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'json_schema'"
+            }
+          ]
+        },
+        "CompletionCreateParams.JsonSchema.JsonSchema": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "name",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "description",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "schema",
+              "optional": true,
+              "type": "{\n    [key: string]: unknown;\n}"
+            },
+            {
+              "name": "strict",
+              "optional": true,
+              "type": "boolean | null"
+            }
+          ]
+        },
+        "CompletionCreateParams.JsonObject": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'json_object'"
+            }
+          ]
+        },
+        "CompletionCreateParams.CompletionCreateParamsNonStreaming": {
+          "kind": "alias",
+          "type": "ChatCompletionsAPI.CompletionCreateParamsNonStreaming"
+        },
+        "CompletionCreateParams.CompletionCreateParamsStreaming": {
+          "kind": "alias",
+          "type": "ChatCompletionsAPI.CompletionCreateParamsStreaming"
+        },
+        "CompletionCreateParamsNonStreaming": {
+          "kind": "interface",
+          "extends": [
+            "CompletionCreateParamsBase"
+          ],
+          "fields": [
+            {
+              "name": "stream",
+              "optional": true,
+              "type": "false"
+            }
+          ]
+        },
+        "CompletionCreateParamsStreaming": {
+          "kind": "interface",
+          "extends": [
+            "CompletionCreateParamsBase"
+          ],
+          "fields": [
+            {
+              "name": "stream",
+              "optional": false,
+              "type": "true"
+            }
+          ]
+        }
+      }
+    },
+    "completions.ts": {
+      "source": "https://raw.githubusercontent.com/togethercomputer/together-typescript/488006d90b67d589034d8323a11cfab9b588abca/src/resources/completions.ts",
+      "sha256": "9916a8afcd984956ef5e0fbe96b9a09daded96fbb8b1cf7dc754cf2346918c7f",
+      "declarations": {
+        "Completion": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "id",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "choices",
+              "optional": false,
+              "type": "Array<Completion.Choice>"
+            },
+            {
+              "name": "created",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "model",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "object",
+              "optional": false,
+              "type": "'text.completion'"
+            },
+            {
+              "name": "prompt",
+              "optional": false,
+              "type": "ChatCompletionsAPI.ChatCompletionPrompt"
+            },
+            {
+              "name": "usage",
+              "optional": false,
+              "type": "ChatCompletionsAPI.ChatCompletionUsage | null"
+            }
+          ]
+        },
+        "Completion.Choice": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "finish_reason",
+              "optional": true,
+              "type": "'stop' | 'eos' | 'length' | 'tool_calls' | 'function_call'"
+            },
+            {
+              "name": "logprobs",
+              "optional": true,
+              "type": "CompletionsAPI.LogProbs"
+            },
+            {
+              "name": "seed",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "text",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        "CompletionChunk": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "id",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "token",
+              "optional": false,
+              "type": "CompletionChunk.Token"
+            },
+            {
+              "name": "choices",
+              "optional": false,
+              "type": "Array<CompletionChunk.Choice>"
+            },
+            {
+              "name": "finish_reason",
+              "optional": false,
+              "type": "'stop' | 'eos' | 'length' | 'tool_calls' | 'function_call' | null"
+            },
+            {
+              "name": "usage",
+              "optional": false,
+              "type": "ChatCompletionsAPI.ChatCompletionUsage | null"
+            },
+            {
+              "name": "created",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "object",
+              "optional": true,
+              "type": "'completion.chunk'"
+            },
+            {
+              "name": "seed",
+              "optional": true,
+              "type": "number"
+            }
+          ]
+        },
+        "CompletionChunk.Token": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "id",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "logprob",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "special",
+              "optional": false,
+              "type": "boolean"
+            },
+            {
+              "name": "text",
+              "optional": false,
+              "type": "string"
+            }
+          ]
+        },
+        "CompletionChunk.Choice": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "index",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "delta",
+              "optional": true,
+              "type": "Choice.Delta"
+            },
+            {
+              "name": "text",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        "CompletionChunk.Choice.Delta": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "role",
+              "optional": false,
+              "type": "'system' | 'user' | 'assistant' | 'function' | 'tool'"
+            },
+            {
+              "name": "content",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "reasoning",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "reasoning_content",
+              "optional": true,
+              "type": "string | null"
+            },
+            {
+              "name": "token_id",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "tool_calls",
+              "optional": true,
+              "type": "Array<CompletionsAPI.ToolChoice>"
+            }
+          ]
+        },
+        "LogProbs": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "token_ids",
+              "optional": true,
+              "type": "Array<number | null>"
+            },
+            {
+              "name": "token_logprobs",
+              "optional": true,
+              "type": "Array<number | null>"
+            },
+            {
+              "name": "tokens",
+              "optional": true,
+              "type": "Array<string | null>"
+            },
+            {
+              "name": "top_logprobs",
+              "optional": true,
+              "type": "{\n    [key: string]: number;\n}"
+            }
+          ]
+        },
+        "ToolChoice": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "id",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "function",
+              "optional": false,
+              "type": "ToolChoice.Function"
+            },
+            {
+              "name": "index",
+              "optional": false,
+              "type": "number"
+            },
+            {
+              "name": "type",
+              "optional": false,
+              "type": "'function'"
+            }
+          ]
+        },
+        "ToolChoice.Function": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "arguments",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "optional": false,
+              "type": "string"
+            }
+          ]
+        },
+        "Tools": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "function",
+              "optional": true,
+              "type": "Tools.Function"
+            },
+            {
+              "name": "type",
+              "optional": true,
+              "type": "string"
+            }
+          ]
+        },
+        "Tools.Function": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "description",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "name",
+              "optional": true,
+              "type": "string"
+            },
+            {
+              "name": "parameters",
+              "optional": true,
+              "type": "{\n    [key: string]: unknown;\n}"
+            }
+          ]
+        },
+        "CompletionCreateParams": {
+          "kind": "alias",
+          "type": "CompletionCreateParamsNonStreaming | CompletionCreateParamsStreaming"
+        },
+        "CompletionCreateParamsBase": {
+          "kind": "interface",
+          "extends": [],
+          "fields": [
+            {
+              "name": "model",
+              "optional": false,
+              "type": "'meta-llama/Llama-2-70b-hf' | 'mistralai/Mistral-7B-v0.1' | 'mistralai/Mixtral-8x7B-v0.1' | 'Meta-Llama/Llama-Guard-7b' | (string & {})"
+            },
+            {
+              "name": "prompt",
+              "optional": false,
+              "type": "string"
+            },
+            {
+              "name": "echo",
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "frequency_penalty",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "logit_bias",
+              "optional": true,
+              "type": "{\n    [key: string]: number;\n}"
+            },
+            {
+              "name": "logprobs",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "max_tokens",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "min_p",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "n",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "presence_penalty",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "repetition_penalty",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "safety_model",
+              "optional": true,
+              "type": "'Meta-Llama/Llama-Guard-7b' | (string & {})"
+            },
+            {
+              "name": "seed",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "stop",
+              "optional": true,
+              "type": "Array<string>"
+            },
+            {
+              "name": "stream",
+              "optional": true,
+              "type": "boolean"
+            },
+            {
+              "name": "temperature",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "top_k",
+              "optional": true,
+              "type": "number"
+            },
+            {
+              "name": "top_p",
+              "optional": true,
+              "type": "number"
+            }
+          ]
+        },
+        "CompletionCreateParams.CompletionCreateParamsNonStreaming": {
+          "kind": "alias",
+          "type": "CompletionsAPI.CompletionCreateParamsNonStreaming"
+        },
+        "CompletionCreateParams.CompletionCreateParamsStreaming": {
+          "kind": "alias",
+          "type": "CompletionsAPI.CompletionCreateParamsStreaming"
+        },
+        "CompletionCreateParamsNonStreaming": {
+          "kind": "interface",
+          "extends": [
+            "CompletionCreateParamsBase"
+          ],
+          "fields": [
+            {
+              "name": "stream",
+              "optional": true,
+              "type": "false"
+            }
+          ]
+        },
+        "CompletionCreateParamsStreaming": {
+          "kind": "interface",
+          "extends": [
+            "CompletionCreateParamsBase"
+          ],
+          "fields": [
+            {
+              "name": "stream",
+              "optional": false,
+              "type": "true"
+            }
+          ]
+        }
+      }
+    }
+  },
+  "meaning": "Declarations and reviewed top-level field dispositions. Not a claim of nested semantics, runtime, model, live or endpoint parity. Review provider tests and remaining limits separately.",
+  "dispositions": {
+    "messages": {
+      "status": "runtime-owned",
+      "api": "ModelRequest.messages and instructions"
+    },
+    "model": {
+      "status": "runtime-owned",
+      "api": "TogetherChatModel.model"
+    },
+    "chat_template_kwargs": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.chatTemplateKwargs"
+    },
+    "compliance": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.compliance"
+    },
+    "context_length_exceeded_behavior": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.contextLengthExceededBehavior"
+    },
+    "echo": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.echo"
+    },
+    "frequency_penalty": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.frequencyPenalty"
+    },
+    "function_call": {
+      "status": "native-only",
+      "api": "TogetherClient.createChat/streamChat",
+      "reason": "Legacy function calling is not normalized by AiAgent; use registered function tools."
+    },
+    "logit_bias": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.logitBias"
+    },
+    "logprobs": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.logprobs"
+    },
+    "max_tokens": {
+      "status": "runtime-owned",
+      "api": "ModelRequest.maxOutputTokens"
+    },
+    "min_p": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.minP"
+    },
+    "n": {
+      "status": "runtime-owned",
+      "api": "fixed to one completion in the agent adapter"
+    },
+    "presence_penalty": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.presencePenalty"
+    },
+    "reasoning": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.reasoningEnabled"
+    },
+    "reasoning_effort": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.reasoningEffort"
+    },
+    "repetition_penalty": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.repetitionPenalty"
+    },
+    "response_format": {
+      "status": "runtime-owned",
+      "api": "ModelRequest.outputSchema"
+    },
+    "safety_model": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.safetyModel"
+    },
+    "seed": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.seed"
+    },
+    "stop": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.stop"
+    },
+    "stream": {
+      "status": "runtime-owned",
+      "api": "fixed to true in the agent adapter"
+    },
+    "temperature": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.temperature"
+    },
+    "tool_choice": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.toolChoice"
+    },
+    "tools": {
+      "status": "runtime-owned",
+      "api": "registered ModelTool definitions"
+    },
+    "top_k": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.topK"
+    },
+    "top_p": {
+      "status": "typed-option",
+      "api": "TogetherChatOptions.topP"
+    }
+  },
+  "remaining": [
+    "Full nested request/response field handling inventory and normalized metadata",
+    "Together resources outside Chat Completions",
+    "Live Together account/model, cache and usage verification",
+    "Message names, URL audio, and provider-native schema overrides require raw native requests",
+    "Prompt echoes, log probabilities, warnings, seeds, and arbitrary response metadata are native-only, not normalized AgentResult fields"
+  ]
+}

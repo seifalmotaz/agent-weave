@@ -12,3 +12,8 @@ jobs:
         with:
           python-version: '3.12'
       - run: python3 tool/audit_openai.py
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: 22
+      - run: npm ci --prefix tool/interop --ignore-scripts --no-audit --no-fund
+      - run: node tool/interop/inventory.mjs --upstream

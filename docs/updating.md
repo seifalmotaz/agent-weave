@@ -45,3 +45,28 @@ and the remaining limits. A Git push is not a pub.dev publication.
 checkpoint, and release the reservation. Do not implement it as two separately
 committed calls. The shared contract in `test/support/run_store_contract.dart`
 runs against both memory and PostgreSQL and exercises rollback and stale writers.
+
+## Together contract snapshots
+
+The native Together adapter is checked against a full official TypeScript SDK
+commit. `tool/contracts/together/source.json` records the pin and original file
+paths; unmodified reference snapshots retain their upstream license.
+
+Run `node tool/interop/inventory.mjs --upstream` after installing the interop
+tool dependencies to detect changes in the two upstream source files. This is
+also part of the manually invoked upstream-review workflow. It can report
+non-semantic documentation changes; review the source diff.
+
+Select a full commit and update the snapshots before changing the pin. Review
+changed field types, nested unions, stream semantics and response handling.
+Update the Dart implementation, executable option fixture and `coverage.json`
+dispositions, then run `node tool/interop/inventory.mjs --write` and the full
+check. To reproduce the offline field check separately:
+
+```sh
+dart run tool/together_contract.dart
+node tool/interop/inventory.mjs --check
+```
+
+A classified field is not evidence of model acceptance or exhaustive coverage.
+Keep raw-native access, normalized agent behavior and live results distinct.

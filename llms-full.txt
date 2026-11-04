@@ -19,6 +19,7 @@ using it in production.
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
 | [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic Messages, tools, structured output, thinking replay, and cache controls |
+| [`agent_weave_together`](packages/agent_weave_together) | Native Together Chat Completions and typed options |
 | [`agent_weave_openrouter`](packages/agent_weave_openrouter) | OpenRouter Chat Completions and selected typed routing options |
 | [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
 | [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
@@ -113,6 +114,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [OpenRouter](docs/openrouter.md)
+- [Together Chat Completions](docs/together.md)
 - [Compatibility and limitations](docs/compatibility.md)
 - [Validation evidence](docs/validation.md)
 - [Upstream updates](docs/updating.md)
@@ -562,6 +564,25 @@ The OpenRouter text/routing journey scores **7.8/10** (discoverability 8, clarit
 The polished, reusable cases are `examples/review_cases/documents.dart` and `examples/review_cases/openrouter.dart`. Run with assertions enabled using the commands in the file headers. They pass on Dart 3.12.2 and strict `dart analyze` reports no issues. Document checks now assert canonical `source.value` for URL, inline bytes and scoped ID in hydration, and verify Anthropic PDF/base64 and text request serialization alongside Responses. The OpenRouter case verifies both the successful loopback and an inline error reaching the high-level exception's trusted backend `cause`. No actual provider calls, persistent store restart, billing, cancellation, or complete format support were tested.
 
 
+## Round 6: native Together consumer
+
+Initial score: 8/10. Updated offline developer experience score: 8/10.
+
+| Criterion | Score | Reason |
+| --- | --- | --- |
+| Getting started and documentation | 8/10 | The guide shows client ownership, environment keys, a complete text example, and model-dependent limits. |
+| Typed configuration | 8/10 | Named options and enums are discoverable; raw native JSON remains less discoverable and lacks static field checks. |
+| Agent workflows | 8/10 | The loopback app exercised structured output, approval, tool execution and replay; model-dependent support remains unverified. |
+| Errors and lifecycle | 8/10 | High-level errors retain safe-to-string provider causes and immutable diagnostics; cancellation was checked before sending, not during every network phase. |
+| Streaming and output | 8/10 | Fragmented arguments, repeated call metadata, usage and length-limited partial text passed synthetic fixtures; real provider variants remain unverified. |
+
+The initial review exposed dropped usage after a finish event; the fix passed the consumer test. The updated example also checks HTTP 429 status, request ID, nested immutable details and redacted exception string through `generateText`, as well as partial text and finish reason. It exercises the new enums through the public constructor.
+
+Commands passed: `dart test packages/agent_weave_together/test/consumer_test.dart`; `dart --enable-asserts run examples/review_cases/together.dart`.
+
+All checks used offline loopback responses with synthetic data. No paid calls, live Together model acceptance, billing, real network interruption, or exhaustive native fields were tested.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -620,6 +641,21 @@ every operation. Replay observes persisted events; it does not rerun the model.
 
 `streamAgent` fits a generated Serverpod endpoint returning `Stream<String>`.
 `serverpodConnection` connects that endpoint to `tanstack_ai_dart`.
+
+## Native provider boundaries
+
+Together uses its own request serializer and HTTP stream transport. Delegating
+its requests to the OpenAI SDK would lose unrepresented fields and change native
+numeric `logprobs` into an OpenAI boolean. Adding hidden HTTP body rewriting
+would also separate the public types from what was actually sent. The native
+boundary keeps those provider differences visible in `TogetherChatOptions`.
+
+`TogetherChatModel` converts one `ModelRequest` into one native request and maps
+streamed text, reasoning, tools and usage back into core events. `AiAgent` owns
+approvals, validation, tool execution and authoritative history. The raw client
+provides a separate JSON contract for native choices and metadata that the agent
+does not normalize. Cancellation and timeout belong to each HTTP request;
+cancelling one stream does not close a shared client.
 
 
 # Source: docs/tools.md
@@ -1000,6 +1036,175 @@ and stream behavior. Live model behavior, billing, cache hits, and cancellation
 have not been verified. See [provider coverage](provider-coverage.md).
 
 
+# Source: docs/together.md
+
+# Use Together Chat Completions
+
+`agent_weave_together` provides a native Together Chat Completions client and a
+`ChatModel` adapter. The agent runtime owns tool execution, approvals, and
+history. Model support for tools, schemas, images, video, and audio varies.
+
+## Run a backend request
+
+From the workspace root, run `dart pub get`. Save this example as
+`examples/together_demo.dart`. Set `TOGETHER_API_KEY` and `TOGETHER_MODEL` in
+your backend environment, choosing a model available to your account. Running
+the example makes a paid provider request. Keep the key on the backend.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_together/agent_weave_together.dart' as together;
+
+Future<void> main() async {
+  final key = Platform.environment['TOGETHER_API_KEY'];
+  final modelId = Platform.environment['TOGETHER_MODEL'];
+  if (key == null || modelId == null) {
+    throw StateError('Set TOGETHER_API_KEY and TOGETHER_MODEL.');
+  }
+  final client = together.TogetherClient(apiKey: key);
+  try {
+    final model = together.TogetherChatModel(
+      client: client,
+      model: modelId,
+      options: together.TogetherChatOptions(temperature: 0.3),
+    );
+    final result = await generateText(model: model, prompt: 'Say hello.');
+    print(result.text);
+  } finally {
+    client.close();
+  }
+}
+```
+
+Run `dart run examples/together_demo.dart` to print the response. The same
+model works with `AiAgent` and its registered tools, approvals, schema output,
+and history. See [tools and approvals](tools.md) and the
+[Dart API guide](dart-api.md).
+
+## Choose typed options or native JSON
+
+See [all reviewed request fields](together-options.md) for their Dart entry points.
+
+`TogetherChatOptions` snapshots its input values and exposes typed options,
+including enums for compliance, context length behavior, and reasoning effort.
+`logprobs` is an integer from 0 to 20. The runtime owns `max_tokens` through
+`ModelRequest.maxOutputTokens` or the corresponding agent setting. The agent
+adapter requests one choice (`n: 1`).
+
+For multiple choices (`n > 1`), legacy `function_call`, or other native fields,
+use `TogetherClient.createChat` or `streamChat` with native JSON. These methods
+return native JSON; `streamChat` sets `stream: true`. The agent adapter does not
+normalize legacy function calls. Native JSON access does not establish support
+for every Together operation.
+
+The agent adapter rejects document inputs. Inline audio must be WAV. Image,
+video, audio, tool, and schema acceptance depends on the selected model.
+
+## Handle requests and errors
+
+The default request timeout is two minutes for the entire HTTP request. Set
+`requestTimeout` on `TogetherClient` to change it. Timeout and a user-provided
+`CancellationToken` abort the HTTP request. Cancelling a native stream
+subscription also aborts that request without closing the shared client. The client does not automatically
+retry POST requests. Close the `TogetherClient` when finished. If you inject an
+HTTP client, you own and must close that HTTP client.
+
+A `TogetherException` provides `statusCode`, `requestId`, and optional JSON
+`details` to trusted backend code. Its `toString()` omits provider response
+bodies. Do not expose a provider error's cause or details to the UI; they can
+contain private data. Protect logs and avoid logging request or response bodies.
+
+A `length` finish returns partial text with `finishReason: 'length'`. Truncated
+tool calls fail rather than execute. Choose output limits appropriate to your
+application and handle partial results.
+
+## Review the pinned contract
+
+The AST-generated [chat inventory](together-chat-inventory.json) records 27
+top-level request fields and their dispositions for the pinned declaration. It
+is an inventory, not a certification of nested fields, response handling,
+lifecycle, models, or other operations. The pin is in
+`tool/contracts/together/source.json`; dispositions are in
+`tool/contracts/together/coverage.json`. Headers and query parameters are
+captured as maps; this does not claim coverage of every operation.
+
+From the repository root, install the inventory tool dependencies and run the
+checks:
+
+```sh
+npm ci --prefix tool/interop --ignore-scripts --no-audit --no-fund
+dart run tool/together_contract.dart
+node tool/interop/inventory.mjs --check
+```
+
+`node tool/interop/inventory.mjs --upstream` compares the pinned files with
+upstream main. Review changes before running `--write` to update the inventory.
+Offline fixtures cover selected requests and streams. No live Together request,
+model acceptance, or billing has been verified.
+
+The normal checks include an independent, runnable offline consumer:
+
+```sh
+dart --enable-asserts run examples/review_cases/together.dart
+```
+
+It exercises a real loopback HTTP service, schema output, tool approval and
+continuation, private reasoning replay, partial output and backend diagnostics.
+Response log probabilities, prompt echoes, warnings and arbitrary provider
+metadata are available through the raw native client and are not normalized into
+`AgentResult`. Message names and URL audio also require native requests.
+
+
+# Source: docs/together-options.md
+
+# Together chat request fields
+
+Generated from the reviewed [contract inventory](together-chat-inventory.json) at
+Together SDK commit `488006d90b67d589034d8323a11cfab9b588abca`. Do not edit this table by hand;
+review the source pin and run `node tool/interop/inventory.mjs --write`.
+
+The agent adapter owns conversation history, tools, schema and execution bounds.
+Use the native JSON client where indicated. A field disposition does not prove
+nested semantics, model acceptance, or coverage of other endpoints. See the
+[Together guide](together.md) for complete setup, errors and known limits.
+
+| Wire field | Dart entry point or runtime behavior | Disposition |
+| --- | --- | --- |
+| messages | ModelRequest.messages and instructions | runtime-owned |
+| model | TogetherChatModel.model | runtime-owned |
+| chat_template_kwargs | TogetherChatOptions.chatTemplateKwargs | typed-option |
+| compliance | TogetherChatOptions.compliance | typed-option |
+| context_length_exceeded_behavior | TogetherChatOptions.contextLengthExceededBehavior | typed-option |
+| echo | TogetherChatOptions.echo | typed-option |
+| frequency_penalty | TogetherChatOptions.frequencyPenalty | typed-option |
+| function_call | TogetherClient.createChat/streamChat | native-only |
+| logit_bias | TogetherChatOptions.logitBias | typed-option |
+| logprobs | TogetherChatOptions.logprobs | typed-option |
+| max_tokens | ModelRequest.maxOutputTokens | runtime-owned |
+| min_p | TogetherChatOptions.minP | typed-option |
+| n | fixed to one completion in the agent adapter | runtime-owned |
+| presence_penalty | TogetherChatOptions.presencePenalty | typed-option |
+| reasoning | TogetherChatOptions.reasoningEnabled | typed-option |
+| reasoning_effort | TogetherChatOptions.reasoningEffort | typed-option |
+| repetition_penalty | TogetherChatOptions.repetitionPenalty | typed-option |
+| response_format | ModelRequest.outputSchema | runtime-owned |
+| safety_model | TogetherChatOptions.safetyModel | typed-option |
+| seed | TogetherChatOptions.seed | typed-option |
+| stop | TogetherChatOptions.stop | typed-option |
+| stream | fixed to true in the agent adapter | runtime-owned |
+| temperature | TogetherChatOptions.temperature | typed-option |
+| tool_choice | TogetherChatOptions.toolChoice | typed-option |
+| tools | registered ModelTool definitions | runtime-owned |
+| top_k | TogetherChatOptions.topK | typed-option |
+| top_p | TogetherChatOptions.topP | typed-option |
+
+The native client accepts arbitrary JSON fields; it does not statically validate
+the whole provider API. Typed options cover common agent requests. Native response
+metadata is available from raw methods; not all fields are normalized by the agent.
+
+
 # Source: docs/anthropic.md
 
 # Native Anthropic Messages
@@ -1124,14 +1329,14 @@ Status: incremental inventory, not an assertion of complete provider support. Re
 
 ## What exists
 
-The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. There are no dedicated Together, Vercel Gateway or Cloudflare packages. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
+The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the `ChatModel` extension interface (`docs/providers.md`). The new `agent_weave_anthropic` uses the native Messages API through `anthropic_sdk_dart 9.0.1`, with offline fixtures. The `agent_weave_openrouter` package wraps Chat Completions with selected typed OpenRouter options and offline fixtures. The `agent_weave_together` package provides native Chat Completions and offline fixtures. There are no dedicated Vercel Gateway or Cloudflare packages. `OpenAIChatModel` maps runtime history and function tools to streamed Chat Completions and supports a typed SDK `configure` callback. OpenAI-compatible base URLs can be supplied through the SDK client, but neither this configuration nor custom provider support establishes endpoint-specific compatibility. Runtime currently interprets only part of the returned stream, as documented in [the OpenAI audit](openai-options-audit.md). `OpenAIPlatformApi` is a restricted JSON/raw transport, not a complete native or streaming provider adapter.
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; some fixture coverage. | See [OpenAI audit](openai-options-audit.md): non-function tool continuation, events, transport, media and complete field-by-field coverage remain open. |
 | Anthropic native Messages | Native Messages adapter with text, URL-image and URL or inline PDF/plain-text document input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
 | OpenRouter Chat and Responses | Dedicated Chat adapter exposes selected typed provider preferences, fallback models, route, reasoning, and usage options with offline fixtures. Responses is not implemented. | [Routing documentation](https://openrouter.ai/docs/guides/routing/provider-selection) and [Responses reference](https://openrouter.ai/docs/api/api-reference/responses/create-responses) describe routing, fallbacks and response metadata. Plugins, top-level cache control and newer routing fields are unavailable. The adapter does not preserve response provider identity, cost or reasoning continuation metadata. Inventory nested options, routing, sticky/cache behavior, plugins, headers and usage/cost; preserve actual provider metadata. Typed serialization is not proof the gateway accepts it or runtime processes the response. Test Responses separately from Chat. |
-| Together inference | OpenAI-compatible Chat transport can be pointed at a suitable endpoint; no Together-specific adapter, native feature mapping, request tests or claims. | Inventory [Together API reference](https://docs.together.ai/reference/chat-completions) by endpoint/model, including sampling, stop, tools, response formats, caching, routing, streaming and media as actually offered. Preserve provider-specific data and errors. Verify documented base URL/auth and serialized request in a fixture before promising compatibility; test native non-chat operations separately. |
+| Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | A configurable compatible transport is possible; no Gateway-specific adapter, routing controls or response metadata integration. | Gateway documents distinct [Chat, Responses, Anthropic Messages and other interfaces](https://vercel.com/docs/ai-gateway/sdks-and-apis). Its [provider options](https://vercel.com/docs/ai-gateway/models-and-providers/provider-options) include routing order/filtering, cache behavior, timeouts/fallbacks and request-scoped credentials. Map each API's actual wire format and security boundary rather than copying AI SDK JavaScript option objects into OpenAI requests. Preserve selected provider and usage; protect BYOK secrets. |
 | Cloudflare Workers AI / AI Gateway | Configurable OpenAI Chat/embedding SDK path is possible; no dedicated Workers AI `/run` adapter, Worker binding or Gateway-specific integration. | [Workers AI bindings](https://developers.cloudflare.com/workers-ai/configuration/bindings/) and [model parameters](https://developers.cloudflare.com/workers-ai/models/gpt-oss-120b/) are model- and endpoint-specific; [changelog](https://developers.cloudflare.com/changelog/product/workers-ai/2/) also documents Responses for particular models. Inventory `/run`, compatible endpoints and gateway separately; model-specific input/output schemas, auth/account path, streaming, errors, gateway caching and metadata cannot be inferred from OpenAI support. |
 | Other providers | Custom `ChatModel` can be implemented by users. | No blanket support or parity claim. Add named provider/API/version inventory entries and evidence before advertising them. Model availability, feature support and defaults are not stable constants. |
@@ -1201,10 +1406,14 @@ not a claim of full TanStack AI core parity.
 - Document support varies by adapter. Responses accepts URLs, inline data, and
   OpenAI file IDs. Anthropic accepts URLs, inline PDF, and inline plain text;
   file IDs are blocked by the pinned SDK. Chat Completions and OpenRouter
-  reject documents. See [documents](documents.md) for storage implications.
+  and Together reject documents. See [documents](documents.md) for storage
+  implications.
 - OpenRouter supports selected typed request options; plugins, top-level cache
   control, newer routing fields, and response provider, cost, and reasoning
   continuation metadata are not preserved. See [OpenRouter](openrouter.md).
+- Together Chat has typed options and native JSON methods. Its agent adapter
+  supports one choice; model acceptance of tools, schema, and media remains
+  unverified. See [Together](together.md).
 - Microphone capture, playback, WebRTC device behavior, and all provider account
   permissions require application/device testing.
 
@@ -1262,6 +1471,31 @@ checkpoint, and release the reservation. Do not implement it as two separately
 committed calls. The shared contract in `test/support/run_store_contract.dart`
 runs against both memory and PostgreSQL and exercises rollback and stale writers.
 
+## Together contract snapshots
+
+The native Together adapter is checked against a full official TypeScript SDK
+commit. `tool/contracts/together/source.json` records the pin and original file
+paths; unmodified reference snapshots retain their upstream license.
+
+Run `node tool/interop/inventory.mjs --upstream` after installing the interop
+tool dependencies to detect changes in the two upstream source files. This is
+also part of the manually invoked upstream-review workflow. It can report
+non-semantic documentation changes; review the source diff.
+
+Select a full commit and update the snapshots before changing the pin. Review
+changed field types, nested unions, stream semantics and response handling.
+Update the Dart implementation, executable option fixture and `coverage.json`
+dispositions, then run `node tool/interop/inventory.mjs --write` and the full
+check. To reproduce the offline field check separately:
+
+```sh
+dart run tool/together_contract.dart
+node tool/interop/inventory.mjs --check
+```
+
+A classified field is not evidence of model acceptance or exhaustive coverage.
+Keep raw-native access, normalized agent behavior and live results distinct.
+
 
 # Source: docs/validation.md
 
@@ -1288,10 +1522,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest document/OpenRouter increment was checked on Dart 3.12.2. The prior
+The latest native Together increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 174 Dart unit and regression tests: tool validation, approvals, client tools,
+- 192 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 13 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -1400,6 +1634,32 @@ independent consumer programs, `examples/review_cases/documents.dart` and
 journeys scored 8.0/10 and 7.8/10 after documentation fixes. Neither score
 certifies complete provider support. No new live API calls were made.
 
+## Native Together increment
+
+Eighteen Together tests run a local HTTP service and cover native numeric
+`logprobs`, immutable options, schema/tool serialization, reasoning replay,
+fragmented tool arguments with repeated IDs/names, usage after finish, bounded
+text output, native metadata, multi-choice EOF, stream/HTTP errors and private
+diagnostics. Cancellation is tested before sending, before response headers and
+during the body. Cancelling the native stream subscription also aborts a
+pending request without closing the shared client; a stalled response tests
+per-request timeout. These are real
+local HTTP tests, not live Together calls.
+
+The independent consumer program exercises schema output, a stored tool approval
+and continuation, reasoning/tool replay, partial output and error diagnostics.
+Its targeted offline DX score remains 8/10; it does not certify production
+behavior or all native fields.
+
+The offline AST tool has three parser/coverage tests. It extracts the pinned
+official SDK declarations and checks all 27 top-level chat request fields have
+reviewed dispositions. An executable Dart fixture serializes every typed option.
+`--upstream` was also run against current official source and found no difference
+in the pinned files. No new paid requests were made.
+
+The Together package publication dry-run passed with zero warnings on Dart
+3.12.2. This is packaging evidence, not a pub.dev publication.
+
 
 # Source: CONTRIBUTING.md
 
@@ -1438,7 +1698,8 @@ TypeScript API conventions into the Dart developer API.
 - Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
 - Core model contracts and agent execution live in `packages/agent_weave`.
 - Provider-specific types stay in `packages/agent_weave_openai` and
-  `packages/agent_weave_anthropic`, and `packages/agent_weave_openrouter`.
+  `packages/agent_weave_anthropic`, `packages/agent_weave_openrouter`, and
+  `packages/agent_weave_together`.
   Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
