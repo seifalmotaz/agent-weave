@@ -130,3 +130,21 @@ A fresh session can fetch their remote branches without these local paths.
   in a fresh environment, establish the prior cumulative spend before paid work.
 - No pub.dev publication is authorized by this handoff. Keep publication,
   merging, tests and deployment evidence distinct. No credentials belong here.
+
+## Deferred post-release PRs
+
+These tracking drafts are for after the base release and do not block PRs #1–#4.
+They contain work plans only. Each remote branch is named `later/<slug>` and
+contains `workstreams/<slug>.md`; continue implementation there after fetching.
+
+- [#5: OpenRouter provider completion](https://github.com/seifalmotaz/agent-weave/pull/5) — `later/openrouter-expansion`
+- [#6: Together provider completion](https://github.com/seifalmotaz/agent-weave/pull/6) — `later/together-expansion`
+- [#7: Vercel AI Gateway provider completion](https://github.com/seifalmotaz/agent-weave/pull/7) — `later/vercel-gateway-expansion`
+- [#8: Cloudflare Workers AI and Gateway completion](https://github.com/seifalmotaz/agent-weave/pull/8) — `later/cloudflare-expansion`
+- [#9: Ollama and Flutter local-model validation](https://github.com/seifalmotaz/agent-weave/pull/9) — `later/ollama-local-models`
+- [#10: Advanced OpenAI and Anthropic capabilities](https://github.com/seifalmotaz/agent-weave/pull/10) — `later/advanced-provider-capabilities`
+- [#11: Dart Frog and Flutter ecosystem expansion](https://github.com/seifalmotaz/agent-weave/pull/11) — `later/framework-ecosystem`
+
+The complete phase index is `workstreams/README.md` on this checkpoint branch.
+Work remains paused after this bookkeeping update. No provider implementation,
+merge or publication was performed to create these tracking drafts.
