@@ -8,6 +8,8 @@ transport API. They share the same validation and tool loop.
 Runnable offline examples: [consumer scenarios](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/consumer.dart)
 and [failure diagnostics](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/failures.dart).
 Run `dart run examples/review_cases/consumer.dart` from the workspace root.
+For a complete application with typed tools, approval, shared memory history,
+and a synthetic file reference, run the [offline support example](offline-support.md).
 
 ## Generate text
 
@@ -62,6 +64,44 @@ print(answer.generation.usage?.inputTokens);
 Validation runs before your decoder. Decoder exceptions are application errors
 and propagate normally. A provider that does not support structured output is
 rejected before submission.
+
+### Inspect schema errors on the backend
+
+`validateSchema` throws `SchemaValidationException`, a `FormatException` subclass.
+Its immutable `issues` list contains `instancePath`, `schemaPath`, and `message`
+from the installed JSON Schema validator. Tool input, tool output, structured
+output, and edited approval arguments use the same validation function.
+An agent failure retains this exception in its private `cause`.
+
+```dart
+try {
+  await agent.generate(request, ownerId: ownerId, context: context);
+} on AgentRunException catch (error) {
+  if (error.cause case SchemaValidationException(:final issues)) {
+    for (final issue in issues) {
+      backendLogger.error('${issue.instancePath}: ${issue.message}');
+    }
+  }
+  showSafeError(error.message);
+}
+```
+
+Keep `issues` in backend diagnostics. Messages can include input or schema values.
+The exception's default `message` and `toString()` remain generic, and client
+errors do not include the issues. Original model text and user messages still
+belong to conversation history; this does not redact their contents.
+
+Paths follow `json_schema` conventions, not escaped JSON Pointers. A root path
+can be empty; property names containing `/` or `~` are not escaped. Combinators
+such as `oneOf` can report only a summary without nested branch errors.
+Edited tool arguments are validated against their original schema separately
+from the approval envelope, preserving their field paths and local references.
+The public approval schema and its wire hash are unchanged. The pinned validator
+cannot resolve some local references when that schema is embedded in the public
+approval union; this change does not establish client-side reference support.
+
+Run `dart run examples/schema_diagnostics.dart` for a complete offline example.
+It prints a safe `INVALID_OUTPUT` message and a private `/priority` diagnostic.
 
 ## Typed tools, approvals, and durable Serverpod history
 
@@ -150,6 +190,36 @@ The [runnable two-command approval example](../examples/serverpod/README.md#run-
 includes the complete client setup and an automated real process-restart test.
 Native `loadHistory` supports full snapshots. Advanced paging remains available
 through an explicit `hydrate` callback.
+
+## Cancel a running operation
+
+Create one `CancellationToken` per operation and pass it to `generate` or `run`.
+Your application's stop action calls `cancel()` on that token.
+
+```dart
+final cancellation = CancellationToken();
+final work = agent.generate(
+  request,
+  ownerId: ownerId,
+  context: context,
+  cancellation: cancellation,
+);
+// Call this from the application's stop action while work is in progress.
+cancellation.cancel();
+try {
+  await work;
+} on RunCancelled {
+  // Treat this as a cancelled run, not a completed answer.
+}
+```
+
+Cancellation is cooperative. Custom models and tool executors must observe
+`context.cancellation` or the invocation's token. Cancellation does not undo an
+external effect or prove the provider stopped billing. Retained partial history
+is available from the run store; use `chatHydration` to expose a safe snapshot.
+
+Run `dart run examples/cancellation.dart` to cancel an already-started offline
+provider and verify its cancelled checkpoint. It needs no timer or API key.
 
 ## Handle failures
 

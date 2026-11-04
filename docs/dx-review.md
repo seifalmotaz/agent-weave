@@ -500,3 +500,46 @@ DX: the typed source/position variants make the file-list versus insertion disti
 For applications that need citations, choosing buffered Chat sacrifices token-by-token delivery; the typed flag and explicit error make the boundary discoverable, but callers must deliberately render reference metadata. This review did not establish native Unicode index semantics or test a live model, rendering, file resolution, durable storage or streamed annotation support.
 
 Final guide review: the first Dart block of `docs/output-references.md` byte-matches `examples/openai_references_demo.dart`. The demo and both independent consumer files analyze cleanly; the demo compiles to a kernel without making a billable request, and both loopback consumers pass again. The guide clearly distinguishes enclosing UTF-16 context from unspecified provider coordinates, covers 0/0, buffered Chat, replay, metadata and authenticated file resolution. No additional concrete DX issue was found. The independently scoped scores remain 8/10 for each native path; this review did not independently rerun JS or PostgreSQL.
+
+
+## Round 21: backend diagnostics and offline onboarding
+
+# Independent Dart consumer review
+
+Scope: offline public API consumer journeys for a small support app. Overall: **8/10** for the journeys exercised, not the SDK or provider support as a whole. The Future APIs, typed tool and scripted model felt idiomatic; approvals and references require more concepts and assembly than ordinary chat. No production source was needed: README, docs/dart-api.md, docs/tools.md, docs/output-references.md and the linked review examples were sufficient. I consulted test/example snippets for the cancellation and synthetic reference constructor, not internal implementation.
+
+Run from the workspace root:
+
+```sh
+.dart_tool/dart-3.12.2/dart-sdk/bin/dart analyze examples/review_cases/support_app.dart
+.dart_tool/dart-3.12.2/dart-sdk/bin/dart run examples/review_cases/support_app.dart
+```
+
+Both passed. Cases: text and reported usage; typed support escalation that pauses without a side effect, then executes once after approval in a recreated agent using a shared MemoryRunStore; structured decoding and schema failure; pre-cancellation; and a synthetic file reference retained with its text context. The model fixture checks sent messages and tool history. There were no failures before workarounds and no confirmed functional defect in these cases.
+
+Friction and recommendations:
+
+- The invalid output's safe message was `Invalid input or provider output.` and its backend cause was `FormatException: Value does not match the declared JSON Schema.` This identifies the failure class but gives no field path or expected type for troubleshooting a larger schema. Consider providing safe, structured schema diagnostics to backend developers while retaining sanitized client messages.
+- The main Dart API failure example catches cancellation but does not show how to initiate it; the working pre-cancel example was found in examples/review_cases/reliability.dart. Add a concise `CancellationToken` example, including an in-flight example and the cooperative nature of cancellation.
+- The reference guide's primary runnable example requires a live billable provider, while synthetic construction is demonstrated separately in citations_client.dart. Link an explicitly offline reference example from that guide so a newcomer can validate rendering without credentials. Synthetic events exercise runtime preservation, not provider annotation parsing.
+- Approval code is understandable, but an application must supply input and output schemas, codec callbacks, context, IDs and store. A compact complete offline support example alongside the Serverpod recipe would make the required shared store and recreate/resume lifecycle clearer. MemoryRunStore recreation here is within one process; it does not demonstrate persistence across process restarts.
+
+Not checked: real providers, networking, a database or Serverpod restart, UI rendering, actual file retrieval, in-flight cancellation and production permissions/idempotency. No secrets or paid requests used.
+
+## Diagnostics re-review (initial implementation)
+
+Run `dart run examples/review_cases/schema_diagnostics.dart` with the pinned SDK. Analyzer passes; the script currently exits nonzero deliberately because edited approval diagnostic lacks the nested field/type. Structured output, tool input and tool output each produced backend issues with `/customer/priority`, a schema path and an expected integer. Default exception string/source and public error did not expose the test input marker. A separate schema-only private enum marker was absent from public streamed events and hydrated history. The initial edited-approval error instead had only an empty instance path, `/oneOf`, and `#/oneOf: violated No element`; it did not explain the bad field or expected type. Its rejected edited input was absent from hydration. Initial privacy-case compilation failed because `outputSchema` is not an `AiAgent.run` parameter; switched to testing a typed tool input schema via the documented API.
+
+After the resume-validation fix, both `support.dart` and `diagnostics.dart` pass with the pinned Dart SDK, and `dart analyze examples/review_cases/schema_diagnostics.dart` reports no issues. All four diagnostic cases now report `/customer/priority` and the expected integer. The issues list rejected mutation. The private schema-only enum marker stayed out of the default exception string, public error, streamed events and hydrated history. This checks those specific outputs, not every serialization path. The original failed provider text is application content and can remain in history; do not interpret this privacy check as removing it.
+
+## Final round 21 consumer re-review
+
+**8.5/10**, scoped to the offline journeys executed (baseline 8/10). The new field-level backend errors and discoverable offline recipes resolve the largest observed friction. Approval still involves several IDs, schemas and callbacks, and provider behavior and durable deployment are outside this score.
+
+In addition to the two consumer scripts above, all four sample invocations ran successfully with `.dart_tool/dart-3.12.2/dart-sdk/bin/dart run`: `examples/offline_support.dart` (pause, zero effects), `examples/offline_support.dart --approve` (completion, one effect and synthetic file reference), `examples/cancellation.dart` (in-flight cancellation and asserted cancelled checkpoint), and `examples/schema_diagnostics.dart` (sanitized error and backend `/priority` detail). The offline guide accurately describes the outputs and its complete source block matches the checked-in example. README, Dart recipes, output references and the website getting-started page now lead to the relevant examples. The guide correctly distinguishes shared in-process memory from durable restart, and the diagnostics guide warns that issue details can contain private input/schema values and that original conversation content remains visible.
+
+Prior failure and correction: initially edited arguments yielded only a root `/oneOf` diagnostic, without the bad field or expected type. After the resume validation fix, the same consumer case passes with `/customer/priority` and `integer`. The first attempt to test streaming schema privacy passed `outputSchema` to `run`, which is not an accepted public argument; the final test uses a typed tool input schema and passes. No other defect was observed in these cases.
+
+Not independently checked: live providers, PostgreSQL/Serverpod restart, real file downloads, client-side `$ref` approval behavior, JS or Flutter rendering, or paid billing. The reported reference and model events are synthetic; cancellation covers a cooperative offline provider. No full suite or external calls were run.
+
+Root verification: both consumer scripts are now checked in and wired into `tool/check.dart`. Formatting the copied scripts exposed a flow-control braces lint that the ignored `.dart_tool` review folder did not enable; adding braces corrected it without changing behavior. The tracked scripts run successfully and pass fatal-infos analysis.

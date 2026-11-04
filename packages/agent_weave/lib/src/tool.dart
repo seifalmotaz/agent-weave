@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:json_schema/json_schema.dart';
 import 'cancellation.dart';
 import 'model.dart';
+import 'schema_validation.dart';
 
 final class ToolContext<C> {
   final C value;
@@ -108,10 +109,16 @@ final class ClientTool<C> implements AgentTool<C> {
 }
 
 void validateSchema(JsonObject schema, Object? value) {
-  if (!JsonSchema.create(schema).validate(value).isValid) {
-    throw const FormatException(
-      'Value does not match the declared JSON Schema.',
-    );
+  final result = JsonSchema.create(schema).validate(value);
+  if (!result.isValid) {
+    throw SchemaValidationException([
+      for (final error in result.errors)
+        SchemaValidationIssue(
+          instancePath: error.instancePath,
+          schemaPath: error.schemaPath,
+          message: error.message,
+        ),
+    ]);
   }
 }
 

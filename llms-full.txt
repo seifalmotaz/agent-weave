@@ -47,6 +47,11 @@ The first example uses an offline provider. It needs no API key and makes no
 paid requests. See [the Serverpod example](examples/serverpod/README.md) for a
 backend with a database, HTTP streaming, and generated Dart endpoints.
 
+Next, run the [offline support application](docs/offline-support.md) for typed
+tools, approval, shared memory history, and a synthetic reference. The
+[Dart API recipes](docs/dart-api.md) include runnable cancellation and private
+schema-diagnostic examples.
+
 ## Define an agent
 
 ```dart
@@ -154,7 +159,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Independent developer agents must write and run consumer applications across
   multiple scenarios and score discoverability, clarity, type safety, debugging,
   and testing. Record failures and rerun after fixes. Use GPT-6.1 Terra with low
-  or medium reasoning. The latest general review is 8.0/10. The native Anthropic transport path scored
+  or medium reasoning. The latest general offline review is 8.5/10. The native Anthropic transport path scored
   8.4/10 and its computer-tool path scored 7.8/10. The targeted Dart Frog and Ollama
   paths scored 8.0/10 and 7.8/10. Neither is an acceptance pass.
 - Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
@@ -215,7 +220,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 ## Current reliability/DX increment
 
 Implemented: typed `generateText`, `generateObject`, and `AiAgent.generate`;
-immutable run results and usage; typed approval resolutions; scripted test
+immutable run results and usage; typed approval resolutions; backend-only field-level schema diagnostics; scripted test
 providers; atomic final event/checkpoint/release; safer observer handling;
 separate caller/model/output/tool/step-limit errors with safe Future messages;
 exact versioned pending tool contracts independent of client schema hashes; guarded provider request
@@ -239,6 +244,8 @@ transport API. They share the same validation and tool loop.
 Runnable offline examples: [consumer scenarios](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/consumer.dart)
 and [failure diagnostics](https://github.com/seifalmotaz/agent-weave/blob/main/examples/review_cases/failures.dart).
 Run `dart run examples/review_cases/consumer.dart` from the workspace root.
+For a complete application with typed tools, approval, shared memory history,
+and a synthetic file reference, run the [offline support example](offline-support.md).
 
 ## Generate text
 
@@ -293,6 +300,44 @@ print(answer.generation.usage?.inputTokens);
 Validation runs before your decoder. Decoder exceptions are application errors
 and propagate normally. A provider that does not support structured output is
 rejected before submission.
+
+### Inspect schema errors on the backend
+
+`validateSchema` throws `SchemaValidationException`, a `FormatException` subclass.
+Its immutable `issues` list contains `instancePath`, `schemaPath`, and `message`
+from the installed JSON Schema validator. Tool input, tool output, structured
+output, and edited approval arguments use the same validation function.
+An agent failure retains this exception in its private `cause`.
+
+```dart
+try {
+  await agent.generate(request, ownerId: ownerId, context: context);
+} on AgentRunException catch (error) {
+  if (error.cause case SchemaValidationException(:final issues)) {
+    for (final issue in issues) {
+      backendLogger.error('${issue.instancePath}: ${issue.message}');
+    }
+  }
+  showSafeError(error.message);
+}
+```
+
+Keep `issues` in backend diagnostics. Messages can include input or schema values.
+The exception's default `message` and `toString()` remain generic, and client
+errors do not include the issues. Original model text and user messages still
+belong to conversation history; this does not redact their contents.
+
+Paths follow `json_schema` conventions, not escaped JSON Pointers. A root path
+can be empty; property names containing `/` or `~` are not escaped. Combinators
+such as `oneOf` can report only a summary without nested branch errors.
+Edited tool arguments are validated against their original schema separately
+from the approval envelope, preserving their field paths and local references.
+The public approval schema and its wire hash are unchanged. The pinned validator
+cannot resolve some local references when that schema is embedded in the public
+approval union; this change does not establish client-side reference support.
+
+Run `dart run examples/schema_diagnostics.dart` for a complete offline example.
+It prints a safe `INVALID_OUTPUT` message and a private `/priority` diagnostic.
 
 ## Typed tools, approvals, and durable Serverpod history
 
@@ -381,6 +426,36 @@ The [runnable two-command approval example](../examples/serverpod/README.md#run-
 includes the complete client setup and an automated real process-restart test.
 Native `loadHistory` supports full snapshots. Advanced paging remains available
 through an explicit `hydrate` callback.
+
+## Cancel a running operation
+
+Create one `CancellationToken` per operation and pass it to `generate` or `run`.
+Your application's stop action calls `cancel()` on that token.
+
+```dart
+final cancellation = CancellationToken();
+final work = agent.generate(
+  request,
+  ownerId: ownerId,
+  context: context,
+  cancellation: cancellation,
+);
+// Call this from the application's stop action while work is in progress.
+cancellation.cancel();
+try {
+  await work;
+} on RunCancelled {
+  // Treat this as a cancelled run, not a completed answer.
+}
+```
+
+Cancellation is cooperative. Custom models and tool executors must observe
+`context.cancellation` or the invocation's token. Cancellation does not undo an
+external effect or prove the provider stopped billing. Retained partial history
+is available from the run store; use `chatHydration` to expose a safe snapshot.
+
+Run `dart run examples/cancellation.dart` to cancel an already-started offline
+provider and verify its cancelled checkpoint. It needs no timer or API key.
 
 ## Handle failures
 
@@ -477,6 +552,181 @@ to the user. Its `cause` and `causeStackTrace` are private backend diagnostics.
 For example, changed or legacy pending tool contracts provide a recovery
 instruction without exposing schemas or native configuration. See
 [approval contract migration](approval-contracts.md).
+
+
+# Source: docs/offline-support.md
+
+# Run a support workflow without an API key
+
+Run these commands from the cloned workspace after `dart pub get`:
+
+```sh
+dart run examples/offline_support.dart
+dart run examples/offline_support.dart --approve
+```
+
+The first command prints an interrupted result and `Application effects: 0`.
+The second starts a fresh demo, pauses, then simulates a human approval. It
+prints a completed result, `Application effects: 1`, and `Reference: Support policy`.
+Neither command uses a network service or bills a provider.
+
+Each command starts its own `MemoryRunStore`. The approved path recreates the
+agent inside the same process with that shared store. It does not restore data
+across process restarts. Use the [Serverpod restart example](../examples/serverpod/README.md#run-an-approval-across-process-restarts)
+for durable database history.
+
+## Run the complete application
+
+The source below is the checked-in `examples/offline_support.dart`. Copy it to
+a Dart file in the workspace and run it with `--approve` for the completed path.
+
+```dart
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave/testing.dart';
+
+const ticketSchema = <String, Object?>{
+  'type': 'object',
+  'properties': {
+    'ticket': {'type': 'integer'},
+  },
+  'required': ['ticket'],
+  'additionalProperties': false,
+};
+
+final class SupportDesk {
+  final _completed = <String, String>{};
+  int get escalations => _completed.length;
+
+  String escalate(int ticket, ToolContext<SupportDesk> context) =>
+      _completed.putIfAbsent(
+        context.idempotencyKey,
+        () => 'Ticket $ticket escalated for ${context.ownerId}',
+      );
+}
+
+Future<void> main(List<String> arguments) async {
+  const finalAnswer = 'Ticket 42 is now in the supervisor queue.';
+  final desk = SupportDesk();
+  final store = MemoryRunStore();
+  final tool = Tool<int, String, SupportDesk>(
+    name: 'escalate',
+    description: 'Escalate a support ticket after approval',
+    inputSchema: ticketSchema,
+    outputSchema: const {'type': 'string'},
+    needsApproval: true,
+    decode: (json) => json['ticket'] as int,
+    encode: (value) => value,
+    execute: (ticket, context) => context.value.escalate(ticket, context),
+  );
+  AiAgent<SupportDesk> agent(ChatModel model) =>
+      AiAgent<SupportDesk>(model: model, store: store, tools: [tool]);
+  final paused =
+      await agent(
+        ScriptedChatModel(
+          capabilities: const ModelCapabilities(tools: true),
+          steps: [
+            [
+              const TextDelta('I can escalate ticket 42 for review.'),
+              ToolCallReady(
+                ToolCall(
+                  id: 'escalation',
+                  name: 'escalate',
+                  arguments: {'ticket': 42},
+                ),
+              ),
+              const TokenUsage(inputTokens: 8, outputTokens: 4),
+              const ModelFinished(),
+            ],
+          ],
+        ),
+      ).generate(
+        ChatRequest(
+          threadId: 'support',
+          runId: 'proposal',
+          messages: [ChatMessage.user('Escalate ticket 42', id: 'question')],
+        ),
+        ownerId: 'demo-user',
+        context: desk,
+      );
+  print('${paused.status.name}: ${paused.text}');
+  print('Application effects: ${desk.escalations}');
+  if (paused.status != RunStatus.interrupted || desk.escalations != 0) {
+    throw StateError('The tool must wait for approval before causing effects.');
+  }
+  if (!arguments.contains('--approve')) {
+    print('Use --approve to exercise approval in a fresh demo process.');
+    return;
+  }
+  // This CLI flag simulates a recorded human decision. No external service runs.
+  final completed =
+      await agent(
+        ScriptedChatModel(
+          capabilities: const ModelCapabilities(tools: true),
+          steps: [
+            [
+              const TextDelta(finalAnswer),
+              ReferenceReady(
+                OutputReference(
+                  provider: 'demo',
+                  source: FileCitationSource(
+                    provider: 'demo',
+                    fileId: 'synthetic-policy',
+                    filename: 'Support policy',
+                  ),
+                  partStart: 0,
+                  partEnd: finalAnswer.length,
+                  position: FileListPosition(0),
+                ),
+              ),
+              const ModelFinished(),
+            ],
+          ],
+        ),
+      ).generate(
+        ChatRequest(
+          threadId: paused.threadId,
+          runId: 'approved',
+          parentRunId: paused.runId,
+          resume: [paused.interrupts.single.approve()],
+        ),
+        ownerId: 'demo-user',
+        context: desk,
+      );
+  print('${completed.status.name}: ${completed.text}');
+  print('Application effects: ${desk.escalations}');
+  if (completed.status != RunStatus.completed ||
+      completed.text != finalAnswer ||
+      desk.escalations != 1 ||
+      completed.responseMessages.last.references.single.source.title !=
+          'Support policy') {
+    throw StateError(
+      'The approved run did not retain its result and reference.',
+    );
+  }
+  for (final message in completed.responseMessages) {
+    for (final reference in message.references) {
+      print('Reference: ${reference.source.title}');
+    }
+  }
+}
+```
+
+The CLI flag represents a recorded human decision. In your application, wait
+for that decision before calling `approve()`. Derive `ownerId` from backend
+authentication, and pass your trusted services as the agent context.
+The example's in-memory idempotency map is not a durable external-effect ledger.
+Use `context.idempotencyKey` at the destination service to reconcile retries.
+
+The file reference is synthetic. It demonstrates the typed source and position
+API; it does not download or authorize a file. See [output references](output-references.md)
+for provider coordinates, client metadata, and authenticated retrieval boundaries.
+
+## Cancel or debug a run
+
+Run `dart run examples/cancellation.dart` to cancel a provider after it starts.
+Run `dart run examples/schema_diagnostics.dart` to inspect a rejected structured
+value on the backend. The [Dart API recipes](dart-api.md) explain cancellation
+and which error details can be exposed to a client.
 
 
 # Source: docs/dx-review.md
@@ -983,6 +1233,49 @@ DX: the typed source/position variants make the file-list versus insertion disti
 For applications that need citations, choosing buffered Chat sacrifices token-by-token delivery; the typed flag and explicit error make the boundary discoverable, but callers must deliberately render reference metadata. This review did not establish native Unicode index semantics or test a live model, rendering, file resolution, durable storage or streamed annotation support.
 
 Final guide review: the first Dart block of `docs/output-references.md` byte-matches `examples/openai_references_demo.dart`. The demo and both independent consumer files analyze cleanly; the demo compiles to a kernel without making a billable request, and both loopback consumers pass again. The guide clearly distinguishes enclosing UTF-16 context from unspecified provider coordinates, covers 0/0, buffered Chat, replay, metadata and authenticated file resolution. No additional concrete DX issue was found. The independently scoped scores remain 8/10 for each native path; this review did not independently rerun JS or PostgreSQL.
+
+
+## Round 21: backend diagnostics and offline onboarding
+
+# Independent Dart consumer review
+
+Scope: offline public API consumer journeys for a small support app. Overall: **8/10** for the journeys exercised, not the SDK or provider support as a whole. The Future APIs, typed tool and scripted model felt idiomatic; approvals and references require more concepts and assembly than ordinary chat. No production source was needed: README, docs/dart-api.md, docs/tools.md, docs/output-references.md and the linked review examples were sufficient. I consulted test/example snippets for the cancellation and synthetic reference constructor, not internal implementation.
+
+Run from the workspace root:
+
+```sh
+.dart_tool/dart-3.12.2/dart-sdk/bin/dart analyze examples/review_cases/support_app.dart
+.dart_tool/dart-3.12.2/dart-sdk/bin/dart run examples/review_cases/support_app.dart
+```
+
+Both passed. Cases: text and reported usage; typed support escalation that pauses without a side effect, then executes once after approval in a recreated agent using a shared MemoryRunStore; structured decoding and schema failure; pre-cancellation; and a synthetic file reference retained with its text context. The model fixture checks sent messages and tool history. There were no failures before workarounds and no confirmed functional defect in these cases.
+
+Friction and recommendations:
+
+- The invalid output's safe message was `Invalid input or provider output.` and its backend cause was `FormatException: Value does not match the declared JSON Schema.` This identifies the failure class but gives no field path or expected type for troubleshooting a larger schema. Consider providing safe, structured schema diagnostics to backend developers while retaining sanitized client messages.
+- The main Dart API failure example catches cancellation but does not show how to initiate it; the working pre-cancel example was found in examples/review_cases/reliability.dart. Add a concise `CancellationToken` example, including an in-flight example and the cooperative nature of cancellation.
+- The reference guide's primary runnable example requires a live billable provider, while synthetic construction is demonstrated separately in citations_client.dart. Link an explicitly offline reference example from that guide so a newcomer can validate rendering without credentials. Synthetic events exercise runtime preservation, not provider annotation parsing.
+- Approval code is understandable, but an application must supply input and output schemas, codec callbacks, context, IDs and store. A compact complete offline support example alongside the Serverpod recipe would make the required shared store and recreate/resume lifecycle clearer. MemoryRunStore recreation here is within one process; it does not demonstrate persistence across process restarts.
+
+Not checked: real providers, networking, a database or Serverpod restart, UI rendering, actual file retrieval, in-flight cancellation and production permissions/idempotency. No secrets or paid requests used.
+
+## Diagnostics re-review (initial implementation)
+
+Run `dart run examples/review_cases/schema_diagnostics.dart` with the pinned SDK. Analyzer passes; the script currently exits nonzero deliberately because edited approval diagnostic lacks the nested field/type. Structured output, tool input and tool output each produced backend issues with `/customer/priority`, a schema path and an expected integer. Default exception string/source and public error did not expose the test input marker. A separate schema-only private enum marker was absent from public streamed events and hydrated history. The initial edited-approval error instead had only an empty instance path, `/oneOf`, and `#/oneOf: violated No element`; it did not explain the bad field or expected type. Its rejected edited input was absent from hydration. Initial privacy-case compilation failed because `outputSchema` is not an `AiAgent.run` parameter; switched to testing a typed tool input schema via the documented API.
+
+After the resume-validation fix, both `support.dart` and `diagnostics.dart` pass with the pinned Dart SDK, and `dart analyze examples/review_cases/schema_diagnostics.dart` reports no issues. All four diagnostic cases now report `/customer/priority` and the expected integer. The issues list rejected mutation. The private schema-only enum marker stayed out of the default exception string, public error, streamed events and hydrated history. This checks those specific outputs, not every serialization path. The original failed provider text is application content and can remain in history; do not interpret this privacy check as removing it.
+
+## Final round 21 consumer re-review
+
+**8.5/10**, scoped to the offline journeys executed (baseline 8/10). The new field-level backend errors and discoverable offline recipes resolve the largest observed friction. Approval still involves several IDs, schemas and callbacks, and provider behavior and durable deployment are outside this score.
+
+In addition to the two consumer scripts above, all four sample invocations ran successfully with `.dart_tool/dart-3.12.2/dart-sdk/bin/dart run`: `examples/offline_support.dart` (pause, zero effects), `examples/offline_support.dart --approve` (completion, one effect and synthetic file reference), `examples/cancellation.dart` (in-flight cancellation and asserted cancelled checkpoint), and `examples/schema_diagnostics.dart` (sanitized error and backend `/priority` detail). The offline guide accurately describes the outputs and its complete source block matches the checked-in example. README, Dart recipes, output references and the website getting-started page now lead to the relevant examples. The guide correctly distinguishes shared in-process memory from durable restart, and the diagnostics guide warns that issue details can contain private input/schema values and that original conversation content remains visible.
+
+Prior failure and correction: initially edited arguments yielded only a root `/oneOf` diagnostic, without the bad field or expected type. After the resume validation fix, the same consumer case passes with `/customer/priority` and `integer`. The first attempt to test streaming schema privacy passed `outputSchema` to `run`, which is not an accepted public argument; the final test uses a typed tool input schema and passes. No other defect was observed in these cases.
+
+Not independently checked: live providers, PostgreSQL/Serverpod restart, real file downloads, client-side `$ref` approval behavior, JS or Flutter rendering, or paid billing. The reported reference and model events are synthetic; cancellation covers a cooperative offline provider. No full suite or external calls were run.
+
+Root verification: both consumer scripts are now checked in and wired into `tool/check.dart`. Formatting the copied scripts exposed a flow-control braces lint that the ignored `.dart_tool` review folder did not enable; adding braces corrected it without changing behavior. The tracked scripts run successfully and pass fatal-infos analysis.
 
 
 # Source: docs/architecture.md
@@ -1786,6 +2079,9 @@ Anthropic or prove model availability, citation quality or Flutter rendering.
 # Source: docs/output-references.md
 
 # Read output references
+
+To construct and read a reference without a provider account, run the
+[offline support application](offline-support.md). Its file reference is synthetic.
 
 OpenAI references describe URLs, cited files and generated artifacts.
 `ChatMessage.references` preserves their distinct positions and enclosing text
@@ -5611,10 +5907,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native-output-reference increment was checked on
+The latest schema-diagnostics and offline-onboarding increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 484 Dart unit and regression tests: tool validation, approvals, client tools,
+- 491 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 22 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -5632,7 +5928,7 @@ Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
   local fake Ollama NDJSON service: text, schema, approval/resume and authenticated
   typed generation, including owner isolation, privacy and safe errors.
 - 2 offline checks for the upstream operation-index parser.
-- The offline chat example executes successfully.
+- The offline chat, support approval, in-flight cancellation, and schema-diagnostic examples execute successfully. Independent support and diagnostic consumer applications also pass.
 
 Provider fixtures cover native Anthropic Messages and OpenAI Responses/Chat
 Completions streams, schema output,
@@ -6248,6 +6544,36 @@ No paid calls were made. Native Unicode offset interpretation, live model
 acceptance, actual authenticated file download, production rendering and other
 providers' reference normalization remain unverified. These checks preserve
 reported positions; they do not establish precise inline highlighting.
+
+
+## Schema diagnostics and offline onboarding
+
+Dart 3.12.2 passes 491 unit/regression tests and 22 real PostgreSQL/Serverpod
+integration tests through `tool/check.dart`, including both client suites and
+all pre-existing provider inventories and consumers. The two newly tracked
+independent consumer applications also execute and pass fatal-infos analysis.
+The check now includes those consumers and four offline sample invocations.
+Three documentation tests and a strict site build pass. Core Dartdoc reports
+zero warnings and errors.
+
+New regressions cover validator instance/schema paths and immutable issue
+snapshots; structured output, tool input and tool output errors; sanitized
+Future/stream errors and hydration; nested edited-approval diagnostics, batch
+validation before effects and retry; and directly validated local references.
+The public approval schema and hashes are unchanged. The pinned validator's
+embedded local-reference limitation is not a verified defect in either client.
+
+An independent developer reran support chat, usage, typed escalation, recreated
+in-memory approval, structured output, schema failures, cancellation and a
+synthetic reference. The scoped offline score improved from 8/10 to 8.5/10.
+The complete support guide byte-matches the executable source and is present
+in the rendered site and search index. These samples use shared memory within
+one process; existing PostgreSQL tests separately cover durable behavior.
+
+No paid calls were made. Live provider acceptance, Flutter rendering, actual
+file retrieval and client-side local-reference approvals were not newly tested.
+Issue details may contain private schema/input data; original conversation
+content is intentionally retained rather than redacted.
 
 
 # Source: CONTRIBUTING.md

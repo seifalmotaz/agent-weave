@@ -388,14 +388,19 @@ final class AiAgent<C> {
           final answer = value is bool
               ? <String, Object?>{'approved': value}
               : Map<String, Object?>.from(value as Map);
-          validateSchema(
-            _approvalSchema(call, tool.definition.inputSchema),
-            answer,
-          );
-          if (call is NativeToolCall && answer.containsKey('editedArgs')) {
-            throw const FormatException(
-              'Native tool arguments cannot be edited.',
+          if (call is NativeToolCall) {
+            validateSchema(
+              _approvalSchema(call, tool.definition.inputSchema),
+              answer,
             );
+          } else {
+            validateSchema(
+              approvalResponseSchema(const {'type': 'object'}),
+              answer,
+            );
+            if (answer.containsKey('editedArgs')) {
+              validateSchema(tool.definition.inputSchema, answer['editedArgs']);
+            }
           }
         }
       }

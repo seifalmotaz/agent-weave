@@ -1,5 +1,8 @@
 # Read output references
 
+To construct and read a reference without a provider account, run the
+[offline support application](offline-support.md). Its file reference is synthetic.
+
 OpenAI references describe URLs, cited files and generated artifacts.
 `ChatMessage.references` preserves their distinct positions and enclosing text
 segments. Use [text citations](citations.md) when an adapter can supply a verified

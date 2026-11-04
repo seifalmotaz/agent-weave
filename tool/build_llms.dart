@@ -4,6 +4,7 @@ const documents = [
   'README.md',
   'ROADMAP.md',
   'docs/dart-api.md',
+  'docs/offline-support.md',
   'docs/dx-review.md',
   'docs/architecture.md',
   'docs/tools.md',

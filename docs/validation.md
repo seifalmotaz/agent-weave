@@ -21,10 +21,10 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest native-output-reference increment was checked on
+The latest schema-diagnostics and offline-onboarding increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 484 Dart unit and regression tests: tool validation, approvals, client tools,
+- 491 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 22 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -42,7 +42,7 @@ Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
   local fake Ollama NDJSON service: text, schema, approval/resume and authenticated
   typed generation, including owner isolation, privacy and safe errors.
 - 2 offline checks for the upstream operation-index parser.
-- The offline chat example executes successfully.
+- The offline chat, support approval, in-flight cancellation, and schema-diagnostic examples execute successfully. Independent support and diagnostic consumer applications also pass.
 
 Provider fixtures cover native Anthropic Messages and OpenAI Responses/Chat
 Completions streams, schema output,
@@ -658,3 +658,33 @@ No paid calls were made. Native Unicode offset interpretation, live model
 acceptance, actual authenticated file download, production rendering and other
 providers' reference normalization remain unverified. These checks preserve
 reported positions; they do not establish precise inline highlighting.
+
+
+## Schema diagnostics and offline onboarding
+
+Dart 3.12.2 passes 491 unit/regression tests and 22 real PostgreSQL/Serverpod
+integration tests through `tool/check.dart`, including both client suites and
+all pre-existing provider inventories and consumers. The two newly tracked
+independent consumer applications also execute and pass fatal-infos analysis.
+The check now includes those consumers and four offline sample invocations.
+Three documentation tests and a strict site build pass. Core Dartdoc reports
+zero warnings and errors.
+
+New regressions cover validator instance/schema paths and immutable issue
+snapshots; structured output, tool input and tool output errors; sanitized
+Future/stream errors and hydration; nested edited-approval diagnostics, batch
+validation before effects and retry; and directly validated local references.
+The public approval schema and hashes are unchanged. The pinned validator's
+embedded local-reference limitation is not a verified defect in either client.
+
+An independent developer reran support chat, usage, typed escalation, recreated
+in-memory approval, structured output, schema failures, cancellation and a
+synthetic reference. The scoped offline score improved from 8/10 to 8.5/10.
+The complete support guide byte-matches the executable source and is present
+in the rendered site and search index. These samples use shared memory within
+one process; existing PostgreSQL tests separately cover durable behavior.
+
+No paid calls were made. Live provider acceptance, Flutter rendering, actual
+file retrieval and client-side local-reference approvals were not newly tested.
+Issue details may contain private schema/input data; original conversation
+content is intentionally retained rather than redacted.

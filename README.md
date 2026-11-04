@@ -45,6 +45,11 @@ The first example uses an offline provider. It needs no API key and makes no
 paid requests. See [the Serverpod example](examples/serverpod/README.md) for a
 backend with a database, HTTP streaming, and generated Dart endpoints.
 
+Next, run the [offline support application](docs/offline-support.md) for typed
+tools, approval, shared memory history, and a synthetic reference. The
+[Dart API recipes](docs/dart-api.md) include runnable cancellation and private
+schema-diagnostic examples.
+
 ## Define an agent
 
 ```dart

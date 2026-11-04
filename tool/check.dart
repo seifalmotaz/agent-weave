@@ -90,7 +90,17 @@ Future<void> main() async {
   ], directory: example);
   await run('node', ['tool/interop/test.mjs']);
   await run('node', ['tool/interop/dart-frog.mjs']);
+  for (final example in [
+    ['examples/offline_support.dart'],
+    ['examples/offline_support.dart', '--approve'],
+    ['examples/cancellation.dart'],
+    ['examples/schema_diagnostics.dart'],
+  ]) {
+    await run('dart', ['run', ...example]);
+  }
   for (final consumer in [
+    'support_app',
+    'schema_diagnostics',
     'ollama',
     'dart_frog',
     'provider_options',

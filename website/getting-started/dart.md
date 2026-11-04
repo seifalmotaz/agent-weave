@@ -40,6 +40,10 @@ Future<void> main() async {
 
 ## Choose the right API
 
+Run the [offline support application](../offline-support.md) next. It pauses a
+typed tool before effects, resumes with approval using a recreated agent, and
+reads a synthetic file reference. It requires no provider account or database.
+
 Use `generateText` or `generateObject` for a stateless request. Use `AiAgent.generate` for typed results with trusted context and stored conversations. Use `AiAgent.run` when your application consumes streaming protocol events.
 
 Continue with [the Dart API guide](../dart-api.md) for structured output, typed tools, approvals, errors, and conversation history. For provider ownership and cancellation rules, read [architecture](../architecture.md).

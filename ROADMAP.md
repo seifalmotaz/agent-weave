@@ -10,7 +10,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 - Independent developer agents must write and run consumer applications across
   multiple scenarios and score discoverability, clarity, type safety, debugging,
   and testing. Record failures and rerun after fixes. Use GPT-6.1 Terra with low
-  or medium reasoning. The latest general review is 8.0/10. The native Anthropic transport path scored
+  or medium reasoning. The latest general offline review is 8.5/10. The native Anthropic transport path scored
   8.4/10 and its computer-tool path scored 7.8/10. The targeted Dart Frog and Ollama
   paths scored 8.0/10 and 7.8/10. Neither is an acceptance pass.
 - Complete native provider coverage for OpenAI, Anthropic, OpenRouter, Together,
@@ -71,7 +71,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
 ## Current reliability/DX increment
 
 Implemented: typed `generateText`, `generateObject`, and `AiAgent.generate`;
-immutable run results and usage; typed approval resolutions; scripted test
+immutable run results and usage; typed approval resolutions; backend-only field-level schema diagnostics; scripted test
 providers; atomic final event/checkpoint/release; safer observer handling;
 separate caller/model/output/tool/step-limit errors with safe Future messages;
 exact versioned pending tool contracts independent of client schema hashes; guarded provider request

@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add `SchemaValidationException` with immutable backend-only field/schema diagnostics while preserving generic public failure messages and `FormatException` compatibility.
+- Validate edited approval arguments separately from the envelope so nested diagnostics and local references retain the original schema context; keep public approval hashes unchanged.
+
 - Add typed output references with opaque native positions, verified enclosing text segments, scoped file sources and persistent client metadata.
 - Add `FileCitationSource` to the sealed source family; exhaustive source switches must handle the new variant.
 
