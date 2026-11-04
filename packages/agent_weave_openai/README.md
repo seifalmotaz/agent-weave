@@ -9,3 +9,22 @@ See the [workspace guide](https://github.com/seifalmotaz/agent-weave),
 and [Serverpod example](https://github.com/seifalmotaz/agent-weave/tree/main/examples/serverpod).
 
 Independent and unofficial. Not endorsed by TanStack, OpenAI, or Serverpod.
+
+## Computer use
+
+Register `OpenAIComputerTool<C>` in the agent's normal `tools` collection. The
+application supplies an executor that performs the ordered, validated actions
+and returns a fresh screenshot; this package does not control a computer.
+Provide a stable `environmentId` for the same execution environment across
+approval resumes. Approval defaults to `ComputerApproval.always`;
+`ComputerApproval.safetyChecks` still requires approval whenever OpenAI sends
+pending safety checks. The executor receives the original immutable call and
+the ordered SDK action values. Handle cancellation and partial effects in the
+executor, and do not automatically retry actions.
+
+Use `OpenAIComputerTool.preview` with display dimensions and environment only
+for the older `computer_use_preview` profile. Native computer calls require the
+OpenAI Responses adapter; Chat Completions and compatible provider namespaces do
+not support this continuation. A rejected or failed call ends the continuation;
+start a new thread with a fresh screenshot. Safety-check acknowledgement has
+fixture coverage but has not been verified against the live GA service.

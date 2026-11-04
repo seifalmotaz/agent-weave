@@ -41,6 +41,14 @@ final class AnthropicChatModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
+    if (request.tools.any((tool) => tool is NativeModelTool) ||
+        request.messages.any(
+          (message) => message.toolCalls.any((call) => call is NativeToolCall),
+        )) {
+      throw UnsupportedError(
+        'Anthropic adapter does not implement native tool definitions or calls.',
+      );
+    }
     final messages = <Map<String, dynamic>>[];
     for (final message in request.messages) {
       final blocks = <Map<String, dynamic>>[];

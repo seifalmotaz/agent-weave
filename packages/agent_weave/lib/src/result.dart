@@ -74,6 +74,9 @@ final class ToolInterrupt {
         'Client tools resolve an output instead of an approval.',
       );
     }
+    if (call is NativeToolCall && editedArgs != null) {
+      throw StateError('Native tool arguments cannot be edited.');
+    }
     return ResumeAnswer(
       interruptId: id,
       value: editedArgs == null

@@ -28,6 +28,7 @@ The monorepo contains twelve packages. Use the smallest set needed by your appli
 | `AiAgent.run` | Stored conversation run returning streaming events |
 | `Tool<I, O, C>` | Schema-validated tool with typed input, output, and context |
 | `ClientTool<C>` | Explicitly registered client-executed tool |
+| `OpenAIComputerTool<C>` | Application-executed native Responses computer tool; see [computer use](computer-use.md) |
 | `CancellationToken` | Cancellation Future and disposable single-event Stream |
 | `RunStore` | Atomic reservations, checkpoints, and persisted events |
 | `GenerationTask<P, R>` | Typed operation with generation progress/result events |

@@ -9,6 +9,8 @@ const documents = [
   'docs/tools.md',
   'docs/providers.md',
   'docs/documents.md',
+  'docs/computer-use.md',
+  'docs/computer-parameters.md',
   'docs/openai.md',
   'docs/openrouter.md',
   'docs/openrouter-api-reference.md',

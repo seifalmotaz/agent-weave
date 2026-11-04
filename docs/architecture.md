@@ -20,6 +20,23 @@ use separate capability interfaces. A provider implements only the interfaces
 it supports. `GenerationTask<P, R>` adds result/progress streaming to a typed
 operation.
 
+## Native computer calls
+
+`NativeModelTool` and `NativeToolCall` distinguish provider-native definitions
+and calls from function tools, using a provider namespace to match the adapter.
+The selected OpenAI Responses computer implementation registers one native
+server tool. The application owns action execution and the resulting screenshot;
+the runtime owns approval, sequencing, and continuation. Other native tool
+kinds and client-executed native tools are unsupported.
+
+Native approvals use an approval-only response schema; arguments cannot be
+edited. A paused call is bound to its tool definition and stable environment
+ID, so a changed binding cannot resume it. Rejection, cancellation, or execution
+failure closes the native continuation while retaining its audit history. Start
+a new thread after inspecting the environment; never synthesize a screenshot or
+acknowledgement. Provider continuation data is private, separate from UI history.
+See [computer use](computer-use.md) for the application contract.
+
 ## Ownership and cancellation
 
 The caller owns provider clients. Close them at application shutdown.

@@ -294,6 +294,14 @@ final class TogetherChatModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
+    if (request.tools.any((tool) => tool is NativeModelTool) ||
+        request.messages.any(
+          (message) => message.toolCalls.any((call) => call is NativeToolCall),
+        )) {
+      throw UnsupportedError(
+        'Together adapter does not implement native tool definitions or calls.',
+      );
+    }
     final choice = options.toJson()['tool_choice'];
     if (choice == 'required' && request.tools.isEmpty) {
       throw ArgumentError('Required toolChoice needs registered tools.');

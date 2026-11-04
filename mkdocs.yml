@@ -75,6 +75,7 @@ nav:
       - Tools and approvals: tools.md
       - Custom providers: providers.md
       - Documents: documents.md
+      - OpenAI computer use: computer-use.md
       - OpenAI capabilities: openai.md
       - OpenRouter: openrouter.md
       - Cloudflare Workers AI and AI Gateway: cloudflare.md
@@ -96,6 +97,7 @@ nav:
       - Provider coverage: provider-coverage.md
       - Cloudflare API inventory: cloudflare-api-reference.md
       - OpenRouter API inventory: openrouter-api-reference.md
+      - Computer protocol fields: computer-parameters.md
       - Developer reviews: dx-review.md
       - Coding-agent guide: agent-guide.md
       - Build these docs: docs-site.md

@@ -196,21 +196,68 @@ String _documentBase64(String source) {
   }
 }
 
-final class ToolCall {
+sealed class ToolCall {
   final String id;
   final String name;
   final JsonObject arguments;
-  ToolCall({
+  ToolCall._({
     required this.id,
     required this.name,
     required JsonObject arguments,
   }) : arguments = immutableJson(arguments);
+  factory ToolCall({
+    required String id,
+    required String name,
+    required JsonObject arguments,
+  }) = FunctionToolCall;
+  JsonObject toJson();
+  factory ToolCall.fromJson(JsonObject json) {
+    final id = json['id'] as String;
+    final name = json['name'] as String;
+    final arguments = Map<String, Object?>.from(json['arguments'] as Map);
+    return switch (json['kind']) {
+      null || 'function' => ToolCall(id: id, name: name, arguments: arguments),
+      'native' => NativeToolCall(
+        id: id,
+        name: name,
+        arguments: arguments,
+        provider: json['provider'] as String,
+        requiresApproval: json['requiresApproval'] as bool,
+      ),
+      _ => throw const FormatException('Unsupported tool call kind.'),
+    };
+  }
+}
+
+final class FunctionToolCall extends ToolCall {
+  FunctionToolCall({
+    required super.id,
+    required super.name,
+    required super.arguments,
+  }) : super._();
+  @override
   JsonObject toJson() => {'id': id, 'name': name, 'arguments': arguments};
-  factory ToolCall.fromJson(JsonObject json) => ToolCall(
-    id: json['id'] as String,
-    name: json['name'] as String,
-    arguments: Map<String, Object?>.from(json['arguments'] as Map),
-  );
+}
+
+final class NativeToolCall extends ToolCall {
+  final String provider;
+  final bool requiresApproval;
+  NativeToolCall({
+    required super.id,
+    required super.name,
+    required super.arguments,
+    required this.provider,
+    this.requiresApproval = false,
+  }) : super._();
+  @override
+  JsonObject toJson() => {
+    'id': id,
+    'name': name,
+    'arguments': arguments,
+    'kind': 'native',
+    'provider': provider,
+    'requiresApproval': requiresApproval,
+  };
 }
 
 final class AudioPart extends ContentPart {
@@ -315,15 +362,49 @@ final class ModelCapabilities {
   });
 }
 
-final class ModelTool {
+sealed class ModelTool {
   final String name;
   final String description;
   final JsonObject inputSchema;
-  const ModelTool({
+  const ModelTool._({
     required this.name,
     required this.description,
     required this.inputSchema,
   });
+  const factory ModelTool({
+    required String name,
+    required String description,
+    required JsonObject inputSchema,
+  }) = FunctionModelTool;
+}
+
+final class FunctionModelTool extends ModelTool {
+  const FunctionModelTool({
+    required super.name,
+    required super.description,
+    required super.inputSchema,
+  }) : super._();
+}
+
+final class NativeModelTool extends ModelTool {
+  final String provider;
+  final JsonObject definition;
+
+  /// Private identity of the execution environment across approval resumes.
+  final String? bindingId;
+  NativeModelTool({
+    required super.name,
+    required super.description,
+    required JsonObject inputSchema,
+    required this.provider,
+    required JsonObject definition,
+    this.bindingId,
+  }) : definition = immutableJson(definition),
+       super._(inputSchema: immutableJson(inputSchema)) {
+    if (bindingId != null && bindingId!.trim().isEmpty) {
+      throw ArgumentError.value(bindingId, 'bindingId', 'Must not be empty');
+    }
+  }
 }
 
 final class ModelRequest {
@@ -341,11 +422,21 @@ final class ModelRequest {
   }) : messages = List.unmodifiable(messages),
        tools = List.unmodifiable(
          tools.map(
-           (tool) => ModelTool(
-             name: tool.name,
-             description: tool.description,
-             inputSchema: immutableJson(tool.inputSchema),
-           ),
+           (tool) => switch (tool) {
+             FunctionModelTool() => ModelTool(
+               name: tool.name,
+               description: tool.description,
+               inputSchema: immutableJson(tool.inputSchema),
+             ),
+             NativeModelTool() => NativeModelTool(
+               name: tool.name,
+               description: tool.description,
+               inputSchema: tool.inputSchema,
+               provider: tool.provider,
+               definition: tool.definition,
+               bindingId: tool.bindingId,
+             ),
+           },
          ),
        ),
        outputSchema = outputSchema == null ? null : immutableJson(outputSchema);
@@ -377,6 +468,11 @@ final class ReasoningDelta extends ModelEvent {
 final class ToolCallReady extends ModelEvent {
   final ToolCall call;
   const ToolCallReady(this.call);
+}
+
+final class NativeToolCallReady extends ModelEvent {
+  final NativeToolCall call;
+  const NativeToolCallReady(this.call);
 }
 
 final class TokenUsage extends ModelEvent {

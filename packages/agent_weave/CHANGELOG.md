@@ -1,5 +1,9 @@
 # Unreleased
 
+- Add provider-namespaced native tool calls and approval-only continuation,
+  with definition and environment binding and closed continuations on denial
+  or failure. Client-executed native tools are unsupported.
+
 - Isolate stream subscription cancellation per call while retaining shared parent cancellation.
 
 - Add a disposable cancellation event stream while preserving the existing Future signal.

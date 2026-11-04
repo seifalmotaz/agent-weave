@@ -1,0 +1,268 @@
+{
+  "ComputerTool": {
+    "type": {
+      "type": "'computer'",
+      "optional": false
+    }
+  },
+  "ComputerUsePreviewTool": {
+    "display_height": {
+      "type": "number",
+      "optional": false
+    },
+    "display_width": {
+      "type": "number",
+      "optional": false
+    },
+    "environment": {
+      "type": "'windows' | 'mac' | 'linux' | 'ubuntu' | 'browser'",
+      "optional": false
+    },
+    "type": {
+      "type": "'computer_use_preview'",
+      "optional": false
+    }
+  },
+  "ResponseComputerToolCall": {
+    "id": {
+      "type": "string",
+      "optional": false
+    },
+    "call_id": {
+      "type": "string",
+      "optional": false
+    },
+    "pending_safety_checks": {
+      "type": "Array<ResponseComputerToolCall.PendingSafetyCheck>",
+      "optional": false
+    },
+    "status": {
+      "type": "'in_progress' | 'completed' | 'incomplete'",
+      "optional": false
+    },
+    "type": {
+      "type": "'computer_call'",
+      "optional": false
+    },
+    "action": {
+      "type": "ResponseComputerToolCall.Click | ResponseComputerToolCall.DoubleClick | ResponseComputerToolCall.Drag | ResponseComputerToolCall.Keypress | ResponseComputerToolCall.Move | ResponseComputerToolCall.Screenshot | ResponseComputerToolCall.Scroll | ResponseComputerToolCall.Type | ResponseComputerToolCall.Wait",
+      "optional": true
+    },
+    "actions": {
+      "type": "ComputerActionList",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCall.PendingSafetyCheck": {
+    "id": {
+      "type": "string",
+      "optional": false
+    },
+    "code": {
+      "type": "string | null",
+      "optional": true
+    },
+    "message": {
+      "type": "string | null",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCall.Click": {
+    "button": {
+      "type": "'left' | 'right' | 'wheel' | 'back' | 'forward'",
+      "optional": false
+    },
+    "type": {
+      "type": "'click'",
+      "optional": false
+    },
+    "x": {
+      "type": "number",
+      "optional": false
+    },
+    "y": {
+      "type": "number",
+      "optional": false
+    },
+    "keys": {
+      "type": "Array<string> | null",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCall.DoubleClick": {
+    "keys": {
+      "type": "Array<string> | null",
+      "optional": false
+    },
+    "type": {
+      "type": "'double_click'",
+      "optional": false
+    },
+    "x": {
+      "type": "number",
+      "optional": false
+    },
+    "y": {
+      "type": "number",
+      "optional": false
+    }
+  },
+  "ResponseComputerToolCall.Drag": {
+    "path": {
+      "type": "Array<Drag.Path>",
+      "optional": false
+    },
+    "type": {
+      "type": "'drag'",
+      "optional": false
+    },
+    "keys": {
+      "type": "Array<string> | null",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCall.Drag.Path": {
+    "x": {
+      "type": "number",
+      "optional": false
+    },
+    "y": {
+      "type": "number",
+      "optional": false
+    }
+  },
+  "ResponseComputerToolCall.Keypress": {
+    "keys": {
+      "type": "Array<string>",
+      "optional": false
+    },
+    "type": {
+      "type": "'keypress'",
+      "optional": false
+    }
+  },
+  "ResponseComputerToolCall.Move": {
+    "type": {
+      "type": "'move'",
+      "optional": false
+    },
+    "x": {
+      "type": "number",
+      "optional": false
+    },
+    "y": {
+      "type": "number",
+      "optional": false
+    },
+    "keys": {
+      "type": "Array<string> | null",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCall.Screenshot": {
+    "type": {
+      "type": "'screenshot'",
+      "optional": false
+    }
+  },
+  "ResponseComputerToolCall.Scroll": {
+    "scroll_x": {
+      "type": "number",
+      "optional": false
+    },
+    "scroll_y": {
+      "type": "number",
+      "optional": false
+    },
+    "type": {
+      "type": "'scroll'",
+      "optional": false
+    },
+    "x": {
+      "type": "number",
+      "optional": false
+    },
+    "y": {
+      "type": "number",
+      "optional": false
+    },
+    "keys": {
+      "type": "Array<string> | null",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCall.Type": {
+    "text": {
+      "type": "string",
+      "optional": false
+    },
+    "type": {
+      "type": "'type'",
+      "optional": false
+    }
+  },
+  "ResponseComputerToolCall.Wait": {
+    "type": {
+      "type": "'wait'",
+      "optional": false
+    }
+  },
+  "ResponseComputerToolCallOutputItem": {
+    "id": {
+      "type": "string",
+      "optional": false
+    },
+    "call_id": {
+      "type": "string",
+      "optional": false
+    },
+    "output": {
+      "type": "ResponseComputerToolCallOutputScreenshot",
+      "optional": false
+    },
+    "status": {
+      "type": "'completed' | 'incomplete' | 'failed' | 'in_progress'",
+      "optional": false
+    },
+    "type": {
+      "type": "'computer_call_output'",
+      "optional": false
+    },
+    "acknowledged_safety_checks": {
+      "type": "Array<ResponseComputerToolCallOutputItem.AcknowledgedSafetyCheck>",
+      "optional": true
+    },
+    "created_by": {
+      "type": "string",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCallOutputItem.AcknowledgedSafetyCheck": {
+    "id": {
+      "type": "string",
+      "optional": false
+    },
+    "code": {
+      "type": "string | null",
+      "optional": true
+    },
+    "message": {
+      "type": "string | null",
+      "optional": true
+    }
+  },
+  "ResponseComputerToolCallOutputScreenshot": {
+    "type": {
+      "type": "'computer_screenshot'",
+      "optional": false
+    },
+    "file_id": {
+      "type": "string",
+      "optional": true
+    },
+    "image_url": {
+      "type": "string",
+      "optional": true
+    }
+  }
+}

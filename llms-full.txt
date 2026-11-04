@@ -114,6 +114,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Typed tools and approvals](docs/tools.md)
 - [Provider author guide](docs/providers.md)
 - [Documents](docs/documents.md)
+- [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [OpenRouter](docs/openrouter.md)
@@ -151,9 +152,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   Track each endpoint, nested parameter, tool/event union, query, header, cache
   option, and continuation behavior against a dated authoritative specification.
   An OpenAI-compatible URL or SDK export does not establish native parity.
-- OpenAI computer use and other non-function tool continuations require explicit
-  event types, policy-controlled execution, complete input/output round trips,
-  approval/safety handling, and fixtures before any support claim.
+- Selected OpenAI Responses computer calls now have explicit native events,
+  application-controlled execution, approval/safety handling, private replay,
+  PostgreSQL and client fixtures. Real driver/model behavior and other native
+  tool continuations remain open; this is not complete computer-use parity.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.
@@ -651,6 +653,19 @@ The original delegated adapter documented missing metadata and continuation. The
 The updated guide describes the tested scenarios and separates fixture evidence from live behavior. Its first complete Dart block was copied unchanged, compared byte-for-byte with `examples/openrouter_demo.dart`, analyzed, and compiled with Dart 3.12.2 without executing it. Other behaviors beyond the scenarios listed remain outside this independent fixture.
 
 
+## Round 10: independent computer-tool consumer
+
+Initial assessment before exercising it: discoverability 5/10 (new type and safety contract needed a guide); type ergonomics 7/10 (typed context and SDK actions, but protocol and replay details are not obvious); correctness confidence 4/10 (no independent run yet); testing 5/10 (provider fixtures existed, no consumer loopback evidence yet). These are qualitative judgments for this feature, not scores for the whole SDK.
+
+After the loopback consumer: discoverability 6/10 pending review of the new guide; type ergonomics 8/10 because a typed app-owned executor, approval policy, and screenshot result are straightforward; debugging 7/10 because failures propagate but remote protocol details still need inspection; correctness confidence 7/10 for the exercised cases, not live computer use; testing 8/10 for a reproducible local consumer, with no real operating-system, browser, paid-model, or PostgreSQL claims.
+
+Run `.dart_tool/dart-3.12.2/dart-sdk/bin/dart run examples/review_cases/computer.dart`. It uses a real loopback HTTP server and the pinned OpenAI client with a fake executor. It checks all nine action types as an ordered batch, a fresh screenshot, context and idempotency, no execution before terminal response or approval, recreated-agent continuation, call ID, reasoning replay and UI hydration, safety checks and legacy preview, benign automatic execution, rejection and rejected thread reuse, changed environment, invalid action, truncated response, malformed UTF-8, edited native arguments, pre-cancellation, and mismatched call kinds. A passing fixture does not establish real provider, OS, browser, cross-process persistence, or crash behavior.
+
+Final guide and transport review: discoverability 8/10 (the complete sample, driver contract, policy choices, and continuation limits are now together); type safety 8/10 (typed executor and actions are useful, though consumers must inspect upstream action classes and serialize them to understand the full union); debugging 7/10 (local failures are observable but provider protocol failures still require investigation); testing 8/10 (a self-contained loopback exercises real HTTP without spending money); overall 7.8/10 for this feature, not the SDK as a whole. The full CLI guide block exactly matches `examples/computer_demo.dart`; both that sample and this consumer analyze cleanly. The sample was compiled to a native executable and analyzed, not run against a driver or provider. Final checks were rerun after the transport freeze.
+
+Additional consumer cases send unknown top-level computer item data and verify it is in the private stored snapshot and replayed on continuation, but absent from UI hydration. Unknown action fields, click modifiers, and unknown drag point fields fail without executor invocation. This is limited to the specific malformed shapes tested; the fixture does not prove all future provider changes are safe. The legacy preview example in the consumer needed its environment updated from the old string to the current enum; the guide already uses the enum. Review commands use the pinned `.dart_tool/dart-3.12.2/dart-sdk/bin/dart`: `analyze examples/computer_demo.dart examples/review_cases/computer.dart` , `run examples/review_cases/computer.dart`, and `compile exe examples/computer_demo.dart -o /tmp/agentweave-computer-guide-review`.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -674,6 +689,23 @@ Images, speech, transcription, embeddings, Decisions, video jobs, and realtime
 use separate capability interfaces. A provider implements only the interfaces
 it supports. `GenerationTask<P, R>` adds result/progress streaming to a typed
 operation.
+
+## Native computer calls
+
+`NativeModelTool` and `NativeToolCall` distinguish provider-native definitions
+and calls from function tools, using a provider namespace to match the adapter.
+The selected OpenAI Responses computer implementation registers one native
+server tool. The application owns action execution and the resulting screenshot;
+the runtime owns approval, sequencing, and continuation. Other native tool
+kinds and client-executed native tools are unsupported.
+
+Native approvals use an approval-only response schema; arguments cannot be
+edited. A paused call is bound to its tool definition and stable environment
+ID, so a changed binding cannot resume it. Rejection, cancellation, or execution
+failure closes the native continuation while retaining its audit history. Start
+a new thread after inspecting the environment; never synthesize a screenshot or
+acknowledgement. Provider continuation data is private, separate from UI history.
+See [computer use](computer-use.md) for the application contract.
 
 ## Ownership and cancellation
 
@@ -990,6 +1022,407 @@ provider key. No actual PDF parsing or model acceptance is proved by that fixtur
 
 Provider format rules: [OpenAI file inputs](https://developers.openai.com/api/docs/guides/file-inputs)
 and [Anthropic PDF inputs](https://platform.claude.com/docs/en/build-with-claude/pdf-support).
+
+
+# Source: docs/computer-use.md
+
+# OpenAI native computer use
+
+Register `OpenAIComputerTool<C>` in `AiAgent.tools` alongside an unchanged
+`OpenAIResponsesModel`. The application owns the computer, driver, permissions,
+and screenshots; AgentWeave does not control an operating system or browser.
+Use a model that supports the Responses computer tool. Running this example
+makes paid model requests and sends actions to your driver.
+
+## Complete CLI example
+
+Run `dart pub get` in this workspace. A standalone application also needs
+the `agent_weave_http` dependency for this driver example. Set `OPENAI_API_KEY`,
+`OPENAI_COMPUTER_MODEL`, `COMPUTER_ENVIRONMENT_ID`, `COMPUTER_DRIVER_URL`, and
+`COMPUTER_DRIVER_TOKEN`. The environment ID must identify the same stable
+computer across the entire thread. `USER` identifies the trusted local CLI
+operator. In a server, obtain `ownerId` from authenticated server-side identity,
+never from the request body. Save this program as `examples/computer_demo.dart`:
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_http/agent_weave_http.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+Future<void> main(List<String> args) async {
+  String requiredEnv(String name) {
+    final value = Platform.environment[name];
+    if (value == null || value.trim().isEmpty) throw StateError('Set $name.');
+    return value;
+  }
+
+  if (args.length != 1 || args.single.trim().isEmpty) {
+    throw ArgumentError('Pass one quoted task as the argument.');
+  }
+  final apiKey = requiredEnv('OPENAI_API_KEY');
+  final modelId = requiredEnv('OPENAI_COMPUTER_MODEL');
+  final environmentId = requiredEnv('COMPUTER_ENVIRONMENT_ID');
+  final driverUrl = Uri.parse(requiredEnv('COMPUTER_DRIVER_URL'));
+  final driverToken = requiredEnv('COMPUTER_DRIVER_TOKEN');
+  if (driverUrl.scheme != 'https' ||
+      driverUrl.host.isEmpty ||
+      driverUrl.userInfo.isNotEmpty ||
+      driverUrl.hasFragment) {
+    throw ArgumentError(
+      'COMPUTER_DRIVER_URL must be an HTTPS URL without credentials or fragment.',
+    );
+  }
+  // The CLI operator is the trusted identity, not a request-body field.
+  final ownerId = requiredEnv('USER');
+  final driver = JsonHttpClient(
+    baseUrl: driverUrl.origin,
+    requestTimeout: const Duration(seconds: 30),
+  );
+  final client = openai.OpenAIClient(
+    config: openai.OpenAIConfig(
+      authProvider: openai.ApiKeyProvider(apiKey),
+      retryPolicy: const openai.RetryPolicy(maxRetries: 0),
+    ),
+  );
+  try {
+    final agent = AiAgent<void>(
+      model: openai.OpenAIResponsesModel(client: client, model: modelId),
+      tools: [
+        openai.OpenAIComputerTool<void>(
+          environmentId: environmentId,
+          execute: (call, context) async {
+            context.cancellation.throwIfCancelled();
+            if (!context.approved) throw StateError('Approval required.');
+            final response = await driver.sendJson(
+              driverUrl.path.isEmpty ? '/' : driverUrl.path,
+              query: driverUrl.queryParametersAll,
+              cancellation: context.cancellation,
+              prepare: () => JsonHttpRequest(
+                headers: {'Authorization': 'Bearer $driverToken'},
+                body: {
+                  'environment_id': environmentId,
+                  'idempotency_key': context.idempotencyKey,
+                  'actions': [
+                    for (final action in call.actions) action.toJson(),
+                  ],
+                },
+              ),
+            );
+            context.cancellation.throwIfCancelled();
+            if (response.statusCode != 200) {
+              throw StateError(
+                'Computer driver failed (${response.statusCode}).',
+              );
+            }
+            final result = jsonDecode(response.body);
+            if (result is! Map ||
+                result['environment_id'] != environmentId ||
+                result['image_url'] is! String ||
+                (result['image_url'] as String).isEmpty) {
+              throw const FormatException('Invalid computer driver response.');
+            }
+            return openai.OpenAIComputerScreenshot.url(
+              result['image_url'] as String,
+            );
+          },
+        ),
+      ],
+    );
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    var result = await agent.generate(
+      ChatRequest(
+        threadId: 'computer-$id',
+        runId: 'run-$id',
+        messages: [ChatMessage.user(args.single, id: 'message-$id')],
+      ),
+      ownerId: ownerId,
+      context: null,
+    );
+    var continuation = 0;
+    while (result.status == RunStatus.interrupted) {
+      final answers = <ResumeAnswer>[];
+      for (final interrupt in result.interrupts) {
+        stdout.writeln(
+          'Proposed computer call: ${jsonEncode(interrupt.call.arguments)}',
+        );
+        stdout.write('Approve this entire call and its safety checks? [y/N] ');
+        final approved = stdin.readLineSync()?.trim().toLowerCase() == 'y';
+        answers.add(approved ? interrupt.approve() : interrupt.reject());
+      }
+      result = await agent.generate(
+        ChatRequest(
+          threadId: result.threadId,
+          runId: 'run-$id-${++continuation}',
+          parentRunId: result.runId,
+          resume: answers,
+        ),
+        ownerId: ownerId,
+        context: null,
+      );
+    }
+    stdout.writeln(result.text);
+  } on RunCancelled {
+    stderr.writeln(
+      'Computer run stopped. Inspect the environment before starting a new thread.',
+    );
+  } finally {
+    driver.close();
+    client.close();
+  }
+}
+```
+
+Run `dart run examples/computer_demo.dart "Your task"` only after setting up
+and securing the driver. Every proposed batch is shown to the operator, who
+must enter `y` to approve it and all its safety checks. Any other answer rejects
+it. Keep the terminal and environment under the operator's control. The sample
+uses an in-memory store and is intended for a single process; durable applications
+need an appropriate `RunStore` and authenticated approval UI.
+
+## Driver contract
+
+`COMPUTER_DRIVER_URL` is your HTTPS endpoint, not an AgentWeave or OpenAI
+endpoint. This example sends an authenticated JSON POST:
+
+```json
+{"environment_id":"desktop-1","idempotency_key":"stable-key","actions":[{"type":"click","button":"left","x":100,"y":200}]}
+```
+
+The driver must authorize the caller and environment, validate the entire batch,
+revalidate the target and current screen before acting, execute the supplied
+SDK action objects in order, and return one **fresh** screenshot after the
+complete batch: `{"environment_id":"desktop-1","image_url":"https://..."}`.
+It must deduplicate by the supplied idempotency key and preserve a durable record
+of partial execution. A screenshot URL must be accessible to the model and
+correspond to the configured screen coordinates. A driver must stop and report
+failure on an invalid action, policy denial, execution failure, or screenshot
+failure; it must not fabricate success. The driver client has a 30-second request timeout, observes cancellation, and
+rejects redirects to avoid
+forwarding its bearer token to another host. Secure the URL, token, images,
+logs and environment, and restrict the environment's access and permissions.
+
+`context.idempotencyKey` is stable across approval continuations and scoped to
+owner, thread, and tool call. Deduplication belongs to your driver; neither that
+key nor this example guarantees exactly-once external effects after a crash.
+Neither the driver request nor model request is automatically retried here. A
+cancelled or failed in-flight request may already have changed the computer;
+inspect its state before taking further action. Cancellation is cooperative:
+check `context.cancellation` before and after work and inside your driver where
+possible.
+
+## Approval and continuation
+
+The default `ComputerApproval.always` requires approval for every call.
+`ComputerApproval.safetyChecks` requires it when the provider supplies safety
+checks. Any nonempty checks force human approval under either policy, including
+unknown check codes. Approval covers the entire immutable call and all checks;
+native arguments cannot be edited. `context.approved` tells the executor that
+approval was granted. The application must enforce its own per-action policy and
+verify the screen still matches the approved target.
+
+Only validated calls from a terminal completed response are executable; streaming
+deltas and incomplete or failed calls are not. Actions are immutable and must be
+executed in their given order. Unknown action fields are rejected before the
+executor runs. The runtime matches the screenshot output to the
+exact provider `call_id` and retains opaque provider replay privately. Keep
+stored continuation data private and use the authorized history interface for UI.
+
+A rejection or cancellation stops locally and throws `RunCancelled`; the
+continuation is closed with its audit history intact. Start a new thread after
+reviewing the actual environment. Never invent a screenshot, result, or safety
+acknowledgement to continue a denied call. Do not resume a pending call with a
+different environment ID or stale screen: abandon it and start a new thread
+with fresh state and approval. A completed model call means generation completed,
+not that an action succeeded.
+
+## Options and interoperability
+
+The standard constructor sends the GA tool definition `{"type":"computer"}`.
+For the legacy preview protocol, use `OpenAIComputerTool.preview` with positive
+`width` and `height` and `environment` set to a `ComputerEnvironment` value:
+`browser`, `mac`, `windows`, `linux`, or `ubuntu` (for example,
+`openai.ComputerEnvironment.browser`). Both require a stable, nonempty `environmentId` and an application
+executor. `OpenAIComputerCall.actions` uses the exported OpenAI SDK action
+classes; inspect their types or serialize each action with `toJson()` as above.
+
+Return `OpenAIComputerScreenshot.url(url)` or
+`OpenAIComputerScreenshot.fileId(id)` with exactly one nonempty source. Both
+accept `detail: openai.ImageDetail.original` when supported by the model.
+Safety checks are acknowledged only after approval; support for nonempty
+acknowledgements on the GA server is not guaranteed.
+
+See OpenAI's [computer use guide](https://developers.openai.com/api/docs/guides/tools-computer-use)
+and [driver integration](https://developers.openai.com/api/docs/guides/tools-computer-use-integration)
+for provider requirements. Local fixtures and compilation do not verify a live
+model, driver, remote actions, or billing.
+
+## TanStack client approval UI
+
+Native computer approvals use the generic interrupt API with the server's
+read-only argument snapshot and response schema. Resolve an interrupt with
+`{approved: true}` or `{approved: false}`. The native Dart agent API provides
+`interrupt.approve()` and `interrupt.reject()`. Function-tool registration on
+a JavaScript client uses a different approval schema that permits argument
+edits; use the generic schema supplied by this native interrupt. Local tests
+exercise both resolutions with the pinned official JavaScript client and
+rehydrate its history without exposing private provider state.
+
+
+# Source: docs/computer-parameters.md
+
+# OpenAI computer protocol inventory
+
+Generated from the pinned official Node SDK. This is a selected protocol inventory, not full computer or endpoint coverage.
+
+- The pinned schema requires pending_safety_checks; the GA driver accepts its absence, while legacy action calls require it.
+- Screenshot detail is a separately documented driver extension absent from this Node pin.
+- Output ID, status and created_by are not integrated; native replay and runtime-owned fields are not public options.
+
+## ComputerTool
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| type | `'computer'` | typed |
+
+## ComputerUsePreviewTool
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| display_height | `number` | typed |
+| display_width | `number` | typed |
+| environment | `'windows' \| 'mac' \| 'linux' \| 'ubuntu' \| 'browser'` | typed |
+| type | `'computer_use_preview'` | typed |
+
+## ResponseComputerToolCall
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| id | `string` | private-replay |
+| call_id | `string` | native-controlled |
+| pending_safety_checks | `Array<ResponseComputerToolCall.PendingSafetyCheck>` | native-controlled |
+| status | `'in_progress' \| 'completed' \| 'incomplete'` | native-controlled |
+| type | `'computer_call'` | native-controlled |
+| action? | `ResponseComputerToolCall.Click \| ResponseComputerToolCall.DoubleClick \| ResponseComputerToolCall.Drag \| ResponseComputerToolCall.Keypress \| ResponseComputerToolCall.Move \| ResponseComputerToolCall.Screenshot \| ResponseComputerToolCall.Scroll \| ResponseComputerToolCall.Type \| ResponseComputerToolCall.Wait` | typed |
+| actions? | `ComputerActionList` | typed |
+
+## ResponseComputerToolCall.PendingSafetyCheck
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| id | `string` | native-controlled |
+| code? | `string \| null` | native-controlled |
+| message? | `string \| null` | native-controlled |
+
+## ResponseComputerToolCall.Click
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| button | `'left' \| 'right' \| 'wheel' \| 'back' \| 'forward'` | typed |
+| type | `'click'` | typed |
+| x | `number` | typed |
+| y | `number` | typed |
+| keys? | `Array<string> \| null` | typed |
+
+## ResponseComputerToolCall.DoubleClick
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| keys | `Array<string> \| null` | typed |
+| type | `'double_click'` | typed |
+| x | `number` | typed |
+| y | `number` | typed |
+
+## ResponseComputerToolCall.Drag
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| path | `Array<Drag.Path>` | typed |
+| type | `'drag'` | typed |
+| keys? | `Array<string> \| null` | typed |
+
+## ResponseComputerToolCall.Drag.Path
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| x | `number` | typed |
+| y | `number` | typed |
+
+## ResponseComputerToolCall.Keypress
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| keys | `Array<string>` | typed |
+| type | `'keypress'` | typed |
+
+## ResponseComputerToolCall.Move
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| type | `'move'` | typed |
+| x | `number` | typed |
+| y | `number` | typed |
+| keys? | `Array<string> \| null` | typed |
+
+## ResponseComputerToolCall.Screenshot
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| type | `'screenshot'` | typed |
+
+## ResponseComputerToolCall.Scroll
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| scroll_x | `number` | typed |
+| scroll_y | `number` | typed |
+| type | `'scroll'` | typed |
+| x | `number` | typed |
+| y | `number` | typed |
+| keys? | `Array<string> \| null` | typed |
+
+## ResponseComputerToolCall.Type
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| text | `string` | typed |
+| type | `'type'` | typed |
+
+## ResponseComputerToolCall.Wait
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| type | `'wait'` | typed |
+
+## ResponseComputerToolCallOutputItem
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| id | `string` | not-integrated |
+| call_id | `string` | native-controlled |
+| output | `ResponseComputerToolCallOutputScreenshot` | typed |
+| status | `'completed' \| 'incomplete' \| 'failed' \| 'in_progress'` | not-integrated |
+| type | `'computer_call_output'` | native-controlled |
+| acknowledged_safety_checks? | `Array<ResponseComputerToolCallOutputItem.AcknowledgedSafetyCheck>` | native-controlled |
+| created_by? | `string` | not-integrated |
+
+## ResponseComputerToolCallOutputItem.AcknowledgedSafetyCheck
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| id | `string` | native-controlled |
+| code? | `string \| null` | native-controlled |
+| message? | `string \| null` | native-controlled |
+
+## ResponseComputerToolCallOutputScreenshot
+
+| Field | Source type | Disposition |
+| --- | --- | --- |
+| type | `'computer_screenshot'` | typed |
+| file_id? | `string` | typed |
+| image_url? | `string` | typed |
 
 
 # Source: docs/openai.md
@@ -2157,7 +2590,7 @@ parameter, header, event and endpoint coverage remains open in the
 
 # OpenAI options audit
 
-Audit scope: `agent_weave_openai` and installed `openai_dart` 11.0.1, compared with the [Responses API](https://platform.openai.com/docs/api-reference/responses/create), [computer-use guide](https://platform.openai.com/docs/guides/tools-computer-use), and [Realtime API](https://platform.openai.com/docs/api-reference/realtime). This is a source review, not an exhaustive certification of all OpenAI endpoints or individual nested SDK fields. No live API calls were made. SDK types or raw HTTP access do not imply AgentWeave orchestration or a working end-to-end feature.
+Historical baseline audit (see updates below): `agent_weave_openai` and installed `openai_dart` 11.0.1, compared with the [Responses API](https://platform.openai.com/docs/api-reference/responses/create), [computer-use guide](https://platform.openai.com/docs/guides/tools-computer-use), and [Realtime API](https://platform.openai.com/docs/api-reference/realtime). This is a source review, not an exhaustive certification of all OpenAI endpoints or individual nested SDK fields. No live API calls were made. SDK types or raw HTTP access do not imply AgentWeave orchestration or a working end-to-end feature.
 
 | Area | SDK and adapter coverage | Gap and priority |
 |---|---|---|
@@ -2185,12 +2618,12 @@ Existing tests in `packages/agent_weave_openai/test` use fixtures and cover sele
 
 ## Update: current worktree
 
-The current `chat_models.dart` now guards runtime-owned messages/input and token limits, requires each runtime tool exactly once, and protects an existing runtime output schema; it merges `reasoning.encrypted_content` into Responses `include`. Usage reports the returned response model when present, falling back to the configured model. Fixture tests in `chat_models_test.dart` cover rejected conversation replacement, include merging, cache key/metadata serialization, and Responses returned-model usage. These changes supersede the corresponding earlier P0 request-replacement and P1 include/model findings; they do not establish exhaustive configuration coverage or live behavior. The P0 computer and other non-function tool continuation gaps remain open. The guard only compares runtime fields present in the canonical JSON and permits additional provider tools; audit individual conflicting settings before claiming full option safety.
+The current `chat_models.dart` now guards runtime-owned messages/input and token limits, requires each runtime tool exactly once, and protects an existing runtime output schema; it merges `reasoning.encrypted_content` into Responses `include`. Usage reports only an actual model returned in the stream; it does not guess the requested alias when the provider omits identity. Fixture tests in `chat_models_test.dart` cover rejected conversation replacement, include merging, cache key/metadata serialization, and Responses returned-model usage. These changes supersede the corresponding earlier P0 request-replacement and P1 include/model findings; they do not establish exhaustive configuration coverage or live behavior. The other non-function tool continuation gaps remained open at that point; see the computer update below. The guard only compares runtime fields present in the canonical JSON and permits additional provider tools; audit individual conflicting settings before claiming full option safety.
 
 The current raw transport fixtures verify request-specific safe headers, repeated
 queries on binary downloads, raw status/headers/bytes, arbitrary JSON root
 values, authenticated PUT requests, pre-cancellation and mutation retry policy.
-This does not implement SSE, multipart or computer-use orchestration.
+This raw helper does not implement SSE or multipart; the separate Responses adapter handles selected computer orchestration as described below.
 
 ## Computer-use SDK contribution
 
@@ -2198,10 +2631,9 @@ This does not implement SSE, multipart or computer-use orchestration.
 typed computer-call input replay and screenshot results, including returned-only
 statuses and redacted screenshots. Local upstream validation passed 25,235 unit
 tests with 3 skips plus package analysis. The PR is submitted, not merged or
-released. AgentWeave still uses its published SDK dependency. Native computer,
-shell/custom/patch calls and MCP approval continuations fail explicitly instead
-of being silently treated as completed function-tool runs. Runtime execution
-and full computer-use orchestration remain unfinished.
+released. AgentWeave still uses its published SDK dependency. Shell/custom/patch calls and
+MCP approval continuations remain unsupported; selected native computer use is
+now integrated as described below.
 
 ## Protocol reuse and Chat continuation
 
@@ -2214,7 +2646,28 @@ actual SDK transport regressions now exercise the second request.
 Chat explicitly rejects multiple choices and requested audio output instead of
 silently dropping unsupported results. Responses requires a terminal event before
 EOF. These supersede the corresponding silent-drop/EOF observations above;
-remaining event, media and computer-use gaps are still open.
+remaining event and media gaps are still open.
+
+## Selected native computer integration
+
+`OpenAIComputerTool` registers an application-executed native computer tool with
+`OpenAIResponsesModel`, including the GA and legacy preview definitions. The
+runtime validates completed calls, preserves action order, pauses for approval as
+configured and whenever safety checks are present, and returns the application's
+fresh screenshot with the matching `call_id`. Arguments are immutable and native
+approval cannot edit them. The environment binding must remain stable across a
+pause. Denial, cancellation, or executor failure closes the continuation with
+its audit history intact; an application must not invent a computer result to
+continue it. The application owns the actual driver, permissions and side effects.
+
+This is selected computer orchestration, not support for other native tool kinds
+or client-executed native tools. The [computer guide](computer-use.md) describes
+the driver contract and its operational limits. Offline contract fixtures do not
+prove live model or server behavior, including GA safety acknowledgements.
+
+The Responses facade consumes raw SSE JSON through the SDK transport before
+typed event decoding. This preserves original private item fields for replay and
+lets the computer validator reject unknown action fields before execution.
 
 
 # Source: docs/provider-coverage.md
@@ -2229,7 +2682,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
-| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; some fixture coverage. | See [OpenAI audit](openai-options-audit.md): non-function tool continuation, events, transport, media and complete field-by-field coverage remain open. |
+| OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; Responses also supports the application-executed native computer tool. | See [OpenAI audit](openai-options-audit.md): other native tool continuations, events, transport, media and complete field-by-field coverage remain open. Computer model and driver behavior require separate live verification. |
 | Anthropic native Messages | Native Messages adapter with text, URL-image and URL or inline PDF/plain-text document input, function tools/results, schema output, signed/redacted thinking replay, cache controls, beta headers, usage and offline fixtures. An Anthropic model reached through a gateway is a different API. | [Messages reference](https://platform.claude.com/docs/en/api/messages/create) specifies top-level system, block-structured messages, thinking, cache breakpoints and TTL, tool choice and tool use/results. Preserve signed/redacted thinking and provider blocks across turns, incremental tool JSON, server tools, citations, usage, errors, beta/version headers, attachments, and model-specific validation. Determine native SDK suitability and contribute missing Dart SDK fields only after selecting and testing a maintained implementation. |
 | OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, all hosted tools/media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
@@ -2242,7 +2695,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 1. Key capabilities by **provider, API protocol, endpoint and model**, distinguishing supported, unsupported and unknown. Do not advertise unconditional tools, media or structured output for every model. Preserve the core runtime's authoritative conversation and registered tools while allowing explicit provider options; reject incompatible combinations rather than silently ignoring them.
 2. Reuse an actively maintained typed Dart SDK when it actually represents the endpoint and preserves required fields. `openai_dart` is already useful for OpenAI and the subset of compatible wire formats its request types model; it is not an Anthropic SDK or proof of arbitrary extension support. Evaluate candidate native SDK maintenance, license, streaming, cancellation, types, unknown fields and release cadence before adoption. Where a specific field or union is missing, reproduce the omission against official docs and submit a focused upstream issue or patch with serialization and round-trip tests; do not fork preemptively.
 3. Define explicit provider-specific typed options plus a controlled forward-compatible extension mechanism where transport supports it. Separate request fields, query parameters, request-scoped headers, multipart/binary data and SSE/WebSocket transport; preserve auth, cancellation, timeouts and safe retry/idempotency semantics. Never log credentials or sensitive replay blocks. An escape hatch alone does not implement orchestration.
-4. Preserve raw provider continuation privately and round-trip every relevant block in order. Map function calls, client-executed computer/custom tools, hosted tools, approvals, tool results and IDs distinctly; do not force all results into a function-output schema. Preserve refusal, errors, finish reasons, structured output, citations, reasoning, media, cache and usage/provider metadata without presenting private continuation as UI text.
+4. Preserve raw provider continuation privately and round-trip every relevant block in order. Map function calls, application-executed computer calls, other native and hosted tools, approvals, tool results and IDs distinctly; do not force all results into a function-output schema. Preserve refusal, errors, finish reasons, structured output, citations, reasoning, media, cache and usage/provider metadata without presenting private continuation as UI text.
 5. Inventory all create/retrieve/list/delete/cancel/query operations, paging, background jobs, cache and storage settings, file/media upload, realtime and model-specific limits separately. Make explicit whether each is typed SDK access, raw escape hatch, integrated runtime behavior, fixture-verified or live-verified.
 
 ## Verification and upkeep
@@ -2268,6 +2721,9 @@ override only after checking the published package and rerunning interop tests.
 
 - Text streaming, standard reasoning events, and structured-output events.
 - Configured server tools, client-tool pauses, and default tool approvals.
+- Selected OpenAI Responses native computer calls with application-owned
+  execution, safety approvals, screenshots, and continuation; see
+  [computer use](computer-use.md).
 - Approval, rejection, edited arguments, and continuation lineage.
 - Server-owned conversation history and owner isolation.
 - HTTP/SSE chat, history paging, and stored-event replay.
@@ -2283,7 +2739,10 @@ not a claim of full TanStack AI core parity.
 
 ## Current limits
 
-- Custom approval payload schemas, generic interrupts, subagents, MCP discovery,
+- Native computer use is limited to the OpenAI Responses adapter. Native
+  client-executed tools and other native tool kinds are unsupported. Approval
+  does not allow edited native arguments.
+- Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
   and provider-hosted tool event normalization are not implemented.
 - Server tools execute sequentially. Applications can perform concurrency
   inside a tool, with their own cancellation and idempotency policy.
@@ -2459,6 +2918,25 @@ together before changing the hash. New fields forwarded through native JSON
 still need a disposition and tests for any claimed orchestration. See
 `tool/contracts/openrouter/README.md` for provenance and retained license.
 
+## OpenAI computer contract
+
+`tool/contracts/openai-computer/source.json` pins the official `openai-node`
+Responses declarations, with its Apache-2.0 license retained beside the source.
+The inventory checks selected computer declarations and reviewed field types,
+not the entire Responses API. After installing the interop tool dependencies:
+
+```sh
+dart run tool/computer_contract.dart
+node --test tool/interop/computer-inventory.test.mjs
+node tool/interop/computer-inventory.mjs --check
+node tool/interop/computer-inventory.mjs --upstream
+```
+
+The last command compares upstream main with the pinned projection; review drift and official
+provider documentation before changing the revision or regenerating the inventory.
+Update the reviewed types, Dart behavior and fixtures together. These offline
+checks do not establish live provider or model support.
+
 
 # Source: docs/validation.md
 
@@ -2485,18 +2963,18 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest OpenRouter/replay increment was checked on Dart 3.12.2. The prior
+The latest native computer increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 270 Dart unit and regression tests: tool validation, approvals, client tools,
+- 294 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 13 Serverpod integration tests with a real isolated PostgreSQL database:
+- 14 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 14 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 16 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
   generation, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
@@ -2732,6 +3210,41 @@ OpenRouter credential-shaped source examples are deterministically redacted
 before storage and generation. Original-source and retained-snapshot hashes
 are verified separately. The local credential scan also checks OpenRouter key
 formats and includes the full source snapshots.
+
+## Native computer increment
+
+Seven core tests cover native definitions and call snapshots, provider/kind
+matching, mandatory approval, atomic answer validation, definition/environment
+binding, denial and closed continuation. Fourteen OpenAI computer tests cover
+GA and preview tools, all nine action types and their parameters, five preview
+environments, screenshot forms, exact safety acknowledgements, terminal status,
+immutability and rejection of unknown action fields before execution. Three
+provider guard tests reject foreign native definitions and history before HTTP.
+All 85 OpenAI package tests pass with the raw Responses SSE transport, including
+SDK cancellation and shared-client ownership regressions.
+
+The PostgreSQL test persists and reloads a pending native approval, rejects
+changed targets, resumes once and rejects a duplicate decision. It uses the real
+store and a scripted model, not a paid provider or computer driver. Two new
+standalone official JavaScript client cases exercise native approval and denial
+through generic interrupts, history hydration and privacy.
+
+The independent computer consumer runs 15 loopback scenarios through the actual
+SDK client with an application-owned fake executor. It verifies ordered actions,
+approval/continuation with a recreated agent, exact IDs, private raw replay,
+UI privacy, malformed/truncated responses, cancellation and unknown action/drag
+fields. The complete driver guide analyzes and compiles unchanged. The targeted
+qualitative DX score is 7.8/10; see [the review](dx-review.md).
+
+Four source-contract tests plus an executable Dart fixture check selected pinned
+official Node declarations, nested action fields, preview environments and
+controlled acknowledgements. The explicit upstream comparison matched the
+selected projection. These checks do not certify the full Responses API.
+
+No real operating system, browser, driver or provider computer session was run.
+GA nonempty safety acknowledgements, screenshot image contents, actual driver
+idempotency and crash recovery remain unverified. No paid requests or package
+publications were made in this increment.
 
 
 # Source: CONTRIBUTING.md

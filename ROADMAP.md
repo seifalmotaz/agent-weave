@@ -17,9 +17,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   Track each endpoint, nested parameter, tool/event union, query, header, cache
   option, and continuation behavior against a dated authoritative specification.
   An OpenAI-compatible URL or SDK export does not establish native parity.
-- OpenAI computer use and other non-function tool continuations require explicit
-  event types, policy-controlled execution, complete input/output round trips,
-  approval/safety handling, and fixtures before any support claim.
+- Selected OpenAI Responses computer calls now have explicit native events,
+  application-controlled execution, approval/safety handling, private replay,
+  PostgreSQL and client fixtures. Real driver/model behavior and other native
+  tool continuations remain open; this is not complete computer-use parity.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.

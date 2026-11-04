@@ -36,6 +36,10 @@ Future<void> main() async {
         ),
     ],
   );
+  final nativeAgent = AiAgent<void>(
+    model: const NativeInteropModel(),
+    tools: [NativeInteropTool()],
+  );
   final structuredAgent = AiAgent<void>(
     model: const InteropModel(),
     outputSchema: const {
@@ -57,15 +61,20 @@ Future<void> main() async {
       break;
     }
     try {
-      if (request.method == 'GET' && request.uri.path == '/history') {
+      if (request.method == 'GET' &&
+          {'/history', '/native-history'}.contains(request.uri.path)) {
         request.response.headers.contentType = ContentType.json;
         request.response.write(
           jsonEncode(
             chatHydration(
-              await agent.store.load(
-                ownerId: 'test',
-                threadId: request.uri.queryParameters['threadId']!,
-              ),
+              await (request.uri.path == '/native-history'
+                      ? nativeAgent
+                      : agent)
+                  .store
+                  .load(
+                    ownerId: 'test',
+                    threadId: request.uri.queryParameters['threadId']!,
+                  ),
             ),
           ),
         );
@@ -93,8 +102,17 @@ Future<void> main() async {
               runId: json['runId'] as String,
             );
       } else {
-        source = (request.uri.path == '/structured' ? structuredAgent : agent)
-            .run(ChatRequest.fromJson(json), ownerId: 'test', context: null);
+        source =
+            (request.uri.path == '/native'
+                    ? nativeAgent
+                    : request.uri.path == '/structured'
+                    ? structuredAgent
+                    : agent)
+                .run(
+                  ChatRequest.fromJson(json),
+                  ownerId: 'test',
+                  context: null,
+                );
       }
       await for (final event in source) {
         request.response.write(event.toSse());
@@ -167,5 +185,62 @@ final class InteropModel implements ChatModel {
       );
     }
     yield const ModelFinished();
+  }
+}
+
+final class NativeInteropTool implements AgentTool<void> {
+  @override
+  final definition = NativeModelTool(
+    name: 'nativeGate',
+    description: 'Native fixture',
+    inputSchema: inputSchema,
+    provider: 'fixture.native',
+    definition: {'type': 'fixture-computer'},
+    bindingId: 'private-native-environment',
+  );
+  @override
+  JsonObject? get outputSchema => null;
+  @override
+  bool get needsApproval => false;
+  @override
+  bool get clientExecuted => false;
+  @override
+  Future<Object?> invoke(JsonObject input, ToolContext<void> context) async {
+    if (!context.approved) throw StateError('Approval required');
+    return 'captured';
+  }
+}
+
+final class NativeInteropModel implements ChatModel {
+  const NativeInteropModel();
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities(tools: true);
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) async* {
+    cancellation.throwIfCancelled();
+    if (request.messages.last.role == MessageRole.tool) {
+      yield const TextDelta('Computer completed');
+      yield const ModelFinished();
+    } else {
+      yield NativeToolCallReady(
+        NativeToolCall(
+          id: 'native-call',
+          name: 'nativeGate',
+          arguments: {'count': 2},
+          provider: 'fixture.native',
+          requiresApproval: true,
+        ),
+      );
+      yield ProviderOutput(
+        provider: 'fixture.native',
+        items: [
+          {'private': 'private-native-replay'},
+        ],
+      );
+      yield const ModelFinished('tool_calls');
+    }
   }
 }

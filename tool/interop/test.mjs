@@ -84,6 +84,41 @@ try {
       console.log(`PASS official JS client: ${name} and history`);
     } finally { chat.dispose(); }
   }
+  for (const approved of [true, false]) {
+    const threadId = approved ? 'native-approval' : 'native-denial';
+    const chat = new ChatClient({ threadId, connection: fetchServerSentEvents(`${base}/native`) });
+    try {
+      await chat.sendMessage('computer');
+      assert.equal(chat.getError(), undefined);
+      const [interrupt] = chat.getInterrupts();
+      assert.equal(interrupt.kind, 'generic');
+      assert.equal(interrupt.canResolve, true);
+      interrupt.resolveInterrupt({ approved });
+      let history;
+      for (let i = 0; i < 100; i++) {
+        history = await (await fetch(`${base}/native-history?threadId=${threadId}`)).json();
+        if (history.interrupts === null) break;
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      assert.equal(history.interrupts, null);
+      assert.equal(chat.getError(), undefined);
+      assert.equal(chat.getInterrupts().length, 0);
+      const serialized = JSON.stringify(history);
+      assert.equal(serialized.includes('private-native-replay'), false);
+      assert.equal(serialized.includes('private-native-environment'), false);
+      assert.equal(serialized.includes('fixture.native'), false);
+      const nativePart = history.messages.flatMap(message => message.parts).find(part => part.type === 'tool-call');
+      const restored = new ChatClient({ threadId, connection: fetchServerSentEvents(`${base}/native`), initialMessages: history.messages });
+      try {
+        const part = restored.getMessages().flatMap(message => message.parts).find(part => part.type === 'tool-call');
+        assert.equal(part.id, 'native-call');
+        assert.equal(part.name, 'nativeGate');
+      } finally { restored.dispose(); }
+      if (approved) assert.equal(nativePart.output, 'captured');
+      else assert.equal(Object.hasOwn(nativePart, 'output'), false);
+      console.log(`PASS official JS client: native ${approved ? 'approval' : 'denial'} and private history`);
+    } finally { chat.dispose(); }
+  }
   const generation = new GenerationClient({ threadId: 'generation',
     connection: fetchServerSentEvents(`${base}/generation`) });
   try {

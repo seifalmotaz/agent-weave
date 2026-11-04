@@ -12,6 +12,8 @@ Development version. Read compatibility and validation before making support cla
 - [docs/tools.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/tools.md)
 - [docs/providers.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/providers.md)
 - [docs/documents.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/documents.md)
+- [docs/computer-use.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/computer-use.md)
+- [docs/computer-parameters.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/computer-parameters.md)
 - [docs/openai.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai.md)
 - [docs/openrouter.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openrouter.md)
 - [docs/openrouter-api-reference.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openrouter-api-reference.md)

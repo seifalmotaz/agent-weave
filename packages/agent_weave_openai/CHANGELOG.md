@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add app-executed OpenAI Responses computer calls with approval and screenshot continuation.
+- Preserve original Responses SSE items before typed decoding and reject unknown computer action fields before execution.
+
 - Preserve raw Responses reasoning/tool output input fields and snapshot configuration guards before callbacks.
 - Protect absent history fields, alternate Chat token bounds and stream options.
 

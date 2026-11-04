@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:openai_dart/openai_dart.dart' as api;
+import 'computer_tool.dart';
 
 /// Caller owns [client] and must close it when the application shuts down.
 final class OpenAIResponsesModel implements ChatModel {
@@ -24,12 +25,15 @@ final class OpenAIResponsesModel implements ChatModel {
     configure: configure,
   ).capabilities;
 
+  // Typed event decoding can discard fields needed for validation and replay.
   Stream<JsonObject> _transport(
     api.CreateResponseRequest request,
     CancellationToken cancellation,
-  ) => client.responses
-      .createStream(request, abortTrigger: cancellation.whenCancelled)
-      .map((event) => event.toJson());
+  ) => client.responses.streamSseEvents(
+    endpoint: '/responses',
+    body: {...request.toJson(), 'stream': true},
+    abortTrigger: cancellation.whenCancelled,
+  );
 
   @override
   Stream<ModelEvent> stream(
@@ -87,18 +91,104 @@ final class ResponsesProtocolModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
+    final nativeTools = request.tools.whereType<NativeModelTool>().toList();
+    if (nativeTools.any(
+          (tool) =>
+              providerDataKey != 'openai.responses' ||
+              tool.provider != 'openai.responses' ||
+              tool.bindingId == null ||
+              !{
+                'computer',
+                'computer_use_preview',
+              }.contains(tool.definition['type']),
+        ) ||
+        nativeTools.length > 1) {
+      throw UnsupportedError(
+        'Unsupported native Responses tool configuration.',
+      );
+    }
+    final nativeCalls = <String, NativeToolCall>{};
     final input = <JsonObject>[];
     for (final message in request.messages) {
       if (message.role == MessageRole.tool) {
-        input.add({
-          'type': 'function_call_output',
-          'call_id': message.toolCallId,
-          'output': message.text,
-        });
+        final call = nativeCalls[message.toolCallId];
+        if (call == null) {
+          input.add({
+            'type': 'function_call_output',
+            'call_id': message.toolCallId,
+            'output': message.text,
+          });
+        } else {
+          final original = OpenAIComputerCall.fromJson(call.arguments);
+          if (call.id != original.callId) {
+            throw const FormatException('Computer call ID mismatch.');
+          }
+          final decoded = jsonDecode(message.text);
+          if (decoded is! Map || decoded['output'] is! Map) {
+            throw const FormatException('Invalid computer screenshot result.');
+          }
+          final output = decoded['output'] as Map;
+          if (output['type'] != 'computer_screenshot' ||
+              output.keys.any(
+                (key) =>
+                    !{'type', 'image_url', 'file_id', 'detail'}.contains(key),
+              )) {
+            throw const FormatException('Invalid computer screenshot result.');
+          }
+          final screenshot = OpenAIComputerScreenshot(
+            imageUrl: output['image_url'] as String?,
+            fileId: output['file_id'] as String?,
+            detail: output['detail'] == null
+                ? null
+                : api.ImageDetail.fromJson(output['detail'] as String),
+          );
+          final ack = decoded['acknowledged_safety_checks'];
+          if (decoded.keys.any(
+                (key) =>
+                    !{'output', 'acknowledged_safety_checks'}.contains(key),
+              ) ||
+              (original.safetyChecks.isEmpty
+                  ? ack != null
+                  : canonicalJson(ack) !=
+                        canonicalJson(original.safetyChecks))) {
+            throw const FormatException(
+              'Invalid computer safety acknowledgements.',
+            );
+          }
+          input.add({
+            'type': 'computer_call_output',
+            'call_id': call.id,
+            'output': screenshot.toJson(),
+            'acknowledged_safety_checks': ?ack,
+          });
+        }
         continue;
+      }
+      for (final call in message.toolCalls.whereType<NativeToolCall>()) {
+        if (call.provider != 'openai.responses' ||
+            providerDataKey != 'openai.responses' ||
+            nativeTools.length != 1 ||
+            nativeTools.single.name != call.name ||
+            nativeCalls.containsKey(call.id)) {
+          throw const FormatException('Invalid native computer call history.');
+        }
+        nativeCalls[call.id] = call;
       }
       final replay = message.providerData[providerDataKey];
       if (replay != null && replay.isNotEmpty) {
+        for (final call in message.toolCalls.whereType<NativeToolCall>()) {
+          if (replay
+                  .where(
+                    (item) =>
+                        item['type'] == 'computer_call' &&
+                        canonicalJson(OpenAIComputerCall.fromJson(item).raw) ==
+                            canonicalJson(call.arguments),
+                  )
+                  .length !=
+              1) {
+            throw const FormatException('Computer replay does not match call.');
+          }
+        }
         input.addAll(replay);
         continue;
       }
@@ -139,6 +229,11 @@ final class ResponsesProtocolModel implements ChatModel {
         });
       }
       for (final call in message.toolCalls) {
+        if (call is NativeToolCall) {
+          throw const FormatException(
+            'Native computer call requires provider replay.',
+          );
+        }
         input.add({
           'type': 'function_call',
           'call_id': call.id,
@@ -164,12 +259,15 @@ final class ResponsesProtocolModel implements ChatModel {
       if (request.tools.isNotEmpty)
         'tools': [
           for (final tool in request.tools)
-            {
-              'type': 'function',
-              'name': tool.name,
-              'description': tool.description,
-              'parameters': tool.inputSchema,
-              'strict': false,
+            switch (tool) {
+              NativeModelTool() => tool.definition,
+              FunctionModelTool() => {
+                'type': 'function',
+                'name': tool.name,
+                'description': tool.description,
+                'parameters': tool.inputSchema,
+                'strict': false,
+              },
             },
         ],
       if (request.outputSchema != null)
@@ -190,6 +288,20 @@ final class ResponsesProtocolModel implements ChatModel {
       owned: ['input', 'instructions', 'max_output_tokens', 'stream'],
       schemaField: 'text',
     );
+    final configuredComputers = (options['tools'] as List? ?? [])
+        .where(
+          (tool) =>
+              tool is Map &&
+              {'computer', 'computer_use_preview'}.contains(tool['type']),
+        )
+        .length;
+    if (configuredComputers > 1 ||
+        (configuredComputers != 0 && nativeTools.isEmpty) ||
+        (nativeTools.isNotEmpty && configuredComputers != 1)) {
+      throw ArgumentError(
+        'Exactly one registered computer profile is allowed.',
+      );
+    }
     final includes = <Object?>{
       ...?options['include'] as List?,
       if (includeEncryptedReasoning) 'reasoning.encrypted_content',
@@ -205,6 +317,7 @@ final class ResponsesProtocolModel implements ChatModel {
     }).copyWith(input: replayInput);
 
     var terminal = false;
+    final completedComputerItems = <String>{};
     String? actualModel;
     await for (final json in transport(params, cancellation)) {
       cancellation.throwIfCancelled();
@@ -232,6 +345,14 @@ final class ResponsesProtocolModel implements ChatModel {
                 ),
               ),
             );
+          } else if (item['type'] == 'computer_call' &&
+              nativeTools.length == 1) {
+            final call = OpenAIComputerCall.fromJson(
+              Map<String, Object?>.from(item),
+            );
+            if (!completedComputerItems.add(call.callId)) {
+              throw const FormatException('Duplicate computer call item.');
+            }
           } else if (const {
             'computer_call',
             'local_shell_call',
@@ -249,6 +370,62 @@ final class ResponsesProtocolModel implements ChatModel {
         case 'response.completed' || 'response.incomplete':
           terminal = true;
           final response = json['response'] as Map;
+          if (json['type'] == 'response.incomplete' &&
+              (response['output'] as List? ?? []).any(
+                (raw) => raw is Map && raw['type'] == 'computer_call',
+              )) {
+            throw StateError(
+              'Incomplete response cannot execute a computer call.',
+            );
+          }
+          if (json['type'] == 'response.completed') {
+            final terminalComputerItems = <String>{};
+            for (final raw in response['output'] as List? ?? []) {
+              if (raw is Map &&
+                  const {
+                    'local_shell_call',
+                    'shell_call',
+                    'custom_tool_call',
+                    'apply_patch_call',
+                    'mcp_approval_request',
+                    'tool_search_call',
+                  }.contains(raw['type'])) {
+                throw UnsupportedError('Unsupported native Responses call.');
+              }
+              if (raw is Map && raw['type'] == 'computer_call') {
+                if (response['status'] != 'completed') {
+                  throw const FormatException(
+                    'Computer call requires a completed response.',
+                  );
+                }
+                if (nativeTools.length != 1) {
+                  throw UnsupportedError(
+                    'Computer call has no registered computer tool.',
+                  );
+                }
+                final call = OpenAIComputerCall.fromJson(
+                  Map<String, Object?>.from(raw),
+                );
+                if (!terminalComputerItems.add(call.callId)) {
+                  throw const FormatException('Duplicate computer call.');
+                }
+                yield NativeToolCallReady(
+                  NativeToolCall(
+                    id: call.callId,
+                    name: nativeTools.single.name,
+                    arguments: call.raw,
+                    provider: 'openai.responses',
+                    requiresApproval: call.safetyChecks.isNotEmpty,
+                  ),
+                );
+              }
+            }
+            if (!terminalComputerItems.containsAll(completedComputerItems)) {
+              throw const FormatException(
+                'Computer call missing from terminal response.',
+              );
+            }
+          }
           yield ProviderOutput(
             provider: providerDataKey,
             items: [
@@ -356,6 +533,12 @@ final class ChatCompletionsProtocolModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
+    if (request.tools.any((tool) => tool is NativeModelTool) ||
+        request.messages.any(
+          (message) => message.toolCalls.any((call) => call is NativeToolCall),
+        )) {
+      throw UnsupportedError('Chat Completions does not support native tools.');
+    }
     for (final message in request.messages) {
       if (message.role == MessageRole.assistant &&
           message.content.any((part) => part is! TextPart)) {

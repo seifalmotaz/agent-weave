@@ -1,0 +1,501 @@
+{
+  "repository": "openai/openai-node",
+  "revision": "9854bd60f7e2a5840baa61d86d9a288d2127ae8f",
+  "path": "src/resources/responses/responses.ts",
+  "license": "Apache-2.0",
+  "sha256": "096f8b75836632e8ee67636367c98621a7eaa9ca6eb106c400eea0d6a5ce5dc7",
+  "meaning": "Selected Responses computer declarations only; not complete SDK or endpoint coverage.",
+  "notes": [
+    "The pinned schema requires pending_safety_checks; the GA driver accepts its absence, while legacy action calls require it.",
+    "Screenshot detail is a separately documented driver extension absent from this Node pin.",
+    "Output ID, status and created_by are not integrated; native replay and runtime-owned fields are not public options."
+  ],
+  "coverage": {
+    "ComputerTool": {
+      "type": "typed"
+    },
+    "ComputerUsePreviewTool": {
+      "display_height": "typed",
+      "display_width": "typed",
+      "environment": "typed",
+      "type": "typed"
+    },
+    "ResponseComputerToolCall": {
+      "id": "private-replay",
+      "call_id": "native-controlled",
+      "pending_safety_checks": "native-controlled",
+      "status": "native-controlled",
+      "type": "native-controlled",
+      "action": "typed",
+      "actions": "typed"
+    },
+    "ResponseComputerToolCall.PendingSafetyCheck": {
+      "id": "native-controlled",
+      "code": "native-controlled",
+      "message": "native-controlled"
+    },
+    "ResponseComputerToolCall.Click": {
+      "button": "typed",
+      "type": "typed",
+      "x": "typed",
+      "y": "typed",
+      "keys": "typed"
+    },
+    "ResponseComputerToolCall.DoubleClick": {
+      "keys": "typed",
+      "type": "typed",
+      "x": "typed",
+      "y": "typed"
+    },
+    "ResponseComputerToolCall.Drag": {
+      "path": "typed",
+      "type": "typed",
+      "keys": "typed"
+    },
+    "ResponseComputerToolCall.Drag.Path": {
+      "x": "typed",
+      "y": "typed"
+    },
+    "ResponseComputerToolCall.Keypress": {
+      "keys": "typed",
+      "type": "typed"
+    },
+    "ResponseComputerToolCall.Move": {
+      "type": "typed",
+      "x": "typed",
+      "y": "typed",
+      "keys": "typed"
+    },
+    "ResponseComputerToolCall.Screenshot": {
+      "type": "typed"
+    },
+    "ResponseComputerToolCall.Scroll": {
+      "scroll_x": "typed",
+      "scroll_y": "typed",
+      "type": "typed",
+      "x": "typed",
+      "y": "typed",
+      "keys": "typed"
+    },
+    "ResponseComputerToolCall.Type": {
+      "text": "typed",
+      "type": "typed"
+    },
+    "ResponseComputerToolCall.Wait": {
+      "type": "typed"
+    },
+    "ResponseComputerToolCallOutputItem": {
+      "id": "not-integrated",
+      "call_id": "native-controlled",
+      "output": "typed",
+      "status": "not-integrated",
+      "type": "native-controlled",
+      "acknowledged_safety_checks": "native-controlled",
+      "created_by": "not-integrated"
+    },
+    "ResponseComputerToolCallOutputItem.AcknowledgedSafetyCheck": {
+      "id": "native-controlled",
+      "code": "native-controlled",
+      "message": "native-controlled"
+    },
+    "ResponseComputerToolCallOutputScreenshot": {
+      "type": "typed",
+      "file_id": "typed",
+      "image_url": "typed"
+    }
+  },
+  "declarations": {
+    "ComputerTool": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'computer'"
+        }
+      ]
+    },
+    "ComputerUsePreviewTool": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "display_height",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "display_width",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "environment",
+          "optional": false,
+          "type": "'windows' | 'mac' | 'linux' | 'ubuntu' | 'browser'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'computer_use_preview'"
+        }
+      ]
+    },
+    "ResponseComputerToolCall": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "call_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "pending_safety_checks",
+          "optional": false,
+          "type": "Array<ResponseComputerToolCall.PendingSafetyCheck>"
+        },
+        {
+          "name": "status",
+          "optional": false,
+          "type": "'in_progress' | 'completed' | 'incomplete'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'computer_call'"
+        },
+        {
+          "name": "action",
+          "optional": true,
+          "type": "ResponseComputerToolCall.Click | ResponseComputerToolCall.DoubleClick | ResponseComputerToolCall.Drag | ResponseComputerToolCall.Keypress | ResponseComputerToolCall.Move | ResponseComputerToolCall.Screenshot | ResponseComputerToolCall.Scroll | ResponseComputerToolCall.Type | ResponseComputerToolCall.Wait"
+        },
+        {
+          "name": "actions",
+          "optional": true,
+          "type": "ComputerActionList"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.PendingSafetyCheck": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "message",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Click": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "button",
+          "optional": false,
+          "type": "'left' | 'right' | 'wheel' | 'back' | 'forward'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'click'"
+        },
+        {
+          "name": "x",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "y",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "keys",
+          "optional": true,
+          "type": "Array<string> | null"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.DoubleClick": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "keys",
+          "optional": false,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'double_click'"
+        },
+        {
+          "name": "x",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "y",
+          "optional": false,
+          "type": "number"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Drag": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "path",
+          "optional": false,
+          "type": "Array<Drag.Path>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'drag'"
+        },
+        {
+          "name": "keys",
+          "optional": true,
+          "type": "Array<string> | null"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Drag.Path": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "x",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "y",
+          "optional": false,
+          "type": "number"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Keypress": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "keys",
+          "optional": false,
+          "type": "Array<string>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'keypress'"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Move": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'move'"
+        },
+        {
+          "name": "x",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "y",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "keys",
+          "optional": true,
+          "type": "Array<string> | null"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Screenshot": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'screenshot'"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Scroll": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "scroll_x",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "scroll_y",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'scroll'"
+        },
+        {
+          "name": "x",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "y",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "keys",
+          "optional": true,
+          "type": "Array<string> | null"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Type": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'type'"
+        }
+      ]
+    },
+    "ResponseComputerToolCall.Wait": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'wait'"
+        }
+      ]
+    },
+    "ResponseComputerToolCallOutputItem": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "call_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output",
+          "optional": false,
+          "type": "ResponseComputerToolCallOutputScreenshot"
+        },
+        {
+          "name": "status",
+          "optional": false,
+          "type": "'completed' | 'incomplete' | 'failed' | 'in_progress'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'computer_call_output'"
+        },
+        {
+          "name": "acknowledged_safety_checks",
+          "optional": true,
+          "type": "Array<ResponseComputerToolCallOutputItem.AcknowledgedSafetyCheck>"
+        },
+        {
+          "name": "created_by",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "ResponseComputerToolCallOutputItem.AcknowledgedSafetyCheck": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "code",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "message",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "ResponseComputerToolCallOutputScreenshot": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'computer_screenshot'"
+        },
+        {
+          "name": "file_id",
+          "optional": true,
+          "type": "string"
+        },
+        {
+          "name": "image_url",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    }
+  }
+}

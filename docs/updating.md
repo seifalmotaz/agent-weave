@@ -126,3 +126,22 @@ Review source drift, the field statuses, implementation and fixture behavior
 together before changing the hash. New fields forwarded through native JSON
 still need a disposition and tests for any claimed orchestration. See
 `tool/contracts/openrouter/README.md` for provenance and retained license.
+
+## OpenAI computer contract
+
+`tool/contracts/openai-computer/source.json` pins the official `openai-node`
+Responses declarations, with its Apache-2.0 license retained beside the source.
+The inventory checks selected computer declarations and reviewed field types,
+not the entire Responses API. After installing the interop tool dependencies:
+
+```sh
+dart run tool/computer_contract.dart
+node --test tool/interop/computer-inventory.test.mjs
+node tool/interop/computer-inventory.mjs --check
+node tool/interop/computer-inventory.mjs --upstream
+```
+
+The last command compares upstream main with the pinned projection; review drift and official
+provider documentation before changing the revision or regenerating the inventory.
+Update the reviewed types, Dart behavior and fixtures together. These offline
+checks do not establish live provider or model support.

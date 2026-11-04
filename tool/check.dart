@@ -51,6 +51,9 @@ Future<void> main() async {
   ]);
 
   await run('node', ['--test', 'tool/interop/inventory.test.mjs']);
+  await run('dart', ['run', 'tool/computer_contract.dart']);
+  await run('node', ['--test', 'tool/interop/computer-inventory.test.mjs']);
+  await run('node', ['tool/interop/computer-inventory.mjs', '--check']);
   await run('dart', ['run', 'tool/together_contract.dart']);
   await run('node', ['tool/interop/inventory.mjs', '--check']);
   await run('dart', ['run', 'tool/gateway_contract.dart']);
@@ -67,6 +70,11 @@ Future<void> main() async {
   await run('dart', ['run', 'examples/review_cases/failures.dart']);
   await run('dart', ['run', 'examples/review_cases/reliability.dart']);
   await run('dart', ['run', 'examples/review_cases/anthropic.dart']);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/computer.dart',
+  ]);
   await run('dart', [
     '--enable-asserts',
     'run',

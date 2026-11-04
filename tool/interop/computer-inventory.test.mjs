@@ -1,0 +1,10 @@
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { project, validate } from './computer-inventory.mjs';
+const source = readFileSync(new URL('../contracts/openai-computer/responses.ts', import.meta.url), 'utf8');
+const fixture = JSON.parse(readFileSync(new URL('../../.dart_tool/computer-options.json', import.meta.url), 'utf8'));
+test('pinned declarations match executable fixture', () => validate(project(source), fixture));
+test('new fields require review', () => assert.throws(() => validate(project(source.replace("export interface ComputerTool {", "export interface ComputerTool { future?: string;")), fixture), /Review changed fields/));
+test('new enum values require review', () => assert.throws(() => validate(project(source.replace("'windows' | 'mac' | 'linux' | 'ubuntu' | 'browser'", "'windows' | 'mac' | 'linux' | 'ubuntu' | 'browser' | 'future'")), fixture), /Review changed type/));
+test('fixture detects missing linux', () => { const copy = structuredClone(fixture); copy.preview = copy.preview.filter(p => p.environment !== 'linux'); assert.throws(() => validate(project(source), copy), /environments differ/); });

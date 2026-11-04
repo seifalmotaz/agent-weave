@@ -34,7 +34,8 @@ class DocumentationTest(unittest.TestCase):
                          'vercel-gateway/index.html', 'gateway-options/index.html', 'gateway-options-inventory.json',
                          'cloudflare/index.html', 'cloudflare-api-reference/index.html',
                          'cloudflare-api-inventory.json', 'openrouter-api-reference/index.html',
-                         'openrouter-api-inventory.json', 'assets/styles.css', 'llms.txt']:
+                         'openrouter-api-inventory.json', 'computer-use/index.html',
+                         'computer-parameters/index.html', 'computer-api-inventory.json', 'assets/styles.css', 'llms.txt']:
                 self.assertTrue((target / path).is_file(), path)
             html = (target / 'index.html').read_text()
             self.assertIn('Your AI logic.', html)
@@ -52,6 +53,8 @@ class DocumentationTest(unittest.TestCase):
             self.assertIn('cloudflare/', locations)
             self.assertIn('cloudflare-api-reference/', locations)
             self.assertIn('openrouter-api-reference/', locations)
+            self.assertIn('computer-use/', locations)
+            self.assertIn('computer-parameters/', locations)
             openrouter = json.loads((target / 'openrouter-api-inventory.json').read_text())
             self.assertEqual(openrouter['operationCount'], 146)
             cloudflare = json.loads((target / 'cloudflare-api-inventory.json').read_text())

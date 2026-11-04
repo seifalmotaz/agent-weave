@@ -112,6 +112,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Typed tools and approvals](docs/tools.md)
 - [Provider author guide](docs/providers.md)
 - [Documents](docs/documents.md)
+- [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [OpenRouter](docs/openrouter.md)

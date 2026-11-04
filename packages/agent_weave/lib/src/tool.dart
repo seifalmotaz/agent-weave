@@ -14,6 +14,7 @@ final class ToolContext<C> {
   /// Use this key to deduplicate external effects in your own service.
   final String toolCallId;
   final CancellationToken cancellation;
+  final bool approved;
   const ToolContext({
     required this.value,
     required this.ownerId,
@@ -21,6 +22,7 @@ final class ToolContext<C> {
     required this.runId,
     required this.toolCallId,
     required this.cancellation,
+    this.approved = false,
   });
 
   /// Stable across approval continuations; isolated across owners and threads.

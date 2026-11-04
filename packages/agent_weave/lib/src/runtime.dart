@@ -56,6 +56,11 @@ final class AiAgent<C> {
     }
     for (final tool in this.tools) {
       validateToolDefinition(tool.definition, tool.outputSchema);
+      if (tool.clientExecuted && tool.definition is NativeModelTool) {
+        throw UnsupportedError(
+          'Client-executed native tools are not supported.',
+        );
+      }
     }
     if (outputSchema != null) JsonSchema.create(outputSchema);
     if (this.tools.isNotEmpty && !model.capabilities.tools) {
@@ -184,6 +189,8 @@ final class AiAgent<C> {
     var status = RunStatus.running;
     var released = false;
     var accepted = false;
+    String? nativeContinuationClosed =
+        previous['nativeContinuationClosed'] as String?;
     String? partialMessageId;
     StringBuffer? partialText;
     void preservePartial() {
@@ -224,6 +231,7 @@ final class AiAgent<C> {
       'messages': [for (final m in messages) m.toJson()],
       'events': journal,
       'pending': pending,
+      'nativeContinuationClosed': ?nativeContinuationClosed,
     };
     Future<AgentEvent> event(
       String type, [
@@ -266,6 +274,11 @@ final class AiAgent<C> {
     }
 
     try {
+      if (nativeContinuationClosed != null) {
+        throw const FormatException(
+          'Native continuation closed; start a new thread.',
+        );
+      }
       if ((previous['pending'] as List? ?? []).isNotEmpty &&
           request.messages.any(
             (message) => !messages.any((saved) => saved.id == message.id),
@@ -325,6 +338,17 @@ final class AiAgent<C> {
           Map<String, Object?>.from(item['call'] as Map),
         );
         final tool = _tool(call.name);
+        _validateToolKind(call, tool.definition);
+        if (call is NativeToolCall &&
+            item['definitionHash'] !=
+                _nativeDefinitionHash(
+                  tool.definition as NativeModelTool,
+                  tool.outputSchema,
+                )) {
+          throw const FormatException(
+            'Native tool definition changed since the run paused.',
+          );
+        }
         if (schemaHash(tool.definition.inputSchema) !=
                 item['inputSchemaHash'] ||
             schemaHash(tool.outputSchema) != item['outputSchemaHash']) {
@@ -358,12 +382,42 @@ final class AiAgent<C> {
               ? <String, Object?>{'approved': value}
               : Map<String, Object?>.from(value as Map);
           validateSchema(
-            approvalResponseSchema(tool.definition.inputSchema),
+            _approvalSchema(call, tool.definition.inputSchema),
             answer,
           );
+          if (call is NativeToolCall && answer.containsKey('editedArgs')) {
+            throw const FormatException(
+              'Native tool arguments cannot be edited.',
+            );
+          }
         }
       }
+      final nativeDeclined = waiting.any((item) {
+        final call = ToolCall.fromJson(
+          Map<String, Object?>.from(item['call'] as Map),
+        );
+        if (call is! NativeToolCall) return false;
+        final answer = request.resume.singleWhere(
+          (r) => r.interruptId == item['id'],
+        );
+        return answer.cancelled ||
+            answer.value == false ||
+            (answer.value is Map && (answer.value as Map)['approved'] == false);
+      });
       accepted = true;
+      if (nativeDeclined) {
+        nativeContinuationClosed =
+            'Native tool approval declined or cancelled; start a new thread.';
+        status = RunStatus.cancelled;
+        yield await event('RUN_STARTED', {
+          if (request.parentRunId != null) 'parentRunId': request.parentRunId,
+        });
+        yield await event('RUN_FINISHED', {
+          'finishReason': 'cancelled',
+          'outcome': {'type': 'cancelled', 'reason': nativeContinuationClosed},
+        });
+        return;
+      }
       await store.save(
         ownerId: ownerId,
         threadId: request.threadId,
@@ -408,6 +462,7 @@ final class AiAgent<C> {
               ownerId,
               context,
               token,
+              approved: true,
             );
           } else {
             result = {'error': 'Tool execution was declined.'};
@@ -476,7 +531,12 @@ final class AiAgent<C> {
                 'messageId': messageId,
                 'delta': text,
               });
-            case ToolCallReady(:final call):
+            case ToolCallReady() || NativeToolCallReady():
+              final call = switch (item) {
+                ToolCallReady(:final call) => call,
+                NativeToolCallReady(:final call) => call,
+                _ => throw StateError('Unexpected tool call event.'),
+              };
               if (calls.any((c) => c.id == call.id) ||
                   messages.any(
                     (m) => m.toolCalls.any((c) => c.id == call.id),
@@ -486,6 +546,11 @@ final class AiAgent<C> {
                 );
               }
               final tool = _tool(call.name);
+              if ((item is ToolCallReady && call is! FunctionToolCall) ||
+                  (item is NativeToolCallReady && call is! NativeToolCall)) {
+                throw const FormatException('Tool call event kind mismatch.');
+              }
+              _validateToolKind(call, tool.definition);
               validateSchema(tool.definition.inputSchema, call.arguments);
               calls.add(call);
               yield await event('TOOL_CALL_START', {
@@ -576,13 +641,20 @@ final class AiAgent<C> {
         final interrupts = <JsonObject>[];
         for (final call in calls) {
           final tool = _tool(call.name);
-          if (tool.needsApproval || tool.clientExecuted) {
+          if (tool.needsApproval ||
+              tool.clientExecuted ||
+              (call is NativeToolCall && call.requiresApproval)) {
             final id = _newId();
             pending.add({
               'id': id,
               'call': call.toJson(),
               'inputSchemaHash': schemaHash(tool.definition.inputSchema),
               'outputSchemaHash': schemaHash(tool.outputSchema),
+              if (call is NativeToolCall)
+                'definitionHash': _nativeDefinitionHash(
+                  tool.definition as NativeModelTool,
+                  tool.outputSchema,
+                ),
             });
             final binding = <String, Object?>{
               'v': 1,
@@ -605,7 +677,7 @@ final class AiAgent<C> {
                   'reject': null,
                 }),
                 'responseSchemaHash': schemaHash(
-                  approvalResponseSchema(tool.definition.inputSchema),
+                  _approvalSchema(call, tool.definition.inputSchema),
                 ),
               },
             };
@@ -622,7 +694,8 @@ final class AiAgent<C> {
                 'tanstack:interruptBinding': binding,
               },
               if (!tool.clientExecuted)
-                'responseSchema': approvalResponseSchema(
+                'responseSchema': _approvalSchema(
+                  call,
                   tool.definition.inputSchema,
                 ),
             });
@@ -667,6 +740,11 @@ final class AiAgent<C> {
       preservePartial();
       if (accepted) {
         for (final call in unresolvedCalls()) {
+          if (call is NativeToolCall) {
+            nativeContinuationClosed =
+                'Native tool execution failed; start a new thread.';
+            continue;
+          }
           final result = {
             'error':
                 'Tool execution failed or was interrupted. Verify external effects before retrying.',
@@ -696,7 +774,9 @@ final class AiAgent<C> {
       if (!token.isCancelled) {
         final fields = <String, Object?>{
           'code': failureCode,
-          'message': error is FormatException
+          'message': previous['nativeContinuationClosed'] != null
+              ? 'Native continuation closed. Start a new thread.'
+              : error is FormatException
               ? 'Invalid input or provider output.'
               : 'The AI run could not complete.',
         };
@@ -714,6 +794,11 @@ final class AiAgent<C> {
       preservePartial();
       if (accepted && status == RunStatus.cancelled) {
         for (final call in unresolvedCalls()) {
+          if (call is NativeToolCall) {
+            nativeContinuationClosed =
+                'Native tool execution cancelled; start a new thread.';
+            continue;
+          }
           messages.add(
             _result(call, {
               'error':
@@ -775,8 +860,9 @@ final class AiAgent<C> {
     ChatRequest request,
     String ownerId,
     C context,
-    CancellationToken token,
-  ) async {
+    CancellationToken token, {
+    bool approved = false,
+  }) async {
     token.throwIfCancelled();
     return tool.invoke(
       call.arguments,
@@ -787,6 +873,7 @@ final class AiAgent<C> {
         runId: request.runId,
         toolCallId: call.id,
         cancellation: token,
+        approved: approved,
       ),
     );
   }
@@ -805,3 +892,41 @@ JsonObject _resultFields(ToolCall call, Object? result) => {
   'content': jsonEncode(result),
   'role': 'tool',
 };
+
+void _validateToolKind(ToolCall call, ModelTool definition) {
+  if (call is FunctionToolCall && definition is FunctionModelTool) {
+    return;
+  }
+  if (call is NativeToolCall &&
+      definition is NativeModelTool &&
+      call.provider == definition.provider) {
+    return;
+  }
+  throw const FormatException(
+    'Tool call kind or provider does not match its definition.',
+  );
+}
+
+String _nativeDefinitionHash(
+  NativeModelTool definition,
+  JsonObject? outputSchema,
+) => schemaHash({
+  'name': definition.name,
+  'provider': definition.provider,
+  'bindingId': definition.bindingId,
+  'definition': definition.definition,
+  'inputSchema': definition.inputSchema,
+  'outputSchema': outputSchema,
+});
+
+JsonObject _approvalSchema(ToolCall call, JsonObject inputSchema) =>
+    call is NativeToolCall
+    ? {
+        'type': 'object',
+        'properties': {
+          'approved': {'type': 'boolean'},
+        },
+        'required': ['approved'],
+        'additionalProperties': false,
+      }
+    : approvalResponseSchema(inputSchema);

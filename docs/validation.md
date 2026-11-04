@@ -21,18 +21,18 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest OpenRouter/replay increment was checked on Dart 3.12.2. The prior
+The latest native computer increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 270 Dart unit and regression tests: tool validation, approvals, client tools,
+- 294 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 13 Serverpod integration tests with a real isolated PostgreSQL database:
+- 14 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 14 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 16 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
   generation, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
@@ -268,3 +268,38 @@ OpenRouter credential-shaped source examples are deterministically redacted
 before storage and generation. Original-source and retained-snapshot hashes
 are verified separately. The local credential scan also checks OpenRouter key
 formats and includes the full source snapshots.
+
+## Native computer increment
+
+Seven core tests cover native definitions and call snapshots, provider/kind
+matching, mandatory approval, atomic answer validation, definition/environment
+binding, denial and closed continuation. Fourteen OpenAI computer tests cover
+GA and preview tools, all nine action types and their parameters, five preview
+environments, screenshot forms, exact safety acknowledgements, terminal status,
+immutability and rejection of unknown action fields before execution. Three
+provider guard tests reject foreign native definitions and history before HTTP.
+All 85 OpenAI package tests pass with the raw Responses SSE transport, including
+SDK cancellation and shared-client ownership regressions.
+
+The PostgreSQL test persists and reloads a pending native approval, rejects
+changed targets, resumes once and rejects a duplicate decision. It uses the real
+store and a scripted model, not a paid provider or computer driver. Two new
+standalone official JavaScript client cases exercise native approval and denial
+through generic interrupts, history hydration and privacy.
+
+The independent computer consumer runs 15 loopback scenarios through the actual
+SDK client with an application-owned fake executor. It verifies ordered actions,
+approval/continuation with a recreated agent, exact IDs, private raw replay,
+UI privacy, malformed/truncated responses, cancellation and unknown action/drag
+fields. The complete driver guide analyzes and compiles unchanged. The targeted
+qualitative DX score is 7.8/10; see [the review](dx-review.md).
+
+Four source-contract tests plus an executable Dart fixture check selected pinned
+official Node declarations, nested action fields, preview environments and
+controlled acknowledgements. The explicit upstream comparison matched the
+selected projection. These checks do not certify the full Responses API.
+
+No real operating system, browser, driver or provider computer session was run.
+GA nonempty safety acknowledgements, screenshot image contents, actual driver
+idempotency and crash recovery remain unverified. No paid requests or package
+publications were made in this increment.

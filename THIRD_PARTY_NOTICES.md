@@ -52,3 +52,12 @@ The pinned official OpenRouter OpenAPI document declares the MIT license. The
 example-redacted snapshot, attribution and license are in `tool/contracts/openrouter/`.
 Its content hash is separate from the official TypeScript SDK's Git revision and
 Apache-2.0 license. No TypeScript SDK implementation is copied into the adapter.
+
+## OpenAI computer contract source
+
+`tool/contracts/openai-computer/responses.ts` retains a source file from the
+OpenAI Node.js SDK, Copyright OpenAI, licensed under Apache License 2.0. The
+upstream repository, exact revision and path are recorded in the adjacent
+`source.json`; the full license is retained in `tool/contracts/openai-computer/LICENSE`.
+The snapshot is used to review selected protocol declarations, not as a claim of
+complete provider support.

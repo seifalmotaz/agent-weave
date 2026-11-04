@@ -1,6 +1,6 @@
 # OpenAI options audit
 
-Audit scope: `agent_weave_openai` and installed `openai_dart` 11.0.1, compared with the [Responses API](https://platform.openai.com/docs/api-reference/responses/create), [computer-use guide](https://platform.openai.com/docs/guides/tools-computer-use), and [Realtime API](https://platform.openai.com/docs/api-reference/realtime). This is a source review, not an exhaustive certification of all OpenAI endpoints or individual nested SDK fields. No live API calls were made. SDK types or raw HTTP access do not imply AgentWeave orchestration or a working end-to-end feature.
+Historical baseline audit (see updates below): `agent_weave_openai` and installed `openai_dart` 11.0.1, compared with the [Responses API](https://platform.openai.com/docs/api-reference/responses/create), [computer-use guide](https://platform.openai.com/docs/guides/tools-computer-use), and [Realtime API](https://platform.openai.com/docs/api-reference/realtime). This is a source review, not an exhaustive certification of all OpenAI endpoints or individual nested SDK fields. No live API calls were made. SDK types or raw HTTP access do not imply AgentWeave orchestration or a working end-to-end feature.
 
 | Area | SDK and adapter coverage | Gap and priority |
 |---|---|---|
@@ -28,12 +28,12 @@ Existing tests in `packages/agent_weave_openai/test` use fixtures and cover sele
 
 ## Update: current worktree
 
-The current `chat_models.dart` now guards runtime-owned messages/input and token limits, requires each runtime tool exactly once, and protects an existing runtime output schema; it merges `reasoning.encrypted_content` into Responses `include`. Usage reports the returned response model when present, falling back to the configured model. Fixture tests in `chat_models_test.dart` cover rejected conversation replacement, include merging, cache key/metadata serialization, and Responses returned-model usage. These changes supersede the corresponding earlier P0 request-replacement and P1 include/model findings; they do not establish exhaustive configuration coverage or live behavior. The P0 computer and other non-function tool continuation gaps remain open. The guard only compares runtime fields present in the canonical JSON and permits additional provider tools; audit individual conflicting settings before claiming full option safety.
+The current `chat_models.dart` now guards runtime-owned messages/input and token limits, requires each runtime tool exactly once, and protects an existing runtime output schema; it merges `reasoning.encrypted_content` into Responses `include`. Usage reports only an actual model returned in the stream; it does not guess the requested alias when the provider omits identity. Fixture tests in `chat_models_test.dart` cover rejected conversation replacement, include merging, cache key/metadata serialization, and Responses returned-model usage. These changes supersede the corresponding earlier P0 request-replacement and P1 include/model findings; they do not establish exhaustive configuration coverage or live behavior. The other non-function tool continuation gaps remained open at that point; see the computer update below. The guard only compares runtime fields present in the canonical JSON and permits additional provider tools; audit individual conflicting settings before claiming full option safety.
 
 The current raw transport fixtures verify request-specific safe headers, repeated
 queries on binary downloads, raw status/headers/bytes, arbitrary JSON root
 values, authenticated PUT requests, pre-cancellation and mutation retry policy.
-This does not implement SSE, multipart or computer-use orchestration.
+This raw helper does not implement SSE or multipart; the separate Responses adapter handles selected computer orchestration as described below.
 
 ## Computer-use SDK contribution
 
@@ -41,10 +41,9 @@ This does not implement SSE, multipart or computer-use orchestration.
 typed computer-call input replay and screenshot results, including returned-only
 statuses and redacted screenshots. Local upstream validation passed 25,235 unit
 tests with 3 skips plus package analysis. The PR is submitted, not merged or
-released. AgentWeave still uses its published SDK dependency. Native computer,
-shell/custom/patch calls and MCP approval continuations fail explicitly instead
-of being silently treated as completed function-tool runs. Runtime execution
-and full computer-use orchestration remain unfinished.
+released. AgentWeave still uses its published SDK dependency. Shell/custom/patch calls and
+MCP approval continuations remain unsupported; selected native computer use is
+now integrated as described below.
 
 ## Protocol reuse and Chat continuation
 
@@ -57,4 +56,25 @@ actual SDK transport regressions now exercise the second request.
 Chat explicitly rejects multiple choices and requested audio output instead of
 silently dropping unsupported results. Responses requires a terminal event before
 EOF. These supersede the corresponding silent-drop/EOF observations above;
-remaining event, media and computer-use gaps are still open.
+remaining event and media gaps are still open.
+
+## Selected native computer integration
+
+`OpenAIComputerTool` registers an application-executed native computer tool with
+`OpenAIResponsesModel`, including the GA and legacy preview definitions. The
+runtime validates completed calls, preserves action order, pauses for approval as
+configured and whenever safety checks are present, and returns the application's
+fresh screenshot with the matching `call_id`. Arguments are immutable and native
+approval cannot edit them. The environment binding must remain stable across a
+pause. Denial, cancellation, or executor failure closes the continuation with
+its audit history intact; an application must not invent a computer result to
+continue it. The application owns the actual driver, permissions and side effects.
+
+This is selected computer orchestration, not support for other native tool kinds
+or client-executed native tools. The [computer guide](computer-use.md) describes
+the driver contract and its operational limits. Offline contract fixtures do not
+prove live model or server behavior, including GA safety acknowledgements.
+
+The Responses facade consumes raw SSE JSON through the SDK transport before
+typed event decoding. This preserves original private item fields for replay and
+lets the computer validator reject unknown action fields before execution.

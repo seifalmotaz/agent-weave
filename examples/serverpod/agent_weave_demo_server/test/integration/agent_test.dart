@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave/testing.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
 import 'package:agent_weave_demo_client/agent_weave_demo_client.dart'
     as generated;
 import 'package:agent_weave_serverpod_client/agent_weave_serverpod_client.dart';
@@ -38,6 +39,146 @@ void main() {
     'AgentWeave PostgreSQL integration',
     (builder, endpoints) {
       runStoreContract(() => ServerpodRunStore(builder.build()));
+      test(
+        'native computer approval survives PostgreSQL reload and rejects target drift',
+        () async {
+          var executions = 0;
+          String? key;
+          const raw = <String, Object?>{
+            'type': 'computer_call',
+            'id': 'native-item',
+            'call_id': 'native-call',
+            'status': 'completed',
+            'actions': [
+              {'type': 'click', 'x': 10, 'y': 20, 'button': 'left'},
+              {'type': 'screenshot'},
+            ],
+            'pending_safety_checks': [
+              {'id': 'check-1', 'message': 'Confirm fixture action'},
+            ],
+          };
+          ChatModel initial() => ScriptedChatModel(
+            capabilities: const ModelCapabilities(tools: true),
+            steps: [
+              [
+                NativeToolCallReady(
+                  NativeToolCall(
+                    id: 'native-call',
+                    name: 'computer',
+                    arguments: raw,
+                    provider: 'openai.responses',
+                    requiresApproval: true,
+                  ),
+                ),
+                ProviderOutput(
+                  provider: 'openai.responses',
+                  items: [
+                    {...raw, 'private': 'PRIVATE-NATIVE-REPLAY'},
+                  ],
+                ),
+                const ModelFinished('tool_calls'),
+              ],
+            ],
+          );
+          AiAgent<Session> agent(
+            ChatModel model, {
+            String environment = 'computer-A',
+          }) => AiAgent<Session>(
+            model: model,
+            store: ServerpodRunStore(builder.build()),
+            tools: [
+              openai.OpenAIComputerTool<Session>(
+                environmentId: environment,
+                execute: (call, context) {
+                  expect(context.approved, true);
+                  expect(call.actions, hasLength(2));
+                  key = context.idempotencyKey;
+                  executions++;
+                  return openai.OpenAIComputerScreenshot.url(
+                    'data:image/png;base64,aGVsbG8=',
+                  );
+                },
+              ),
+            ],
+          );
+          final first = agent(initial());
+          final paused = await first.generate(
+            ChatRequest(
+              threadId: 'native-durable',
+              runId: 'native-pause',
+              messages: [
+                ChatMessage.user('Use fixture computer', id: 'native-user'),
+              ],
+            ),
+            ownerId: 'native-owner',
+            context: builder.build(),
+          );
+          expect(paused.status, RunStatus.interrupted);
+          expect(executions, 0);
+          ChatRequest resume(String run) => ChatRequest(
+            threadId: 'native-durable',
+            runId: run,
+            parentRunId: paused.runId,
+            resume: [paused.interrupts.single.approve()],
+          );
+          final finalModel = ScriptedChatModel(
+            capabilities: const ModelCapabilities(tools: true),
+            steps: [
+              [const TextDelta('Native done'), const ModelFinished()],
+            ],
+          );
+          await expectLater(
+            agent(finalModel, environment: 'computer-B').generate(
+              resume('wrong-environment'),
+              ownerId: 'native-owner',
+              context: builder.build(),
+            ),
+            throwsA(isA<AgentRunException>()),
+          );
+          expect(executions, 0);
+          final recreated = agent(finalModel);
+          final done = await recreated.generate(
+            resume('native-resume'),
+            ownerId: 'native-owner',
+            context: builder.build(),
+          );
+          expect(done.text, 'Native done');
+          expect(executions, 1);
+          expect(key, isNotEmpty);
+          final toolResult =
+              jsonDecode(
+                    finalModel.requests.single.messages
+                        .singleWhere(
+                          (message) => message.role == MessageRole.tool,
+                        )
+                        .text,
+                  )
+                  as Map;
+          expect(
+            toolResult['acknowledged_safety_checks'],
+            raw['pending_safety_checks'],
+          );
+          final state = await recreated.store.load(
+            ownerId: 'native-owner',
+            threadId: 'native-durable',
+          );
+          expect(jsonEncode(state), contains('PRIVATE-NATIVE-REPLAY'));
+          expect(
+            jsonEncode(chatHydration(state)),
+            isNot(contains('PRIVATE-NATIVE-REPLAY')),
+          );
+          await expectLater(
+            recreated.generate(
+              resume('duplicate-approval'),
+              ownerId: 'native-owner',
+              context: builder.build(),
+            ),
+            throwsA(isA<RunConflict>()),
+          );
+          expect(executions, 1);
+        },
+      );
+
       test(
         'a recreated agent resumes a PostgreSQL-backed approval without repeating its tool',
         () async {

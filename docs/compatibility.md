@@ -12,6 +12,9 @@ override only after checking the published package and rerunning interop tests.
 
 - Text streaming, standard reasoning events, and structured-output events.
 - Configured server tools, client-tool pauses, and default tool approvals.
+- Selected OpenAI Responses native computer calls with application-owned
+  execution, safety approvals, screenshots, and continuation; see
+  [computer use](computer-use.md).
 - Approval, rejection, edited arguments, and continuation lineage.
 - Server-owned conversation history and owner isolation.
 - HTTP/SSE chat, history paging, and stored-event replay.
@@ -27,7 +30,10 @@ not a claim of full TanStack AI core parity.
 
 ## Current limits
 
-- Custom approval payload schemas, generic interrupts, subagents, MCP discovery,
+- Native computer use is limited to the OpenAI Responses adapter. Native
+  client-executed tools and other native tool kinds are unsupported. Approval
+  does not allow edited native arguments.
+- Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
   and provider-hosted tool event normalization are not implemented.
 - Server tools execute sequentially. Applications can perform concurrency
   inside a tool, with their own cancellation and idempotency policy.

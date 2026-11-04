@@ -751,6 +751,14 @@ final class CloudflareChatModel implements ChatModel {
     ModelRequest request, {
     required CancellationToken cancellation,
   }) async* {
+    if (request.tools.any((tool) => tool is NativeModelTool) ||
+        request.messages.any(
+          (message) => message.toolCalls.any((call) => call is NativeToolCall),
+        )) {
+      throw UnsupportedError(
+        'Native Cloudflare tools are not implemented by this adapter.',
+      );
+    }
     if (model != '@hf/nousresearch/hermes-2-pro-mistral-7b' &&
         (request.tools.isNotEmpty ||
             request.messages.any(
