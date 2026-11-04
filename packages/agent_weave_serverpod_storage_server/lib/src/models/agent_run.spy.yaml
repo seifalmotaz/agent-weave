@@ -1,0 +1,10 @@
+class: AgentRun
+table: agent_weave_run
+fields:
+  ownerId: String
+  threadId: String
+  runId: String
+indexes:
+  agent_weave_run_owner_run:
+    fields: ownerId, runId
+    unique: true

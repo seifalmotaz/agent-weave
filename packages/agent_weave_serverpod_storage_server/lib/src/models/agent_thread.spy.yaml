@@ -1,0 +1,11 @@
+class: AgentThread
+table: agent_weave_thread
+fields:
+  ownerId: String
+  threadId: String
+  activeRun: String?
+  stateJson: String
+indexes:
+  agent_weave_thread_owner_thread:
+    fields: ownerId, threadId
+    unique: true

@@ -1,0 +1,18 @@
+# AgentWeave
+
+> Independent Dart AI runtime with Serverpod integration and TanStack client interoperability.
+
+Development version. Read compatibility and validation before making support claims.
+
+- [README.md](https://github.com/seifalmotaz/agent-weave/blob/main/README.md)
+- [docs/architecture.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/architecture.md)
+- [docs/tools.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/tools.md)
+- [docs/providers.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/providers.md)
+- [docs/openai.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/openai.md)
+- [docs/compatibility.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/compatibility.md)
+- [docs/updating.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/updating.md)
+- [docs/validation.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/validation.md)
+- [CONTRIBUTING.md](https://github.com/seifalmotaz/agent-weave/blob/main/CONTRIBUTING.md)
+- [AGENTS.md](https://github.com/seifalmotaz/agent-weave/blob/main/AGENTS.md)
+
+- [Full LLM guide](https://github.com/seifalmotaz/agent-weave/blob/main/llms-full.txt)

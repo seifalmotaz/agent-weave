@@ -1,0 +1,606 @@
+# Source: README.md
+
+# AgentWeave
+
+Build AI applications in Dart with a Serverpod backend and Flutter or TanStack
+AI clients. Define typed tools, stream responses, pause for approval, and keep
+conversation history on your server.
+
+AgentWeave is independent and unofficial. It is not maintained or endorsed by
+TanStack, OpenAI, or Serverpod.
+
+**Development version.** The packages are not published to pub.dev yet. Start
+from this workspace. See [coverage and limits](docs/compatibility.md) before
+using it in production.
+
+## Packages
+
+| Package | Use it for |
+| --- | --- |
+| [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
+| [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
+| [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
+| [`agent_weave_serverpod_client`](packages/agent_weave_serverpod_client) | Connect the existing TanStack Dart client to generated Serverpod streaming methods |
+| [`agent_weave_serverpod_storage_server`](packages/agent_weave_serverpod_storage_server) | Optional PostgreSQL history, run reservations, and event journals |
+| [`agent_weave_serverpod_storage_client`](packages/agent_weave_serverpod_storage_client) | Generated types for the optional Serverpod module |
+
+Requires Dart 3.12.2 or later. The integration targets Serverpod 4.1.0.
+
+## Try the workspace
+
+```sh
+git clone https://github.com/seifalmotaz/agent-weave.git
+cd agent-weave
+dart pub get
+dart run examples/basic_chat.dart
+```
+
+The first example uses an offline provider. It needs no API key and makes no
+paid requests. See [the Serverpod example](examples/serverpod/README.md) for a
+backend with a database, HTTP streaming, and generated Dart endpoints.
+
+## Define an agent
+
+```dart
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+final client = openai.OpenAIClient.fromEnvironment();
+final agent = AiAgent<void>(
+  model: openai.OpenAIResponsesModel(
+    client: client,
+    model: 'gpt-5.4-nano',
+  ),
+  instructions: 'Answer briefly.',
+  maxSteps: 8,
+  maxOutputTokens: 512,
+);
+
+// Derive ownerId from backend authentication, never from the request body.
+final events = agent.run(
+  ChatRequest(
+    threadId: 'conversation-1',
+    runId: 'run-1',
+    messages: [ChatMessage.user('Hello', id: 'message-1')],
+  ),
+  ownerId: authenticatedUserId,
+  context: null,
+);
+```
+
+Close the provider client when your application shuts down. Keep OpenAI keys
+on the backend. Use the provider import prefix because provider SDK types can
+share names with core types.
+
+## Connect Flutter through Serverpod
+
+```dart
+final chat = ChatClient(
+  threadId: 'conversation-1',
+  connection: serverpodConnection(send: serverpodClient.ai.chat),
+);
+
+final subscription = chat.states.listen(renderConversation);
+await chat.sendText('Hello');
+
+// At disposal:
+await subscription.cancel();
+await chat.dispose();
+```
+
+The generated Serverpod client handles authentication and its WebSocket.
+AgentWeave handles conversion to the existing TanStack Dart client protocol.
+For JavaScript, use the official client's `fetchServerSentEvents` against an
+`AgentChatRoute` HTTP endpoint.
+
+## Learn and contribute
+
+- [Architecture and ownership](docs/architecture.md)
+- [Typed tools and approvals](docs/tools.md)
+- [Provider author guide](docs/providers.md)
+- [OpenAI capabilities](docs/openai.md)
+- [Compatibility and limitations](docs/compatibility.md)
+- [Validation evidence](docs/validation.md)
+- [Upstream updates](docs/updating.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Coding-agent entry point](AGENTS.md) and [LLM index](llms.txt)
+
+Run `dart run tool/check.dart` for the normal checks. Paid provider tests are
+separate and opt-in.
+
+
+# Source: docs/architecture.md
+
+# Architecture
+
+The public Dart API and the TanStack wire protocol are separate contracts.
+Provider adapters convert provider requests and responses. The runtime owns
+agent execution. Serverpod owns the framework session, authentication, and
+database connection.
+
+## Model invocations
+
+`ChatModel.stream` performs one invocation and emits sealed `ModelEvent` values.
+The runtime validates tool calls, executes configured server tools, appends the
+results, and invokes the model again. `maxSteps` bounds the loop.
+
+`ProviderOutput` preserves provider-specific replay state, such as encrypted
+reasoning. That state stays in server storage and is excluded from UI history.
+Adapters must retain any state their provider requires to continue a tool call.
+
+Images, speech, transcription, embeddings, Decisions, video jobs, and realtime
+use separate capability interfaces. A provider implements only the interfaces
+it supports. `GenerationTask<P, R>` adds result/progress streaming to a typed
+operation.
+
+## Ownership and cancellation
+
+The caller owns provider clients. Close them at application shutdown.
+Each run owns its cancellation token. Cancelling a run subscription signals
+the provider and releases its reservation after cleanup.
+
+An HTTP response owns a separate Serverpod session for the duration of its
+stream. Create tool context from that session. The incoming HTTP request session
+is unsuitable for work that continues while the response body is streamed.
+
+## Persistence
+
+`RunStore` reserves a thread atomically and rejects reused run IDs. Reservations
+are scoped to the authenticated owner. Event logs are append-only, and complete
+conversation checkpoints are saved separately. Terminal events are published
+after releasing the reservation.
+
+`MemoryRunStore` is for development. `ServerpodRunStore` uses PostgreSQL row
+locking and unique indexes. Applications can implement the same contract for
+their own storage.
+
+A durable event log permits replay. It does not provide exactly-once execution
+of an external tool after a process crash. Active reservations are deliberately
+not stolen automatically. Reconcile external effects using `toolCallId` before
+recovering an abandoned run.
+
+## Transport
+
+`AgentChatRoute` supports POST for execution, GET with `threadId` for history,
+and GET with `runId` and `offset` for event replay. Authentication applies to
+every operation. Replay observes persisted events; it does not rerun the model.
+
+`streamAgent` fits a generated Serverpod endpoint returning `Stream<String>`.
+`serverpodConnection` connects that endpoint to `tanstack_ai_dart`.
+
+
+# Source: docs/tools.md
+
+# Typed tools and approvals
+
+Use `Tool<I, O, C>` to declare the decoded input, return value, and trusted
+application context. JSON Schema validates inputs before `decode` and validates
+encoded results before they enter the conversation.
+
+```dart
+final doubleNumber = Tool<int, int, Session>(
+  name: 'double',
+  description: 'Double an integer',
+  inputSchema: const {
+    'type': 'object',
+    'properties': {'number': {'type': 'integer'}},
+    'required': ['number'],
+    'additionalProperties': false,
+  },
+  outputSchema: const {'type': 'integer'},
+  decode: (json) => json['number'] as int,
+  encode: (result) => result,
+  execute: (number, context) => number * 2,
+);
+```
+
+`context.value` is your application context. `context.ownerId` comes from
+authentication. Use both to enforce application permissions. Registering a tool
+does not grant a user permission to operate on every database row.
+
+## Approval
+
+Set `needsApproval: true` to pause before a tool executes. The terminal event
+contains a TanStack interrupt binding. Configure the matching input and output
+schemas in the UI client so it can bind the approval.
+
+The Dart client uses `interrupt.resolveApproval(true)`. The pinned JavaScript
+client uses `interrupt.resolveInterrupt(true)`. Both submit AG-UI resume entries
+with `interruptId`, `status`, and `payload`.
+
+A new run identifies the interrupted run with `parentRunId`. Every pending
+interrupt must receive one answer. AgentWeave validates the entire answer batch
+before executing any resumed tool. Invalid answers preserve the previous
+pending snapshot so the user can correct them.
+
+Default approvals support approval, rejection, and schema-validated edited
+arguments. Custom approval payload schemas and first-party generic interrupts
+are not implemented yet.
+
+## Client tools
+
+Register `ClientTool<C>` on the server to allow an explicitly named client-side
+operation. Its result arrives through the same interrupt continuation protocol
+and is validated against the configured output schema. Client-advertised tool
+names do not automatically become trusted executable server tools.
+
+## External effects
+
+Pass `context.idempotencyKey` as an idempotency key to services that support it.
+If a process crashes after an external service commits an effect, inspect that
+service before retrying. Database history cannot make an unrelated external
+service execute exactly once.
+
+
+# Source: docs/providers.md
+
+# Write a provider
+
+Implement `ChatModel`. Keep provider credentials, HTTP details, and provider
+options inside your adapter.
+
+```dart
+final class LocalModel implements ChatModel {
+  @override
+  ModelCapabilities get capabilities => const ModelCapabilities();
+
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) async* {
+    cancellation.throwIfCancelled();
+    yield const TextDelta('Hello from a custom provider');
+    yield const ModelFinished();
+  }
+}
+```
+
+Emit exactly one `ModelFinished` after a successful invocation. Do not emit
+later events. An interrupted transport must throw or end without that event;
+the runtime treats premature EOF as a failure.
+
+Emit a `ToolCallReady` only after accumulating and parsing the complete argument
+object. The runtime handles schema validation and execution. Do not execute a
+tool inside the provider adapter.
+
+Use `ReasoningDelta` for provider-supported reasoning summaries and
+`ProviderOutput` for opaque continuation state. Never expose private replay
+state as user-facing text. Emit `TokenUsage` when the provider reports it.
+
+Pass `cancellation.whenCancelled` to the provider's abort mechanism. Check
+pre-cancellation before submission. If an operation cannot abort after
+submission, document that limit rather than silently promising cancellation.
+
+The fixture providers in `packages/agent_weave/test` and the offline example
+demonstrate custom implementations without any OpenAI dependency.
+
+
+# Source: docs/openai.md
+
+# OpenAI integration
+
+`agent_weave_openai` uses `openai_dart 11.0.1` for typed provider transport.
+AgentWeave implements orchestration and protocol adaptation around that SDK.
+
+| Capability | Entry point |
+| --- | --- |
+| Responses chat | `OpenAIResponsesModel` |
+| Chat Completions | `OpenAIChatModel` |
+| Images | `OpenAIImageModel`, `imageTask`, or `client.images` |
+| Speech | `OpenAISpeechModel`, `speechTask`, or `client.audio.speech` |
+| Transcription | `OpenAITranscriptionModel`, `transcriptionTask`, or `client.audio.transcriptions` |
+| Decisions | `OpenAIDecisionModel` or `client.decisions` |
+| Embeddings | `OpenAIEmbeddingModel` or `client.embeddings` |
+| Video jobs | `OpenAIVideoModel` or `client.videos` |
+| Realtime | `OpenAIRealtimeModel`, `client.realtime`, or `client.realtimeSessions` |
+| Supporting resources | Typed provider client resources |
+| Additional JSON operations | `OpenAIPlatformApi` |
+
+Use `configure` on chat adapters to set typed provider-specific options. Model
+capabilities describe the adapter's request formats; selecting an incompatible
+provider model can still produce a provider error.
+
+The provider SDK also exposes conversations, files, uploads, batches, models,
+moderation, fine-tuning, evals, containers, vector stores, skills, ChatKit,
+webhooks, safety resources, Live sessions, saved agents, and Vaults. These are
+delegated APIs, not independently implemented AgentWeave features.
+
+`OpenAIPlatformApi` supports additional JSON requests and binary downloads,
+including administration operations with an appropriate credential. It is an
+explicit raw escape hatch. It does not imply typed or tested parity for every
+OpenAI endpoint. Mutation requests through this helper are not automatically
+retried.
+
+The [operation inventory](openai-api-inventory.json) records the official
+reference index for update reviews. Each entry is a discovery/review item, not
+a passing endpoint test. See [validation](validation.md) for what was exercised.
+
+## Media and realtime
+
+`imageTask`, `speechTask`, and `transcriptionTask` emit normalized TanStack
+generation results. Direct model wrappers retain provider-specific types.
+
+Non-streaming image requests cannot abort in-flight through the underlying
+SDK. Use its streaming operation when an abortable transport is required.
+Cancelling a video wait does not cancel a provider job or its charges.
+Close realtime connections explicitly when the session ends.
+
+Use separate prefixed imports for realtime event classes:
+
+```dart
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+import 'package:agent_weave_openai/realtime.dart' as realtime;
+```
+
+The deprecated Assistants API has a separate `assistants.dart` import.
+Provider/model deprecations remain OpenAI's schedule. In particular, the Speech
+API models are scheduled to shut down on January 6, 2027; new voice integrations
+should evaluate the Realtime API. Check the
+[official speech guide](https://developers.openai.com/api/docs/guides/text-to-speech)
+before choosing a model.
+
+
+# Source: docs/compatibility.md
+
+# Compatibility
+
+The interoperability baseline is `@tanstack/ai-client 1.0.1` and
+`tanstack_ai_dart 0.4.0` at commit
+`819ff289e6dabc5f424208b07ea9ac6f399cdccc`.
+
+The root workspace pins the Dart client through a Git dependency override
+because 0.4.0 was not on pub.dev when this workspace was created. Remove the
+override only after checking the published package and rerunning interop tests.
+
+## Implemented contracts
+
+- Text streaming, standard reasoning events, and structured-output events.
+- Configured server tools, client-tool pauses, and default tool approvals.
+- Approval, rejection, edited arguments, and continuation lineage.
+- Server-owned conversation history and owner isolation.
+- HTTP/SSE chat, history paging, and stored-event replay.
+- Native Serverpod streaming through the existing Dart AI client.
+- Generic generation progress and results, plus image/speech/transcription
+  normalization helpers.
+
+The official JavaScript test verifies text, reasoning, structured output, server tools,
+default approvals, client tools, and generation against a Dart HTTP server. The Dart tests exercise the client against
+the runtime and a generated Serverpod endpoint over a real WebSocket. This is
+not a claim of full TanStack AI core parity.
+
+## Current limits
+
+- Custom approval payload schemas, generic interrupts, subagents, MCP discovery,
+  and provider-hosted tool event normalization are not implemented.
+- Server tools execute sequentially. Applications can perform concurrency
+  inside a tool, with their own cancellation and idempotency policy.
+- Disconnecting a direct run cancels its provider request. Replaying a stored
+  run does not restart it or recover execution after a server crash.
+- Replay observers are bounded to 20 seconds per request. A timed-out observer
+  must reconnect; the observation timeout does not cancel the original run.
+- PostgreSQL is the supported persistent store. The raw SQL store does not
+  claim SQLite compatibility.
+- Binary artifact hosting and automatic media reconstruction after a client
+  reload are not implemented. Inline results can be retained by application
+  storage; provider URLs may expire.
+- OpenAI resource coverage combines typed SDK delegation and an explicit raw
+  JSON helper. Complete typed endpoint parity and exhaustive endpoint tests
+  remain unfinished.
+- Microphone capture, playback, WebRTC device behavior, and all provider account
+  permissions require application/device testing.
+
+These limits are release work, not hidden fallbacks. See `docs/validation.md`
+and `docs/updating.md` before extending a compatibility claim.
+
+
+# Source: docs/updating.md
+
+# Update upstream dependencies
+
+1. Record the current Dart, Serverpod, OpenAI SDK, and TanStack pins.
+2. Run `python3 tool/audit_openai.py` to compare the official operation index.
+   Review additions and removals before running `--refresh`.
+3. Read the changed request schemas and stream-event contracts. An unchanged
+   endpoint URL does not prove an unchanged contract.
+4. Update provider fixtures and add a regression test for each behavior changed
+   in AgentWeave. Use the provider SDK's own tests as additional evidence.
+5. Update the official JavaScript client pin in `tool/interop/package.json` and
+   its lockfile when changing the interoperability baseline.
+6. Update the Dart client pin independently. Verify its published version before
+   replacing the workspace Git override.
+7. Run `dart run tool/check.dart`. Keep fixture and live results separate.
+8. Update the compatibility matrix, changelogs, examples, and LLM documentation.
+
+## Serverpod models
+
+Use Serverpod CLI 4.1.0 while the packages target that version. Generate the
+storage module before the example application:
+
+```sh
+serverpod generate --directory packages/agent_weave_serverpod_storage_server
+serverpod generate --directory examples/serverpod/agent_weave_demo_server
+```
+
+Create a migration inside each affected server/module directory. Never edit
+generated model or protocol files. Run real database tests after a schema or
+transaction change.
+
+## Releases
+
+Run publication dry-runs for each package. Publish dependency packages before
+their dependants. The native client currently depends on an unpublished Dart
+client version, which must be resolved before publishing that package.
+Create a reviewed tag and release notes that identify the tested upstream pins
+and the remaining limits. A Git push is not a pub.dev publication.
+
+
+# Source: docs/validation.md
+
+# Validation
+
+This is development version `0.1.0-dev.1`. A passing test verifies its named
+scenario. It does not certify every provider endpoint or production deployment.
+
+## Reproduce the offline checks
+
+Requires Git, Dart 3.12.2 or later, Node.js 22 or later, npm, and Python 3.
+The first run downloads dependencies and Serverpod's embedded PostgreSQL binary.
+No API key is needed. Ordinary tests force the offline provider even if a key
+exists in the environment.
+
+```sh
+dart pub get --enforce-lockfile
+dart run tool/check.dart
+```
+
+The check includes formatting, strict static analysis, generated LLM-document
+freshness, credential-pattern scanning, unit tests, PostgreSQL/network tests,
+and interoperability with the pinned official JavaScript client.
+
+## Verified locally
+
+On Dart 3.13.3:
+
+- 83 Dart unit and regression tests: tool validation, approvals, client tools,
+  lineage, cancellation, partial-response retention, safe failure history,
+  generation, storage, protocol parsing, and provider fixtures.
+- 6 Serverpod integration tests with a real isolated PostgreSQL database:
+  authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
+  replay, owner isolation, event persistence, and reservation contention.
+  The HTTP test also runs the official JavaScript client against real Serverpod
+  chat and generation routes, including a second turn and persisted history.
+- 7 standalone official JavaScript client scenarios against a Dart HTTP server:
+  text, server tools, approvals, client tools, reasoning, structured output,
+  and generation.
+- 2 offline checks for the upstream operation-index parser.
+- The offline chat example executes successfully.
+
+Provider fixtures cover Responses and Chat Completions streams, schema output,
+usage, opaque reasoning replay, cancellation, image/audio/embedding/Decisions/
+video requests, binary and multipart transport, and the raw API helper. Realtime
+uses an actual local WebSocket; it does not contact OpenAI.
+
+CI is configured to repeat the offline checks on Dart 3.12.2 and stable on
+Linux. Check the repository's current Actions run before treating that matrix
+as verified.
+
+## Live OpenAI evidence
+
+Eight explicitly authorized requests passed on November 3–4, 2026 UTC:
+
+| Check | Provider model | Evidence |
+| --- | --- | --- |
+| Responses text | `gpt-5.4-nano` | Stream completed; usage returned |
+| Chat Completions text | `gpt-5.4-nano` | Stream completed; usage returned |
+| Structured output | `gpt-5.4-nano` | Schema-validated JSON |
+| Server tool round trip | `gpt-5.4-nano` | Two invocations; tool executed and answer completed |
+| Embedding | `text-embedding-3-small` | Requested vector dimensions returned |
+| Image | `gpt-image-2` | One low-quality 1024×1024 image; 725,797 PNG bytes |
+| Speech | `gpt-4o-mini-tts` | Short speech request; 36,044 WAV bytes |
+
+Chat invocations reported 212 input and 51 output tokens in total. The image
+reported 16 input text tokens and 196 output image tokens. Provider billing is
+authoritative; these observations are not an invoice.
+
+`tool/live_smoke.dart` and `tool/live_media_smoke.dart` are opt-in. They share
+`.dart_tool/live-budget.json` and never run in CI. The ledger conservatively
+reserved $2.75 across the eight requests, within the user's $5 maximum. The
+current guard refuses requests beyond $4 in cumulative reservations. Actual
+usage cost is much lower than those reservations. Do not reset that ledger to
+bypass the cap. The guard is a bounded test allowlist, not a general billing
+system. Keep keys in environment variables only.
+
+## Package validation
+
+All six package publication dry-runs were exercised. The native client reports
+an override hint because its `tanstack_ai_dart 0.4.0` dependency is Git-pinned
+in this workspace and was not published to pub.dev at validation time. Resolve
+that dependency before publishing the native client. A local dry-run does not
+prove that pub.dev can resolve the entire unpublished package family.
+
+## Not verified live
+
+No paid video jobs, realtime sessions, transcription, Decisions, administration,
+storage jobs, or other delegated resources were invoked. Their local fixtures
+and typed SDK access do not substitute for account-specific live tests.
+
+Flutter device rendering, microphone permissions, audio playback, WebRTC,
+production authentication, production deployment, and pub.dev publication have
+not been tested or performed. See [compatibility](compatibility.md) for remaining
+implementation limits.
+
+
+# Source: CONTRIBUTING.md
+
+# Contribute to AgentWeave
+
+Open an issue or pull request with the behavior you want to change. Include a
+small Dart example showing the intended developer experience.
+
+Use Dart's recommended lints and formatter. Prefer named parameters, typed
+configuration, immutable data, sealed events, and Streams. Keep provider-specific
+options out of the core runtime. Do not add an abstraction without a caller.
+
+For a bug fix, add a regression test that fails before the fix. For protocol or
+provider changes, include representative request/response fixtures and explain
+which upstream contract they exercise. Never commit real credentials or private
+provider responses.
+
+Run `dart run tool/check.dart` before opening a pull request. Record any check
+you could not run. Paid provider tests require explicit authorization and the
+existing cumulative budget ledger. Keep them out of ordinary CI.
+
+See [updating upstream](docs/updating.md) for provider, Serverpod, and TanStack
+changes. See [AGENTS.md](AGENTS.md) for the repository map and ownership rules.
+
+
+# Source: AGENTS.md
+
+# AgentWeave
+
+AgentWeave is an independent Dart AI runtime. It is not an official TanStack,
+OpenAI, or Serverpod SDK. Preserve protocol interoperability without copying
+TypeScript API conventions into the Dart developer API.
+
+## Start here
+
+- Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
+- Core model contracts and agent execution live in `packages/agent_weave`.
+- Provider-specific types stay in `packages/agent_weave_openai`.
+- HTTP/session integration lives in `packages/agent_weave_serverpod`.
+- Native client transport lives in `packages/agent_weave_serverpod_client`.
+- Optional storage is a Serverpod module, `agent_weave_serverpod_storage_server`,
+  with a generated `agent_weave_serverpod_storage_client`.
+- The runnable backend and its real PostgreSQL/network tests live in
+  `examples/serverpod/agent_weave_demo_server`.
+
+## Rules
+
+Use named parameters, immutable values, sealed events, patterns, and Dart
+Streams. Prefer typed provider options and schema-validated tool inputs.
+Use prefixes for provider imports to avoid collisions such as `Tool`.
+Keep credentials on the backend and outside source control.
+
+Authentication owns `ownerId`. Never accept it from a request body.
+Validate all approval answers before invoking any tool in that batch.
+Preserve run reservations, event ordering, and server-owned history.
+Never automatically rerun external effects after a crash. Tools use their
+`idempotencyKey` to implement idempotency with the destination service.
+
+Never edit generated protocol/model files. Change `.spy.yaml` or endpoint
+sources, then run Serverpod 4.1.0 generation and create migrations. Keep module
+and example migrations in sync. Do not hand-edit migration metadata.
+
+## Verification
+
+Run `dart run tool/check.dart`. It includes unit tests, actual PostgreSQL and
+Serverpod network tests, and interoperability with the official JavaScript
+client. It does not make paid API calls.
+
+Live tests require explicit authorization, an environment-only key, and a
+persisted cumulative budget. Do not reset the ledger or increase its limit to
+make a failing test pass. Do not store a live key in examples, logs, or fixtures.
+
+Read `docs/updating.md` before changing upstream pins or claiming new coverage.
+Keep `docs/validation.md` honest about fixture, live, and untested behavior.

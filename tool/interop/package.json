@@ -1,0 +1,1 @@
+{"private":true,"type":"module","scripts":{"test":"node test.mjs"},"dependencies":{"@tanstack/ai":"1.0.1","@tanstack/ai-client":"1.0.1"}}

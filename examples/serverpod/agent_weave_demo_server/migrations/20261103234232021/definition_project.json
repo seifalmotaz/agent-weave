@@ -1,0 +1,19 @@
+{
+  "__className__": "serverpod.DatabaseDefinition",
+  "schemaVersion": 2,
+  "moduleName": "agent_weave_demo",
+  "tables": [],
+  "installedModules": [
+    {
+      "__className__": "serverpod.DatabaseMigrationVersion",
+      "module": "serverpod",
+      "version": "20260824182259319"
+    },
+    {
+      "__className__": "serverpod.DatabaseMigrationVersion",
+      "module": "agent_weave_serverpod_storage",
+      "version": "20261103234218357"
+    }
+  ],
+  "migrationApiVersion": 1
+}

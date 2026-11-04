@@ -1,0 +1,47 @@
+# AgentWeave
+
+AgentWeave is an independent Dart AI runtime. It is not an official TanStack,
+OpenAI, or Serverpod SDK. Preserve protocol interoperability without copying
+TypeScript API conventions into the Dart developer API.
+
+## Start here
+
+- Read `README.md`, `docs/architecture.md`, and `docs/compatibility.md`.
+- Core model contracts and agent execution live in `packages/agent_weave`.
+- Provider-specific types stay in `packages/agent_weave_openai`.
+- HTTP/session integration lives in `packages/agent_weave_serverpod`.
+- Native client transport lives in `packages/agent_weave_serverpod_client`.
+- Optional storage is a Serverpod module, `agent_weave_serverpod_storage_server`,
+  with a generated `agent_weave_serverpod_storage_client`.
+- The runnable backend and its real PostgreSQL/network tests live in
+  `examples/serverpod/agent_weave_demo_server`.
+
+## Rules
+
+Use named parameters, immutable values, sealed events, patterns, and Dart
+Streams. Prefer typed provider options and schema-validated tool inputs.
+Use prefixes for provider imports to avoid collisions such as `Tool`.
+Keep credentials on the backend and outside source control.
+
+Authentication owns `ownerId`. Never accept it from a request body.
+Validate all approval answers before invoking any tool in that batch.
+Preserve run reservations, event ordering, and server-owned history.
+Never automatically rerun external effects after a crash. Tools use their
+`idempotencyKey` to implement idempotency with the destination service.
+
+Never edit generated protocol/model files. Change `.spy.yaml` or endpoint
+sources, then run Serverpod 4.1.0 generation and create migrations. Keep module
+and example migrations in sync. Do not hand-edit migration metadata.
+
+## Verification
+
+Run `dart run tool/check.dart`. It includes unit tests, actual PostgreSQL and
+Serverpod network tests, and interoperability with the official JavaScript
+client. It does not make paid API calls.
+
+Live tests require explicit authorization, an environment-only key, and a
+persisted cumulative budget. Do not reset the ledger or increase its limit to
+make a failing test pass. Do not store a live key in examples, logs, or fixtures.
+
+Read `docs/updating.md` before changing upstream pins or claiming new coverage.
+Keep `docs/validation.md` honest about fixture, live, and untested behavior.

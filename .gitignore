@@ -1,0 +1,15 @@
+.dart_tool/
+.packages
+coverage/
+.env
+.env.*
+!.env.example
+build/
+node_modules/
+.DS_Store
+
+.serverpod/
+**/config/passwords.yaml
+
+__pycache__/
+*.pyc

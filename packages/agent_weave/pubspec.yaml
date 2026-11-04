@@ -1,0 +1,14 @@
+name: agent_weave
+description: Provider-independent Dart AI runtime with typed tools and TanStack-compatible streaming.
+version: 0.1.0-dev.1
+resolution: workspace
+repository: https://github.com/seifalmotaz/agent-weave
+environment:
+  sdk: ">=3.12.2 <4.0.0"
+dependencies:
+  crypto: ^3.0.7
+  uuid: ^4.5.3
+  json_schema: ^5.2.2
+dev_dependencies:
+  test: ^1.29.0
+issue_tracker: https://github.com/seifalmotaz/agent-weave/issues

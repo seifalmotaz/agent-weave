@@ -1,0 +1,15 @@
+name: agent_weave_openai
+description: OpenAI adapters and typed API access for the AgentWeave Dart AI runtime.
+version: 0.1.0-dev.1
+resolution: workspace
+repository: https://github.com/seifalmotaz/agent-weave
+environment:
+  sdk: ">=3.12.2 <4.0.0"
+dependencies:
+  agent_weave: ^0.1.0-dev.1
+  openai_dart: ^11.0.1
+  uuid: ^4.5.3
+  http: ^1.6.0
+dev_dependencies:
+  test: ^1.29.0
+issue_tracker: https://github.com/seifalmotaz/agent-weave/issues

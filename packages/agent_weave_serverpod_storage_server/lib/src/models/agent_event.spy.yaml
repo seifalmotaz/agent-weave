@@ -1,0 +1,12 @@
+class: AgentStoredEvent
+table: agent_weave_event
+fields:
+  ownerId: String
+  threadId: String
+  runId: String
+  sequence: int
+  eventJson: String
+indexes:
+  agent_weave_event_owner_thread_run_sequence:
+    fields: ownerId, threadId, runId, sequence
+    unique: true

@@ -1,0 +1,107 @@
+# AgentWeave
+
+Build AI applications in Dart with a Serverpod backend and Flutter or TanStack
+AI clients. Define typed tools, stream responses, pause for approval, and keep
+conversation history on your server.
+
+AgentWeave is independent and unofficial. It is not maintained or endorsed by
+TanStack, OpenAI, or Serverpod.
+
+**Development version.** The packages are not published to pub.dev yet. Start
+from this workspace. See [coverage and limits](docs/compatibility.md) before
+using it in production.
+
+## Packages
+
+| Package | Use it for |
+| --- | --- |
+| [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
+| [`agent_weave_openai`](packages/agent_weave_openai) | Responses, Chat Completions, images, audio, Decisions, embeddings, video jobs, realtime, and access to provider resources |
+| [`agent_weave_serverpod`](packages/agent_weave_serverpod) | Authenticated HTTP/SSE routes and native endpoint helpers |
+| [`agent_weave_serverpod_client`](packages/agent_weave_serverpod_client) | Connect the existing TanStack Dart client to generated Serverpod streaming methods |
+| [`agent_weave_serverpod_storage_server`](packages/agent_weave_serverpod_storage_server) | Optional PostgreSQL history, run reservations, and event journals |
+| [`agent_weave_serverpod_storage_client`](packages/agent_weave_serverpod_storage_client) | Generated types for the optional Serverpod module |
+
+Requires Dart 3.12.2 or later. The integration targets Serverpod 4.1.0.
+
+## Try the workspace
+
+```sh
+git clone https://github.com/seifalmotaz/agent-weave.git
+cd agent-weave
+dart pub get
+dart run examples/basic_chat.dart
+```
+
+The first example uses an offline provider. It needs no API key and makes no
+paid requests. See [the Serverpod example](examples/serverpod/README.md) for a
+backend with a database, HTTP streaming, and generated Dart endpoints.
+
+## Define an agent
+
+```dart
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+final client = openai.OpenAIClient.fromEnvironment();
+final agent = AiAgent<void>(
+  model: openai.OpenAIResponsesModel(
+    client: client,
+    model: 'gpt-5.4-nano',
+  ),
+  instructions: 'Answer briefly.',
+  maxSteps: 8,
+  maxOutputTokens: 512,
+);
+
+// Derive ownerId from backend authentication, never from the request body.
+final events = agent.run(
+  ChatRequest(
+    threadId: 'conversation-1',
+    runId: 'run-1',
+    messages: [ChatMessage.user('Hello', id: 'message-1')],
+  ),
+  ownerId: authenticatedUserId,
+  context: null,
+);
+```
+
+Close the provider client when your application shuts down. Keep OpenAI keys
+on the backend. Use the provider import prefix because provider SDK types can
+share names with core types.
+
+## Connect Flutter through Serverpod
+
+```dart
+final chat = ChatClient(
+  threadId: 'conversation-1',
+  connection: serverpodConnection(send: serverpodClient.ai.chat),
+);
+
+final subscription = chat.states.listen(renderConversation);
+await chat.sendText('Hello');
+
+// At disposal:
+await subscription.cancel();
+await chat.dispose();
+```
+
+The generated Serverpod client handles authentication and its WebSocket.
+AgentWeave handles conversion to the existing TanStack Dart client protocol.
+For JavaScript, use the official client's `fetchServerSentEvents` against an
+`AgentChatRoute` HTTP endpoint.
+
+## Learn and contribute
+
+- [Architecture and ownership](docs/architecture.md)
+- [Typed tools and approvals](docs/tools.md)
+- [Provider author guide](docs/providers.md)
+- [OpenAI capabilities](docs/openai.md)
+- [Compatibility and limitations](docs/compatibility.md)
+- [Validation evidence](docs/validation.md)
+- [Upstream updates](docs/updating.md)
+- [Contribution guide](CONTRIBUTING.md)
+- [Coding-agent entry point](AGENTS.md) and [LLM index](llms.txt)
+
+Run `dart run tool/check.dart` for the normal checks. Paid provider tests are
+separate and opt-in.

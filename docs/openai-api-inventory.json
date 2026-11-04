@@ -1,0 +1,2156 @@
+{
+  "source": "https://developers.openai.com/api/reference/overview",
+  "source_sha256": "349d71c7bb7cb73f77b4258847f27455869dec45efb59b94ee969c62fd443c2c",
+  "meaning": "Discovery inventory, not a claim that every endpoint is typed or tested.",
+  "provider_sdk": "openai_dart 11.0.1",
+  "operations": [
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/admin_api_keys/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/admin_api_keys/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/admin_api_keys/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/admin_api_keys/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/audit_logs/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/certificates/methods/activate",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/certificates/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/certificates/methods/deactivate",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/certificates/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/certificates/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/certificates/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/certificates/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/data_retention/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/data_retention/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_keys/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_keys/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_keys/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_keys/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_keys/methods/validate",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_storage/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_storage/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_storage/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_storage/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/external_storage/methods/validate",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/roles/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/roles/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/roles/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/roles/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/users/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/users/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/users/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/groups/subresources/users/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/invites/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/invites/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/invites/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/invites/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/methods/archive",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/api_keys/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/api_keys/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/api_keys/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/api_keys/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/certificates/methods/activate",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/certificates/methods/deactivate",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/certificates/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/data_retention/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/data_retention/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/subresources/roles/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/subresources/roles/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/subresources/roles/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/groups/subresources/roles/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/hosted_tool_permissions/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/hosted_tool_permissions/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/model_permissions/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/model_permissions/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/model_permissions/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/rate_limits/methods/list_rate_limits",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/rate_limits/methods/update_rate_limit",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/roles/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/roles/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/roles/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/roles/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/roles/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_accounts/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_accounts/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_accounts/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_accounts/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_accounts/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_accounts/subresources/api_keys/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_tier_settings/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/service_tier_settings/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_alerts/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_alerts/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_alerts/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_alerts/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_alerts/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_limit/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_limit/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/spend_limit/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/subresources/roles/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/subresources/roles/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/subresources/roles/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/projects/subresources/users/subresources/roles/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/roles/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/roles/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/roles/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/roles/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/roles/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_alerts/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_alerts/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_alerts/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_alerts/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_alerts/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_limit/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_limit/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/spend_limit/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/audio_speeches",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/audio_transcriptions",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/code_interpreter_sessions",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/completions",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/costs",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/decisions",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/embeddings",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/file_search_calls",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/images",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/moderations",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/vector_stores",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/usage/methods/web_search_calls",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/subresources/roles/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/subresources/roles/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/subresources/roles/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/users/subresources/roles/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/subresources/federation_rules/methods/create",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/subresources/federation_rules/methods/delete",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/subresources/federation_rules/methods/list",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/subresources/federation_rules/methods/retrieve",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/admin/subresources/organization/subresources/workload_identity_providers/subresources/federation_rules/methods/update",
+      "resource": "admin",
+      "review": "raw-json-fallback",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/speech/methods/create",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/transcriptions/methods/create",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/translations/methods/create",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/voice_consents/methods/create",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/voice_consents/methods/delete",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/voice_consents/methods/list",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/voice_consents/methods/retrieve",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/voice_consents/methods/update",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/voices/methods/create",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/audio/subresources/voices/methods/delete",
+      "resource": "audio",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/batches/methods/cancel",
+      "resource": "batches",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/batches/methods/create",
+      "resource": "batches",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/batches/methods/list",
+      "resource": "batches",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/batches/methods/retrieve",
+      "resource": "batches",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/methods/update",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/methods/pause",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/methods/resume",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/methods/update",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/subresources/invocations/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/subresources/invocations/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/automations/subresources/invocations/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/subresources/files/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/subresources/files/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/subresources/templates/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/subresources/templates/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/subresources/templates/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/subresources/templates/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/environments/subresources/templates/methods/update",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/methods/update",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/artifacts/methods/content",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/artifacts/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/artifacts/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/artifacts/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/events/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/events/methods/stream",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/items/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/subagents/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/subagents/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/subagents/subresources/items/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/subagents/subresources/turns/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/subagents/subresources/turns/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/subagents/subresources/turns/subresources/items/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/traces/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/turns/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/turns/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/sessions/subresources/turns/subresources/items/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/methods/update",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/subresources/credentials/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/subresources/credentials/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/subresources/credentials/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/subresources/credentials/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/agents/subresources/vaults/subresources/credentials/methods/update",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/chatkit/subresources/sessions/methods/cancel",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/chatkit/subresources/sessions/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/chatkit/subresources/threads/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/chatkit/subresources/threads/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/chatkit/subresources/threads/methods/list_items",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/chatkit/subresources/threads/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/methods/cancel",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/methods/compact",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/methods/connect",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/methods/create",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/methods/delete",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/methods/retrieve",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/subresources/input_items/methods/list",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/beta/subresources/responses/subresources/input_tokens/methods/count",
+      "resource": "beta",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create",
+      "resource": "chat",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/delete",
+      "resource": "chat",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/list",
+      "resource": "chat",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/retrieve",
+      "resource": "chat",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/update",
+      "resource": "chat",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/chat/subresources/completions/subresources/messages/methods/list",
+      "resource": "chat",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/completions/methods/create",
+      "resource": "completions",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/methods/create",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/methods/delete",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/methods/list",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/methods/retrieve",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/subresources/files/methods/create",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/subresources/files/methods/delete",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/subresources/files/methods/list",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/subresources/files/methods/retrieve",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/containers/subresources/files/subresources/content/methods/retrieve",
+      "resource": "containers",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/content_provenance_checks/methods/create",
+      "resource": "content_provenance_checks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/methods/create",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/methods/delete",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/methods/retrieve",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/methods/update",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/subresources/items/methods/create",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/subresources/items/methods/delete",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/subresources/items/methods/list",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/conversations/subresources/items/methods/retrieve",
+      "resource": "conversations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/decisions/methods/create",
+      "resource": "decisions",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/embeddings/methods/create",
+      "resource": "embeddings",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/methods/create",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/methods/delete",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/methods/list",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/methods/retrieve",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/methods/update",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/subresources/runs/methods/cancel",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/subresources/runs/methods/create",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/subresources/runs/methods/delete",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/subresources/runs/methods/list",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/subresources/runs/methods/retrieve",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/subresources/runs/subresources/output_items/methods/list",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/evals/subresources/runs/subresources/output_items/methods/retrieve",
+      "resource": "evals",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/files/methods/content",
+      "resource": "files",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/files/methods/create",
+      "resource": "files",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/files/methods/delete",
+      "resource": "files",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/files/methods/list",
+      "resource": "files",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/files/methods/retrieve",
+      "resource": "files",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/alpha/subresources/graders/methods/run",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/alpha/subresources/graders/methods/validate",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/checkpoints/subresources/permissions/methods/create",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/checkpoints/subresources/permissions/methods/delete",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/checkpoints/subresources/permissions/methods/list",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/methods/cancel",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/methods/create",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/methods/list",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/methods/list_events",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/methods/pause",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/methods/resume",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/methods/retrieve",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/fine_tuning/subresources/jobs/subresources/checkpoints/methods/list",
+      "resource": "fine_tuning",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/images/methods/create_variation",
+      "resource": "images",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/images/methods/edit",
+      "resource": "images",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/images/methods/generate",
+      "resource": "images",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/live/methods/create",
+      "resource": "live",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/live/subresources/sessions/methods/accept",
+      "resource": "live",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/live/subresources/sessions/methods/download_recording",
+      "resource": "live",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/live/subresources/sessions/methods/fork",
+      "resource": "live",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/live/subresources/sessions/methods/hangup",
+      "resource": "live",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/live/subresources/sessions/methods/refer",
+      "resource": "live",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/live/subresources/sessions/methods/reject",
+      "resource": "live",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/models/methods/delete",
+      "resource": "models",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/models/methods/list",
+      "resource": "models",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/models/methods/retrieve",
+      "resource": "models",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/moderations/methods/create",
+      "resource": "moderations",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/methods/connect",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/calls/methods/accept",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/calls/methods/create",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/calls/methods/hangup",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/calls/methods/refer",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/calls/methods/reject",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/client_secrets/methods/create",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/sessions/methods/create",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/transcription_sessions/methods/create",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/translations/methods/connect",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/realtime/subresources/translations/subresources/client_secrets/methods/create",
+      "resource": "realtime",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/methods/cancel",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/methods/compact",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/methods/connect",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/methods/create",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/methods/delete",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/methods/retrieve",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/subresources/input_items/methods/list",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/responses/subresources/input_tokens/methods/count",
+      "resource": "responses",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/safety/subresources/alerts/methods/retrieve",
+      "resource": "safety",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/safety/subresources/cases/methods/retrieve",
+      "resource": "safety",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/methods/create",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/methods/delete",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/methods/list",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/methods/retrieve",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/methods/update",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/subresources/content/methods/retrieve",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/subresources/versions/methods/create",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/subresources/versions/methods/delete",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/subresources/versions/methods/list",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/subresources/versions/methods/retrieve",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/skills/subresources/versions/subresources/content/methods/retrieve",
+      "resource": "skills",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/uploads/methods/cancel",
+      "resource": "uploads",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/uploads/methods/complete",
+      "resource": "uploads",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/uploads/methods/create",
+      "resource": "uploads",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/uploads/subresources/parts/methods/create",
+      "resource": "uploads",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/methods/create",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/methods/delete",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/methods/list",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/methods/retrieve",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/methods/search",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/methods/update",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/file_batches/methods/cancel",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/file_batches/methods/create",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/file_batches/methods/list_files",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/file_batches/methods/retrieve",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/files/methods/content",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/files/methods/create",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/files/methods/delete",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/files/methods/list",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/files/methods/retrieve",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/vector_stores/subresources/files/methods/update",
+      "resource": "vector_stores",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/webhooks/methods/create",
+      "resource": "webhooks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/webhooks/methods/delete",
+      "resource": "webhooks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/webhooks/methods/list",
+      "resource": "webhooks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/webhooks/methods/retrieve",
+      "resource": "webhooks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/webhooks/methods/rotate_secret",
+      "resource": "webhooks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/webhooks/methods/test",
+      "resource": "webhooks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    },
+    {
+      "reference": "https://developers.openai.com/api/reference/resources/webhooks/methods/update",
+      "resource": "webhooks",
+      "review": "provider-sdk-review",
+      "live_tested": false
+    }
+  ]
+}

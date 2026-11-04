@@ -1,0 +1,12 @@
+publish_to: none
+name: agent_weave_demo_client
+description: Starting point for a Serverpod client.
+
+environment:
+  sdk: '^3.12.2'
+
+resolution: workspace
+
+dependencies:
+  serverpod_client: 4.1.0
+  agent_weave_serverpod_storage_client: ^0.1.0-dev.1

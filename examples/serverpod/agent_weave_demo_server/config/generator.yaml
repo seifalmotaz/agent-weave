@@ -1,0 +1,3 @@
+type: server
+client_package_path: ../agent_weave_demo_client
+server_test_tools_path: test/integration/test_tools

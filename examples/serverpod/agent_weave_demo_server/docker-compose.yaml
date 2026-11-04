@@ -1,0 +1,30 @@
+services:
+  # Development services
+  postgres:
+    image: ghcr.io/serverpod/postgres:16
+    ports:
+      - "8090:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: agent_weave_demo
+      POSTGRES_PASSWORD: "agent-weave-local-only"
+    volumes:
+      - agent_weave_demo_data:/var/lib/postgresql/data
+
+
+  # Test services
+  postgres_test:
+    image: ghcr.io/serverpod/postgres:16
+    ports:
+      - "9090:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: agent_weave_demo_test
+      POSTGRES_PASSWORD: "agent-weave-local-only"
+    volumes:
+      - agent_weave_demo_test_data:/var/lib/postgresql/data
+
+
+volumes:
+  agent_weave_demo_data:
+  agent_weave_demo_test_data:

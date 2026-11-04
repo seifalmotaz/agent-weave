@@ -1,0 +1,292 @@
+import 'cancellation.dart';
+
+typedef JsonObject = Map<String, Object?>;
+
+/// Snapshot JSON at public ownership boundaries, including nested collections.
+JsonObject immutableJson(JsonObject value) {
+  Object? freeze(Object? item) => switch (item) {
+    Map<String, Object?> map => Map<String, Object?>.unmodifiable(
+      map.map((key, value) => MapEntry(key, freeze(value))),
+    ),
+    List<Object?> list => List<Object?>.unmodifiable(list.map(freeze)),
+    _ => item,
+  };
+  return freeze(value) as JsonObject;
+}
+
+enum MessageRole { user, assistant, tool }
+
+sealed class ContentPart {
+  const ContentPart();
+  JsonObject toJson();
+  factory ContentPart.fromJson(JsonObject json) => switch (json['type']) {
+    'text' => TextPart(json['text'] as String),
+    'image' => ImagePart(json['url'] as String),
+    'file' => FilePart(json['fileId'] as String),
+    'audio' => AudioPart(
+      data: json['data'] as String,
+      format: json['format'] as String,
+    ),
+    'video' => VideoPart(json['url'] as String),
+    _ => throw const FormatException('Unsupported content part.'),
+  };
+}
+
+final class TextPart extends ContentPart {
+  final String text;
+  const TextPart(this.text);
+  @override
+  JsonObject toJson() => {'type': 'text', 'text': text};
+}
+
+final class ImagePart extends ContentPart {
+  final String url;
+  const ImagePart(this.url);
+  @override
+  JsonObject toJson() => {'type': 'image', 'url': url};
+}
+
+final class FilePart extends ContentPart {
+  final String fileId;
+  const FilePart(this.fileId);
+  @override
+  JsonObject toJson() => {'type': 'file', 'fileId': fileId};
+}
+
+final class ToolCall {
+  final String id;
+  final String name;
+  final JsonObject arguments;
+  ToolCall({
+    required this.id,
+    required this.name,
+    required JsonObject arguments,
+  }) : arguments = immutableJson(arguments);
+  JsonObject toJson() => {'id': id, 'name': name, 'arguments': arguments};
+  factory ToolCall.fromJson(JsonObject json) => ToolCall(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    arguments: Map<String, Object?>.from(json['arguments'] as Map),
+  );
+}
+
+final class AudioPart extends ContentPart {
+  final String data;
+  final String format;
+  const AudioPart({required this.data, required this.format});
+  @override
+  JsonObject toJson() => {'type': 'audio', 'data': data, 'format': format};
+}
+
+final class VideoPart extends ContentPart {
+  final String url;
+  const VideoPart(this.url);
+  @override
+  JsonObject toJson() => {'type': 'video', 'url': url};
+}
+
+final class ChatMessage {
+  final String id;
+  final MessageRole role;
+  final List<ContentPart> content;
+  final List<ToolCall> toolCalls;
+  final String? toolCallId;
+
+  /// Provider replay state, including encrypted reasoning. Never sent to UI clients.
+  final Map<String, List<JsonObject>> providerData;
+  ChatMessage({
+    required this.id,
+    required this.role,
+    Iterable<ContentPart> content = const [],
+    Iterable<ToolCall> toolCalls = const [],
+    this.toolCallId,
+    Map<String, List<JsonObject>> providerData = const {},
+  }) : content = List.unmodifiable(content),
+       toolCalls = List.unmodifiable(toolCalls),
+       providerData = Map.unmodifiable({
+         for (final entry in providerData.entries)
+           entry.key: List<JsonObject>.unmodifiable(
+             entry.value.map(immutableJson),
+           ),
+       }) {
+    if (role == MessageRole.tool &&
+        (toolCallId == null || toolCallId!.isEmpty)) {
+      throw ArgumentError('Tool messages require a toolCallId.');
+    }
+    if (role != MessageRole.tool && toolCallId != null) {
+      throw ArgumentError('Only tool messages have a toolCallId.');
+    }
+    if (role != MessageRole.assistant && this.toolCalls.isNotEmpty) {
+      throw ArgumentError('Only assistant messages can contain tool calls.');
+    }
+  }
+
+  factory ChatMessage.user(String text, {required String id}) =>
+      ChatMessage(id: id, role: MessageRole.user, content: [TextPart(text)]);
+  String get text =>
+      content.whereType<TextPart>().map((part) => part.text).join();
+  JsonObject toJson() => {
+    'id': id,
+    'role': role.name,
+    'content': [for (final part in content) part.toJson()],
+    'toolCalls': [for (final call in toolCalls) call.toJson()],
+    if (toolCallId != null) 'toolCallId': toolCallId,
+    if (providerData.isNotEmpty) 'providerData': providerData,
+  };
+  factory ChatMessage.fromJson(JsonObject json) => ChatMessage(
+    id: json['id'] as String,
+    role: MessageRole.values.byName(json['role'] as String),
+    content: [
+      for (final part in json['content'] as List)
+        ContentPart.fromJson(Map<String, Object?>.from(part as Map)),
+    ],
+    toolCalls: [
+      for (final call in json['toolCalls'] as List? ?? [])
+        ToolCall.fromJson(Map<String, Object?>.from(call as Map)),
+    ],
+    toolCallId: json['toolCallId'] as String?,
+    providerData: {
+      for (final entry in (json['providerData'] as Map? ?? {}).entries)
+        entry.key as String: [
+          for (final item in entry.value as List)
+            Map<String, Object?>.from(item as Map),
+        ],
+    },
+  );
+}
+
+final class ModelCapabilities {
+  final bool tools;
+  final bool structuredOutput;
+  final bool imageInput;
+  final bool fileInput;
+  final bool audioInput;
+  final bool videoInput;
+  const ModelCapabilities({
+    this.tools = false,
+    this.structuredOutput = false,
+    this.imageInput = false,
+    this.fileInput = false,
+    this.audioInput = false,
+    this.videoInput = false,
+  });
+}
+
+final class ModelTool {
+  final String name;
+  final String description;
+  final JsonObject inputSchema;
+  const ModelTool({
+    required this.name,
+    required this.description,
+    required this.inputSchema,
+  });
+}
+
+final class ModelRequest {
+  final List<ChatMessage> messages;
+  final List<ModelTool> tools;
+  final String? instructions;
+  final JsonObject? outputSchema;
+  final int maxOutputTokens;
+  ModelRequest({
+    required Iterable<ChatMessage> messages,
+    Iterable<ModelTool> tools = const [],
+    this.instructions,
+    this.outputSchema,
+    this.maxOutputTokens = 1024,
+  }) : messages = List.unmodifiable(messages),
+       tools = List.unmodifiable(tools);
+}
+
+/// Implement a single model invocation. AgentWeave owns the tool loop.
+abstract interface class ChatModel {
+  ModelCapabilities get capabilities;
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  });
+}
+
+sealed class ModelEvent {
+  const ModelEvent();
+}
+
+final class TextDelta extends ModelEvent {
+  final String text;
+  const TextDelta(this.text);
+}
+
+final class ReasoningDelta extends ModelEvent {
+  final String text;
+  const ReasoningDelta(this.text);
+}
+
+final class ToolCallReady extends ModelEvent {
+  final ToolCall call;
+  const ToolCallReady(this.call);
+}
+
+final class TokenUsage extends ModelEvent {
+  final int inputTokens;
+  final int outputTokens;
+  final String? model;
+  final int? cachedInputTokens;
+  final int? reasoningTokens;
+  const TokenUsage({
+    required this.inputTokens,
+    required this.outputTokens,
+    this.model,
+    this.cachedInputTokens,
+    this.reasoningTokens,
+  });
+  JsonObject toJson() => {
+    'inputTokens': inputTokens,
+    'outputTokens': outputTokens,
+    'totalTokens': inputTokens + outputTokens,
+    'model': ?model,
+    'cachedInputTokens': ?cachedInputTokens,
+    'reasoningTokens': ?reasoningTokens,
+  };
+}
+
+final class ModelFinished extends ModelEvent {
+  final String reason;
+  const ModelFinished([this.reason = 'stop']);
+}
+
+final class ProviderOutput extends ModelEvent {
+  final String provider;
+  final List<JsonObject> items;
+  ProviderOutput({required this.provider, required Iterable<JsonObject> items})
+    : items = List.unmodifiable(items.map(immutableJson));
+}
+
+/// Optional provider capabilities use their own request/result types.
+abstract interface class ImageModel<Request, Result> {
+  Future<Result> generate(Request request, {CancellationToken? cancellation});
+}
+
+abstract interface class SpeechModel<Request, Result> {
+  Future<Result> speak(Request request, {CancellationToken? cancellation});
+}
+
+abstract interface class TranscriptionModel<Request, Result> {
+  Future<Result> transcribe(Request request, {CancellationToken? cancellation});
+}
+
+abstract interface class EmbeddingModel<Request, Result> {
+  Future<Result> embed(Request request, {CancellationToken? cancellation});
+}
+
+abstract interface class RealtimeModel<Session> {
+  Future<Session> connect({CancellationToken? cancellation});
+}
+
+abstract interface class DecisionModel<Request, Result> {
+  Future<Result> decide(Request request, {CancellationToken? cancellation});
+}
+
+abstract interface class VideoModel<Request, Job> {
+  Future<Job> create(Request request, {CancellationToken? cancellation});
+}

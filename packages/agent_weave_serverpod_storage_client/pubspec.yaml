@@ -1,0 +1,12 @@
+name: agent_weave_serverpod_storage_client
+description: Optional Serverpod conversation persistence for AgentWeave.
+version: 0.1.0-dev.1
+resolution: workspace
+repository: https://github.com/seifalmotaz/agent-weave
+environment:
+  sdk: '>=3.12.2 <4.0.0'
+dependencies:
+  serverpod_client: ^4.1.0
+dev_dependencies:
+  test: ^1.29.0
+issue_tracker: https://github.com/seifalmotaz/agent-weave/issues
