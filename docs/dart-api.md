@@ -221,3 +221,16 @@ Ollama, OpenRouter, Together, or gateway-specific option parity. Use an
 application-controlled URL; keep hosted provider keys on the backend. Flutter
 may call a local/on-device provider directly, but this repository has not yet
 verified mobile device networking or model execution.
+
+## Structured output in history
+
+Successful schema-validated assistant messages retain a `StructuredMessageOutput`
+in `ChatMessage.structuredOutput`. Its `data` is immutable JSON parsed from
+`raw`; providers still replay the original text. `chatHydration` returns a
+completed structured-output part instead of duplicating that text as a plain
+answer. Legacy messages without this field keep their existing representation.
+
+Provider-owned pauses count against `maxSteps`. A paused intermediate response
+can contain progress text; only the final response is validated against the
+output schema. The streaming protocol replaces that intermediate structured UI
+state with a sanitized message snapshot before continuing.

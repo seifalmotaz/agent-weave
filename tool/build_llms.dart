@@ -21,6 +21,7 @@ const documents = [
   'docs/gateway-options.md',
   'docs/together-options.md',
   'docs/anthropic.md',
+  'docs/anthropic-hosted.md',
   'docs/anthropic-parameters.md',
   'docs/anthropic-computer.md',
   'docs/anthropic-computer-parameters.md',

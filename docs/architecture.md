@@ -178,3 +178,23 @@ encoding. Authentication supplies owner identity and trusted context. Both chat
 and generation derive identity on the server; generation decoding can use that
 context to bind parameters. The application owns provider/store lifetimes and
 keeps request-context resources valid until its response stream ends.
+
+## Provider-owned continuations
+
+`ModelFinished.continuation` ends one complete invocation and requests the next
+model step without local tool results. The runtime checkpoints the assistant
+message and private provider data before dispatch. It counts the step, retains
+usage and protects unfinished continuation from new user messages. A paused
+step-limit run can be continued explicitly using a new run ID and no new
+messages; ordinary provider errors are never automatically retried.
+
+Anthropic hosted tools belong to provider model configuration rather than the
+application executor registry. Their native blocks and container IDs remain
+private replay state. Local tool calls still pass through the core approval
+and schema-validation path, including programmatic callers from code execution.
+
+Successful structured responses retain parsed data with the original JSON in
+`ChatMessage.structuredOutput`. Providers continue to encode the original text.
+Hydration preserves completed structured parts; a structured pause emits a
+sanitized message snapshot so intermediate progress cannot remain an errored
+answer in either client. Private provider replay never enters that snapshot.

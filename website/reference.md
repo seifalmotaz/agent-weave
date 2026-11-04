@@ -31,6 +31,9 @@ The monorepo contains fourteen packages. Use the smallest set needed by your app
 | `Tool<I, O, C>` | Schema-validated tool with typed input, output, and context |
 | `ClientTool<C>` | Explicitly registered client-executed tool |
 | `OpenAIComputerTool<C>` | Application-executed native Responses computer tool; see [computer use](computer-use.md) |
+| `ModelFinished.continuation` | Completed provider invocation requiring another checkpointed, counted step |
+| `StructuredMessageOutput` | Immutable parsed structured data retained in assistant history |
+| `AnthropicHostedTool` | Provider-executed search/fetch/code/tool-search definition, separate from local executors |
 | `CancellationToken` | Cancellation Future and disposable single-event Stream |
 | `RunStore` | Atomic reservations, checkpoints, and persisted events |
 | `GenerationTask<P, R>` | Typed operation with generation progress/result events |

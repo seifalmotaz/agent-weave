@@ -200,3 +200,19 @@ transport, private replay, tool-ID/index, cancellation, embedding and independen
 consumer checks. The manual upstream workflow compares official source bytes.
 Do not infer model acceptance or a universal tool-fragment merge rule from the
 source inventory; record actual model/version evidence separately.
+
+## Anthropic hosted lifecycle
+
+Run `dart run tool/anthropic_hosted_contract.dart` after regenerating the existing
+Messages inventory. It exercises all pinned server-tool type spellings through
+the public constructor and excludes client tools. Review content/result unions,
+container metadata, allowed callers and mixed client/server continuation against
+the provider docs separately. Update the hosted fixtures, core continuation
+tests, PostgreSQL scenario, official-client pause cases and consumer review
+together; constructor coverage is not full orchestration or live evidence.
+
+The `code_execution_20260521` caller option alias is documented outside the
+response union: the provider returns the `code_execution_20260120` caller tag.
+Keep the [programmatic-calling guide](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling)
+and both positive/negative caller fixtures in the review; a request-field pin
+alone cannot prove that behavior.

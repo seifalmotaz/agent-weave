@@ -223,6 +223,9 @@ void main() {
           expect(messages[1]['content'], replay);
           expect(messages[2]['role'], 'user');
           expect(messages[2]['content'][0]['tool_use_id'], 't1');
+          events
+            ..clear()
+            ..addAll([start(), finish('end_turn'), done]);
         }
       });
       final model = AnthropicChatModel(
@@ -426,7 +429,7 @@ void main() {
       throwsArgumentError,
     );
   });
-  test('rejects server tools and events after stop', () async {
+  test('rejects unregistered server tools and events after stop', () async {
     final client = fixture([
       start(),
       block(0, {
@@ -435,13 +438,16 @@ void main() {
         'name': 'web_search',
         'input': <String, Object?>{},
       }),
+      stop(0),
+      finish('end_turn'),
+      done,
     ], (_) {});
     await expectLater(
       AnthropicChatModel(
         client: client,
         model: 'fixture',
       ).stream(request, cancellation: CancellationToken()).toList(),
-      throwsUnsupportedError,
+      throwsFormatException,
     );
     final after = fixture([start(), finish('end_turn'), done, done], (_) {});
     await expectLater(
@@ -458,6 +464,7 @@ void main() {
       'end_turn': 'stop',
       'stop_sequence': 'stop',
       'tool_use': 'tool_calls',
+      'pause_turn': 'pause_turn',
     }.entries) {
       final client = fixture([
         start(),
@@ -472,8 +479,12 @@ void main() {
       ).stream(request, cancellation: CancellationToken()).toList();
       expect(result.whereType<TextDelta>().single.text, 'initial');
       expect(result.whereType<ModelFinished>().single.reason, entry.value);
+      expect(
+        result.whereType<ModelFinished>().single.continueTurn,
+        entry.key == 'pause_turn',
+      );
     }
-    final pause = fixture([start(), finish('pause_turn'), done], (_) {});
+    final pause = fixture([start(), finish('future_reason'), done], (_) {});
     await expectLater(
       AnthropicChatModel(
         client: pause,

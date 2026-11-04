@@ -24,6 +24,7 @@ Development version. Read compatibility and validation before making support cla
 - [docs/gateway-options.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/gateway-options.md)
 - [docs/together-options.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/together-options.md)
 - [docs/anthropic.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic.md)
+- [docs/anthropic-hosted.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic-hosted.md)
 - [docs/anthropic-parameters.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic-parameters.md)
 - [docs/anthropic-computer.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic-computer.md)
 - [docs/anthropic-computer-parameters.md](https://github.com/seifalmotaz/agent-weave/blob/main/docs/anthropic-computer-parameters.md)

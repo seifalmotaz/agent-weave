@@ -16,7 +16,10 @@ TypeScript API conventions into the Dart developer API.
   The Anthropic normalizer consumes raw events; preserve opaque block fields
   and signed thinking before SDK decoding. Typed SDK configuration must apply
   changes to a pre-callback snapshot without erasing unknown replay fields.
-  Native provider protocols require their own
+  Anthropic hosted tools never invoke local executors. Preserve container IDs
+  and exact tools across unfinished turns. Use ModelFinished.continuation so
+  checkpoints and maxSteps govern provider-owned pauses; never hide retry loops
+  inside adapters. Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
   Dart Frog handlers live in `packages/agent_weave_dart_frog`.

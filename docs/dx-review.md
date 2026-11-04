@@ -325,3 +325,24 @@ Existing Together test `dart test packages/agent_weave_together/test/together_te
 ### Guide and integration verification
 
 Extracted the first Dart block from each Ollama and Dart Frog guide and analyzed both without executing them: no issues found with Dart 3.12.2. The Ollama and Dart Frog offline consumer programs passed. `node tool/interop/dart-frog.mjs` passed all four official JavaScript client scenarios using the pinned Dart SDK and local fixture server. These checks are offline, not live provider evidence.
+
+
+## Round 14: Anthropic hosted tools consumer review
+
+Scope: independent Dart consumer over a local HTTP Messages fixture. No provider key, paid calls, downloads, or live provider were used. Run with `.dart_tool/dart-3.12.2/dart-sdk/bin/dart run examples/review_cases/anthropic_hosted.dart`.
+
+Initial expectation: configure a validated provider-hosted search tool at the model, run an ordinary agent, let `pause_turn` continue within the normal step budget, and retain opaque hosted blocks for automatic replay without treating them as application tools. Ordinary approval and persistence should work across a recreated agent.
+
+Result: eight cases pass: search pause and follow-up replay, mixed server and approved app tool across recreated agents, two pauses exhausting maxSteps with checkpoint and accumulated usage, rejection of a new user message followed by empty-message recovery, truncated stream, unknown stop reason, cancellation, rejection of a server tool not configured by the application, and an opted-in programmatic code-execution call that pauses for local-tool approval. A typed SDK `WebSearchTool` configures the search; `message_delta` container metadata survives both automatic continuation and recreated approval resume. The fixture asserts private search-result content and citation metadata survive replay and are absent from hydration; it does not establish public citation rendering. It verifies no extra HTTP calls or application execution in the error paths. `dart analyze examples/review_cases/anthropic_hosted.dart` reports no issues.
+
+During development the first compile failed because the API had not landed. A repeated-pause fixture initially reused a server tool ID and was rejected as INVALID_OUTPUT; distinct IDs made the intended step-limit scenario valid. These were fixture/timing issues. Inspection also identified that a hosted server call could be accepted when another hosted tool was configured; the implementation was corrected and the consumer negative case now rejects it without another HTTP call.
+
+Scoped DX score: **8/10**. Native configuration is concise, and the same ordinary agent and approval APIs work across pause and recreation. Typed SDK hosted definitions work, while programmatic callers still require knowledge of provider wire names and the consumer must understand that citations remain private backend metadata rather than rendered UI output. This score covers only the tested native loopback flow, not all hosted tool variants or provider parity.
+
+Not tested: live Anthropic behavior, actual search results, live container lifecycle, other hosted tool families, backend restart with durable storage, client citation display, or production networking. Fixture agreement cannot establish those capabilities.
+
+Final frozen-code rerun: all eight consumer cases pass and the consumer analyzes without issues. Copied the first Dart block of `docs/anthropic-hosted.md` byte-for-byte into `.dart_tool/dx-review/round14/guide.dart`, verified equality, analyzed it without issues and compiled it to kernel without running it or calling a provider. Inspected replay, tool ownership, container configuration and hosted caller validation; the unconfigured hosted call identified during review is now rejected. This inspection is scoped and is not a comprehensive security audit.
+
+Additional Dart client review: `examples/review_cases/structured_continuation_client.dart` runs the pinned `tanstack_ai_dart` ChatClient against a local SSE server and scripted model. Across two runs, including a structured-output pause and `MESSAGES_SNAPSHOT`, it observes exactly two completed outputs with the expected data; a newly attached client hydrates the same two completed outputs. The script runs successfully and analyzes without issues. This is local protocol interop, not Flutter device or live provider evidence.
+
+Final programmatic fixture correction: the earlier fixture omitted the container needed for a pending programmatic call. After the runtime enforced that requirement, the fixture was updated to return a container and assert its replay after approval. Both the direct `20260120` caller and configured `20260521` alias with the `20260120` wire caller pass, as do all other loopback cases. Analyzer reports no issues. The earlier pass did not verify the required programmatic container.

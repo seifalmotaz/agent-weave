@@ -35,3 +35,8 @@ executor, typed Dart action records/enums, approval and batch-failure handling.
 See the [computer guide](https://seifalmotaz.github.io/agent-weave/anthropic-computer/).
 Native file-ID documents use `provider: 'anthropic'`; the pinned SDK typed
 configuration callback cannot decode them. Live driver behavior remains unverified.
+
+`AnthropicHostedTool` accepts typed SDK or native definitions for provider-executed
+search, fetch, code and tool search. Paused turns use the normal step budget and
+private container replay. See the [hosted-tool guide](https://seifalmotaz.github.io/agent-weave/anthropic-hosted/)
+for mixed approvals, configuration and current limits.

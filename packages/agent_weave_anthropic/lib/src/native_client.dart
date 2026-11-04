@@ -4,6 +4,7 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_http/agent_weave_http.dart';
 import 'package:http/http.dart' as http;
 import 'protocol.dart';
+import 'hosted_tool.dart';
 
 export 'package:agent_weave_http/agent_weave_http.dart'
     show JsonHttpException, JsonSseEvent, JsonSseData, JsonSseDone, HttpMethod;
@@ -238,9 +239,11 @@ final class AnthropicNativeClient {
   AnthropicProtocolModel chatModel({
     required String model,
     JsonObject Function(JsonObject)? configure,
+    List<AnthropicHostedTool> hostedTools = const [],
   }) => AnthropicProtocolModel(
     model: model,
     configure: configure,
+    hostedTools: List.unmodifiable(hostedTools),
     transport: (body, token) async* {
       await for (final event in streamMessages(body, cancellation: token)) {
         if (event is JsonSseData) yield event.data;

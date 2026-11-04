@@ -119,6 +119,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
+- [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
 - [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
 - [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)

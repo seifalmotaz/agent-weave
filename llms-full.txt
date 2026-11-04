@@ -121,6 +121,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [Anthropic Messages](docs/anthropic.md)
+- [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
 - [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
 - [Cloudflare Workers AI and AI Gateway](docs/cloudflare.md)
@@ -164,6 +165,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   equivalent native approval, persistence and batch-failure contracts. Real
   driver/model behavior and other native
   tool continuations remain open; this is not complete computer-use parity.
+- Anthropic hosted blocks, container replay and counted paused turns now have
+  local fixture and consumer coverage. Live search/code/container behavior,
+  browser/MCP tools, public citation rendering and full nested semantics remain
+  open. Constructor coverage is not workflow certification.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.
@@ -425,6 +430,19 @@ Ollama, OpenRouter, Together, or gateway-specific option parity. Use an
 application-controlled URL; keep hosted provider keys on the backend. Flutter
 may call a local/on-device provider directly, but this repository has not yet
 verified mobile device networking or model execution.
+
+## Structured output in history
+
+Successful schema-validated assistant messages retain a `StructuredMessageOutput`
+in `ChatMessage.structuredOutput`. Its `data` is immutable JSON parsed from
+`raw`; providers still replay the original text. `chatHydration` returns a
+completed structured-output part instead of duplicating that text as a plain
+answer. Legacy messages without this field keep their existing representation.
+
+Provider-owned pauses count against `maxSteps`. A paused intermediate response
+can contain progress text; only the final response is validated against the
+output schema. The streaming protocol replaces that intermediate structured UI
+state with a sanitized message snapshot before continuing.
 
 
 # Source: docs/dx-review.md
@@ -758,6 +776,27 @@ Existing Together test `dart test packages/agent_weave_together/test/together_te
 Extracted the first Dart block from each Ollama and Dart Frog guide and analyzed both without executing them: no issues found with Dart 3.12.2. The Ollama and Dart Frog offline consumer programs passed. `node tool/interop/dart-frog.mjs` passed all four official JavaScript client scenarios using the pinned Dart SDK and local fixture server. These checks are offline, not live provider evidence.
 
 
+## Round 14: Anthropic hosted tools consumer review
+
+Scope: independent Dart consumer over a local HTTP Messages fixture. No provider key, paid calls, downloads, or live provider were used. Run with `.dart_tool/dart-3.12.2/dart-sdk/bin/dart run examples/review_cases/anthropic_hosted.dart`.
+
+Initial expectation: configure a validated provider-hosted search tool at the model, run an ordinary agent, let `pause_turn` continue within the normal step budget, and retain opaque hosted blocks for automatic replay without treating them as application tools. Ordinary approval and persistence should work across a recreated agent.
+
+Result: eight cases pass: search pause and follow-up replay, mixed server and approved app tool across recreated agents, two pauses exhausting maxSteps with checkpoint and accumulated usage, rejection of a new user message followed by empty-message recovery, truncated stream, unknown stop reason, cancellation, rejection of a server tool not configured by the application, and an opted-in programmatic code-execution call that pauses for local-tool approval. A typed SDK `WebSearchTool` configures the search; `message_delta` container metadata survives both automatic continuation and recreated approval resume. The fixture asserts private search-result content and citation metadata survive replay and are absent from hydration; it does not establish public citation rendering. It verifies no extra HTTP calls or application execution in the error paths. `dart analyze examples/review_cases/anthropic_hosted.dart` reports no issues.
+
+During development the first compile failed because the API had not landed. A repeated-pause fixture initially reused a server tool ID and was rejected as INVALID_OUTPUT; distinct IDs made the intended step-limit scenario valid. These were fixture/timing issues. Inspection also identified that a hosted server call could be accepted when another hosted tool was configured; the implementation was corrected and the consumer negative case now rejects it without another HTTP call.
+
+Scoped DX score: **8/10**. Native configuration is concise, and the same ordinary agent and approval APIs work across pause and recreation. Typed SDK hosted definitions work, while programmatic callers still require knowledge of provider wire names and the consumer must understand that citations remain private backend metadata rather than rendered UI output. This score covers only the tested native loopback flow, not all hosted tool variants or provider parity.
+
+Not tested: live Anthropic behavior, actual search results, live container lifecycle, other hosted tool families, backend restart with durable storage, client citation display, or production networking. Fixture agreement cannot establish those capabilities.
+
+Final frozen-code rerun: all eight consumer cases pass and the consumer analyzes without issues. Copied the first Dart block of `docs/anthropic-hosted.md` byte-for-byte into `.dart_tool/dx-review/round14/guide.dart`, verified equality, analyzed it without issues and compiled it to kernel without running it or calling a provider. Inspected replay, tool ownership, container configuration and hosted caller validation; the unconfigured hosted call identified during review is now rejected. This inspection is scoped and is not a comprehensive security audit.
+
+Additional Dart client review: `examples/review_cases/structured_continuation_client.dart` runs the pinned `tanstack_ai_dart` ChatClient against a local SSE server and scripted model. Across two runs, including a structured-output pause and `MESSAGES_SNAPSHOT`, it observes exactly two completed outputs with the expected data; a newly attached client hydrates the same two completed outputs. The script runs successfully and analyzes without issues. This is local protocol interop, not Flutter device or live provider evidence.
+
+Final programmatic fixture correction: the earlier fixture omitted the container needed for a pending programmatic call. After the runtime enforced that requirement, the fixture was updated to return a container and assert its replay after approval. Both the direct `20260120` caller and configured `20260521` alias with the `20260120` wire caller pass, as do all other loopback cases. Analyzer reports no issues. The earlier pass did not verify the required programmatic container.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -940,6 +979,26 @@ encoding. Authentication supplies owner identity and trusted context. Both chat
 and generation derive identity on the server; generation decoding can use that
 context to bind parameters. The application owns provider/store lifetimes and
 keeps request-context resources valid until its response stream ends.
+
+## Provider-owned continuations
+
+`ModelFinished.continuation` ends one complete invocation and requests the next
+model step without local tool results. The runtime checkpoints the assistant
+message and private provider data before dispatch. It counts the step, retains
+usage and protects unfinished continuation from new user messages. A paused
+step-limit run can be continued explicitly using a new run ID and no new
+messages; ordinary provider errors are never automatically retried.
+
+Anthropic hosted tools belong to provider model configuration rather than the
+application executor registry. Their native blocks and container IDs remain
+private replay state. Local tool calls still pass through the core approval
+and schema-validation path, including programmatic callers from code execution.
+
+Successful structured responses retain parsed data with the original JSON in
+`ChatMessage.structuredOutput`. Providers continue to encode the original text.
+Hydration preserves completed structured parts; a structured pause emits a
+sanitized message snapshot so intermediate progress cannot remain an errored
+answer in either client. Private provider replay never enters that snapshot.
 
 
 # Source: docs/tools.md
@@ -2785,11 +2844,13 @@ The agent preserves provider content blocks for continuation, including
 signatures and unknown fields on supported block types. This replay data and raw
 responses may contain sensitive content; keep them private on the backend and
 out of user-facing hydration or logs. The normalized agent currently handles
-text, thinking, redacted thinking and client tool-use blocks with supported
+text, thinking, redacted thinking, client tool-use and pinned hosted-tool blocks with supported
 text, thinking, signature and input JSON deltas. Citation deltas are retained
 privately on text blocks for replay; there is no normalized UI citation event. Unknown block types or deltas
-fail explicitly. Hosted tools, audio/video and pause-turn continuations are not integrated into
-the agent loop; use raw native access when implementing those protocols yourself.
+fail explicitly. Hosted tools and bounded `pause_turn` continuation are integrated; see the
+[hosted-tool guide](anthropic-hosted.md). Audio/video, MCP, browser tools and
+complete nested semantics remain unfinished. Use raw native access for other
+protocols.
 For client computer use, see the [computer-use guide](anthropic-computer.md).
 File-ID document parts are supported by the native agent path; the typed SDK
 configuration path cannot yet decode them. URL and supported inline documents
@@ -2808,6 +2869,165 @@ is submitted, not merged or released. AgentWeave's native client already uses
 its own shared transport and does not require this unreleased SDK change.
 
 
+# Source: docs/anthropic-hosted.md
+
+# Anthropic hosted tools
+
+Add provider-executed search, fetch, code execution or tool search to an ordinary
+AgentWeave agent. Your `Tool` registrations remain application-executed; hosted
+tools do not call their executors or produce local approval requests.
+
+This complete example makes a billable request when you run it. Choose a model
+that accepts web search and set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL`.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
+
+Future<void> main() async {
+  final key = Platform.environment['ANTHROPIC_API_KEY'];
+  final modelId = Platform.environment['ANTHROPIC_MODEL'];
+  if (key == null || key.isEmpty || modelId == null || modelId.isEmpty) {
+    throw StateError('Set ANTHROPIC_API_KEY and ANTHROPIC_MODEL.');
+  }
+  final client = anthropic.AnthropicNativeClient.withApiKey(apiKey: key);
+  try {
+    final agent = AiAgent<void>(
+      model: client.chatModel(
+        model: modelId,
+        hostedTools: [
+          anthropic.AnthropicHostedTool(
+            const anthropic.WebSearchTool(maxUses: 3),
+          ),
+        ],
+      ),
+      maxSteps: 4,
+      maxOutputTokens: 1024,
+    );
+    final result = await agent.generate(
+      ChatRequest(
+        threadId: 'research',
+        runId: 'first',
+        messages: [
+          ChatMessage.user(
+            'Find the latest stable Dart release.',
+            id: 'question',
+          ),
+        ],
+      ),
+      ownerId: 'local-example',
+      context: null,
+    );
+    print(result.text);
+  } finally {
+    client.close();
+  }
+}
+```
+
+## Configure hosted tools
+
+`AnthropicHostedTool` snapshots a typed SDK `BuiltInTool`. Its `fromJson`
+constructor retains unknown native option fields. Both constructors check an
+explicit supported type/name pair and exclude client-executed tools such as
+bash, memory, browser and computer. They also reject conflicting domain lists.
+Other nested options and model acceptance are validated by the provider.
+
+The current source pin contains 15 type spellings across web search, web fetch,
+code execution and regex/BM25 tool search, including the unversioned tool-search
+aliases. `dart run tool/anthropic_hosted_contract.dart` checks each spelling
+against the extracted official declarations and rejects the known client tools.
+This checks configuration coverage, not every nested option or live workflow.
+
+For typed code execution, use:
+
+```dart
+final hosted = anthropic.AnthropicHostedTool(
+  anthropic.CodeExecutionBuiltInTool(),
+);
+```
+
+Pass the resulting values through `hostedTools` on
+`AnthropicNativeClient.chatModel`, `AnthropicProtocolModel`, or the SDK-backed
+`AnthropicChatModel`. Hosted names must be unique and cannot shadow registered
+application tool names. The runtime protects the complete tool list from
+replacement by `configure`. Provider decorations such as `allowed_callers`,
+`defer_loading`, `strict` and cache control can be set through configuration.
+
+## Pauses, replay and containers
+
+A complete `pause_turn` response yields `ModelFinished.continuation`. The core
+agent stores the response before its next invocation and counts every invocation
+against `maxSteps`. It continues with the ordered native content and the same
+tools. It preserves the latest returned container ID from message-start or
+message-delta metadata. Configuration cannot replace an inherited container ID.
+These rules follow the [official server-tool lifecycle](https://platform.claude.com/docs/en/agents-and-tools/tool-use/server-tools).
+
+Each pause is a checkpoint, rather than an automatic retry of a failed request.
+A malformed stream, EOF, error or cancellation does not automatically dispatch
+another request. The existing error and cancellation APIs still apply. Usage
+accumulates across completed model invocations. With a schema, paused text is
+progress and only the final response is validated as the answer. A sanitized
+message snapshot closes the intermediate structured UI state without showing a
+false failure. Completed structured data survives history hydration. `maxSteps` bounds invocations,
+not provider-side searches, code execution, tokens or money; also configure the
+provider's limits and your application budget.
+
+If the step limit is reached while paused, the run returns `STEP_LIMIT` and keeps
+its private continuation. A new run on the same owner/thread, with no new
+messages and the same model/tool configuration, can explicitly continue it.
+New user messages are rejected while that continuation is pending. Use a new
+run ID; a recreated agent can share the same store. This is not automatic
+recovery from an arbitrary process crash or an unknown external effect.
+
+## Mixing hosted and application tools
+
+The adapter keeps `server_tool_use` and result blocks private and never turns
+them into an application call. Your ordinary tool follows its usual schema,
+approval, context and result contract. A response can defer a hosted action
+while your application tool waits for approval. The next user content must then
+contain all of that turn's client tool results, without additional user text.
+The adapter validates this shape before dispatch.
+
+Programmatic calls from provider code execution require an explicit
+`allowed_callers` opt-in on the registered application tool's provider definition.
+The adapter checks the caller type and its reference to an active code-execution
+call before emitting an application call. The documented `code_execution_20260521`
+caller option accepts the canonical `code_execution_20260120` response tag.
+Unfinished code execution requires a returned or explicitly configured container
+ID; missing identity fails before local execution. Tool input validation still applies, and `needsApproval` uses the normal
+approval flow. Tool-search results stay opaque. References do not install executors or grant
+permissions; the runtime invokes only application tools you separately register.
+
+## Private data and current evidence
+
+Ordered content lives in `anthropic.messages`, cumulative metadata and containers
+in `anthropic.messages.metadata`, and the configured continuation tool list in
+`anthropic.messages.tools`. Keep these fields on the backend. They can contain
+sensitive fetched text, opaque encrypted values, caller IDs, container IDs and
+citations. `chatHydration` excludes them. Citation deltas remain on the native
+text blocks for replay; this release has no public citation-rendering event.
+
+The normalizer accepts the pinned content union, including search, fetch, code,
+bash-code, text-editor-code and tool-search results plus container uploads.
+Unknown top-level blocks or deltas fail explicitly. MCP, browser tools and
+complete nested response semantics remain outside this integration.
+
+Local fixtures cover typed and raw definitions, fragmented server input, opaque
+results, paused turns, exact tool/container replay, programmatic caller checks,
+mixed approvals, cancellation, malformed output, hydration privacy and bounds.
+They do not prove model availability, real search quality, downloaded files,
+container expiry, billing or live provider behavior. See
+[validation](validation.md) and [the independent developer review](dx-review.md).
+
+The [official programmatic-calling guide](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling)
+describes caller aliases, required containers and timeout limits. Container
+expiry can still reject a later continuation; application tools must implement
+idempotency and reconcile external effects. No live expiry policy is certified.
+
+
 # Source: docs/anthropic-parameters.md
 
 # Anthropic Messages request fields
@@ -2821,13 +3041,13 @@ These dispositions describe top-level access only. Arbitrary native JSON does no
 | max_tokens | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
 | messages | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
 | system | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
-| tools | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
+| tools | runtime-owned | Runtime application tools and provider-model hostedTools are built and protected by the adapter. Selected pinned hosted blocks, approvals and paused continuation have offline fixtures; full nested semantics and live behavior remain unverified. |
 | model | mixed | Adapter model constructor and SDK configure; native JSON accepts caller input. |
 | output_config | mixed | SDK configure; runtime output schema is protected when requested. Native JSON accepts caller input. |
 | stream | runtime-owned | Agent uses SDK streaming; native client controls the request mode. |
 | user_profile_id | mixed | The adapter exposes a userProfileId header; native JSON accepts this body field separately. |
 | cache_control | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| container | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| container | mixed | Initial configuration uses SDK/native JSON. Returned container IDs from message-start/delta are retained privately and reused across paused and local-tool continuations; inherited IDs are protected. Live expiry and files are unverified. |
 | diagnostics | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
 | inference_geo | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
 | metadata | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
@@ -3318,7 +3538,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed options; Responses also supports the application-executed native computer tool. | See [OpenAI audit](openai-options-audit.md): other native tool continuations, events, transport, media and complete field-by-field coverage remain open. Computer model and driver behavior require separate live verification. |
-| Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Complete nested semantics, hosted/browser tools, pause-turn and other endpoint workflows remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
+| Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Complete nested semantics, browser/MCP tools, other endpoint workflows and live hosted behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
 | OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, all hosted tools/media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
@@ -3409,8 +3629,9 @@ not a claim of full TanStack AI core parity.
   hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
-  Hosted tools, browser toolsets, pause-turn and complete nested field semantics
-  remain unfinished. The
+  Pinned hosted blocks, bounded paused turns and container reuse are integrated
+  with offline fixtures. Browser/MCP tools, live hosted behavior and complete
+  nested field semantics remain unfinished. The
   SDK-backed facade retains its pinned SDK transport cancellation limits.
   See [Anthropic](anthropic.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter
@@ -3645,6 +3866,22 @@ consumer checks. The manual upstream workflow compares official source bytes.
 Do not infer model acceptance or a universal tool-fragment merge rule from the
 source inventory; record actual model/version evidence separately.
 
+## Anthropic hosted lifecycle
+
+Run `dart run tool/anthropic_hosted_contract.dart` after regenerating the existing
+Messages inventory. It exercises all pinned server-tool type spellings through
+the public constructor and excludes client tools. Review content/result unions,
+container metadata, allowed callers and mixed client/server continuation against
+the provider docs separately. Update the hosted fixtures, core continuation
+tests, PostgreSQL scenario, official-client pause cases and consumer review
+together; constructor coverage is not full orchestration or live evidence.
+
+The `code_execution_20260521` caller option alias is documented outside the
+response union: the provider returns the `code_execution_20260120` caller tag.
+Keep the [programmatic-calling guide](https://platform.claude.com/docs/en/agents-and-tools/tool-use/programmatic-tool-calling)
+and both positive/negative caller fixtures in the review; a request-field pin
+alone cannot prove that behavior.
+
 
 # Source: docs/validation.md
 
@@ -3674,17 +3911,17 @@ and interoperability with the pinned official JavaScript client.
 The latest local-model and Dart Frog increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 375 Dart unit and regression tests: tool validation, approvals, client tools,
+- 391 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 15 Serverpod integration tests with a real isolated PostgreSQL database:
+- 16 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 17 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 19 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, and seven media/history cases. The media cases include document
+  generation, two provider-continuation cases, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
 - 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
@@ -4075,6 +4312,42 @@ ID during validation. The fix and consumer regression preserve default/override
 precedence and response request/cache metadata. These judgments are scoped, not
 an SDK-wide acceptance pass. No paid requests or package publications were made.
 
+## Anthropic hosted tools and provider continuations
+
+Ten hosted-tool test groups verify typed SDK snapshots and native extension
+fields, all six pinned hosted result families, fragmented server input, preserved
+containers and tools, duplicate/mismatched IDs, local-name collisions, caller-version aliases, missing containers, complete
+client-result batches and explicitly opted-in programmatic callers. Hosted calls
+never emit local executor events. A public-boundary contract script accepts all
+15 official server-tool type spellings from the existing pinned inventory and
+rejects known client tools. This is not exhaustive nested option validation.
+
+Six core tests cover counted provider continuations, usage, checkpoints, step
+limits, new-user rejection and explicit recovery, final schema validation,
+structured message serialization/hydration, legacy data and contradictory
+local-tool continuation. The PostgreSQL fixture reloads a paused native
+Anthropic code-execution turn through a recreated agent/store, preserves the
+container and tools, isolates owners, resumes with no new user message and
+hydrates the final structured answer. This is not a process-crash test.
+
+Two new official JavaScript scenarios exercise text and structured pauses. The
+stricter structured fixture exposed an errored intermediate placeholder despite
+a successful final answer. The runtime now sends a sanitized message snapshot
+for intermediate structured progress and persists completed structured data.
+Both the JavaScript client and a separately written Dart ChatClient consumer
+verify two runs and restored hydration without spurious structured errors.
+
+The independent Anthropic consumer passes eight loopback scenarios, including
+typed SDK hosted configuration, opaque search/citation replay, delta containers,
+programmatic app-tool approval, ordinary mixed approval with recreated agents,
+step-limit recovery and no extra dispatch on malformed/EOF/cancellation. Its
+scoped score is 8/10. The guide's complete first Dart program matches its
+executable example and was analyzed and compiled without paid execution.
+
+No live search, fetch, code execution, tool search, container, files or billing
+was exercised. Browser/MCP tools, public citation rendering and full nested
+semantics remain unfinished. No paid calls or package publications were made.
+
 
 # Source: CONTRIBUTING.md
 
@@ -4120,7 +4393,10 @@ TypeScript API conventions into the Dart developer API.
   The Anthropic normalizer consumes raw events; preserve opaque block fields
   and signed thinking before SDK decoding. Typed SDK configuration must apply
   changes to a pre-callback snapshot without erasing unknown replay fields.
-  Native provider protocols require their own
+  Anthropic hosted tools never invoke local executors. Preserve container IDs
+  and exact tools across unfinished turns. Use ModelFinished.continuation so
+  checkpoints and maxSteps govern provider-owned pauses; never hide retry loops
+  inside adapters. Native provider protocols require their own
   serialization, continuation, and option-preservation tests.
 - HTTP/session integration lives in `packages/agent_weave_serverpod`.
   Dart Frog handlers live in `packages/agent_weave_dart_frog`.

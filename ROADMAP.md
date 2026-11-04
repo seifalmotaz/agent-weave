@@ -24,6 +24,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   equivalent native approval, persistence and batch-failure contracts. Real
   driver/model behavior and other native
   tool continuations remain open; this is not complete computer-use parity.
+- Anthropic hosted blocks, container replay and counted paused turns now have
+  local fixture and consumer coverage. Live search/code/container behavior,
+  browser/MCP tools, public citation rendering and full nested semantics remain
+  open. Constructor coverage is not workflow certification.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.

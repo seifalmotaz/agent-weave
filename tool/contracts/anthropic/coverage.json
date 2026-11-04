@@ -13,7 +13,7 @@
   },
   "tools": {
     "status": "runtime-owned",
-    "detail": "Built and protected by the agent adapter; native JSON accepts caller input."
+    "detail": "Runtime application tools and provider-model hostedTools are built and protected by the adapter. Selected pinned hosted blocks, approvals and paused continuation have offline fixtures; full nested semantics and live behavior remain unverified."
   },
   "model": {
     "status": "mixed",
@@ -36,8 +36,8 @@
     "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
   },
   "container": {
-    "status": "sdk-configure",
-    "detail": "Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established."
+    "status": "mixed",
+    "detail": "Initial configuration uses SDK/native JSON. Returned container IDs from message-start/delta are retained privately and reused across paused and local-tool continuations; inherited IDs are protected. Live expiry and files are unverified."
   },
   "diagnostics": {
     "status": "sdk-configure",

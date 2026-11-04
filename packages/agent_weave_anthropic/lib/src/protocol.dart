@@ -4,6 +4,7 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:agent_weave_http/agent_weave_http.dart' show snapshotJson;
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as api;
 import 'computer_tool.dart';
+import 'hosted_tool.dart';
 
 /// A native Messages stream. The caller owns and closes [client].
 final class AnthropicChatModel implements ChatModel {
@@ -12,6 +13,7 @@ final class AnthropicChatModel implements ChatModel {
   final api.MessageCreateRequest Function(api.MessageCreateRequest)? configure;
   final List<String> betas;
   final String? userProfileId;
+  final List<AnthropicHostedTool> hostedTools;
 
   const AnthropicChatModel({
     required this.client,
@@ -19,6 +21,7 @@ final class AnthropicChatModel implements ChatModel {
     this.configure,
     this.betas = const [],
     this.userProfileId,
+    this.hostedTools = const [],
   });
 
   @override
@@ -35,6 +38,7 @@ final class AnthropicChatModel implements ChatModel {
     required CancellationToken cancellation,
   }) => AnthropicProtocolModel(
     model: model,
+    hostedTools: hostedTools,
     configure: configure == null
         ? null
         : (body) {
@@ -72,10 +76,12 @@ final class AnthropicProtocolModel implements ChatModel {
   final String model;
   final JsonObject Function(JsonObject)? configure;
   final Stream<JsonObject> Function(JsonObject, CancellationToken) transport;
+  final List<AnthropicHostedTool> hostedTools;
   const AnthropicProtocolModel({
     required this.model,
     required this.transport,
     this.configure,
+    this.hostedTools = const [],
   });
 
   @override
@@ -97,6 +103,15 @@ final class AnthropicProtocolModel implements ChatModel {
     required CancellationToken cancellation,
   }) async* {
     cancellation.throwIfCancelled();
+    final hosted = List<AnthropicHostedTool>.unmodifiable(hostedTools);
+    final names = request.tools.map((tool) => tool.name).toSet();
+    for (final tool in hosted) {
+      if (!names.add(tool.name)) {
+        throw ArgumentError(
+          'Hosted tool names must be unique and cannot shadow local tools.',
+        );
+      }
+    }
     final nativeTools = request.tools.whereType<NativeModelTool>().toList();
     if (nativeTools.length > 1 ||
         nativeTools.any(
@@ -118,10 +133,20 @@ final class AnthropicProtocolModel implements ChatModel {
     final nativeHistory = <String, NativeToolCall>{};
     final callOrder = <String, int>{};
     final messages = <Map<String, dynamic>>[];
+    String? containerId;
+    ChatMessage? lastAssistant;
     for (final message in request.messages) {
       final blocks = <Map<String, dynamic>>[];
       final replay = message.providerData['anthropic.messages'];
       if (message.role == MessageRole.assistant) {
+        lastAssistant = message;
+        for (final metadata
+            in message.providerData['anthropic.messages.metadata'] ??
+                <JsonObject>[]) {
+          if (metadata['container'] != null) {
+            containerId = _containerId(metadata['container']);
+          }
+        }
         final ids = replay == null || replay.isEmpty
             ? message.toolCalls.map((call) => call.id)
             : replay
@@ -253,6 +278,7 @@ final class AnthropicProtocolModel implements ChatModel {
       'model': model,
       'max_tokens': request.maxOutputTokens,
       'messages': messages,
+      'container': ?containerId,
       if (request.instructions != null) 'system': request.instructions,
       if (request.outputSchema != null)
         'output_config': {
@@ -261,8 +287,9 @@ final class AnthropicProtocolModel implements ChatModel {
             'schema': jsonDecode(jsonEncode(request.outputSchema)),
           },
         },
-      if (request.tools.isNotEmpty)
+      if (request.tools.isNotEmpty || hosted.isNotEmpty)
         'tools': [
+          for (final tool in hosted) tool.definition,
           for (final tool in request.tools)
             switch (tool) {
               NativeModelTool() => tool.definition,
@@ -285,6 +312,12 @@ final class AnthropicProtocolModel implements ChatModel {
     if (configured['stream'] != null && configured['stream'] != true) {
       throw ArgumentError('configure cannot disable streaming.');
     }
+    if (containerId != null &&
+        _containerId(configured['container']) != containerId) {
+      throw ArgumentError(
+        'configure cannot replace the conversation container.',
+      );
+    }
     if (request.outputSchema != null &&
         canonicalJson((original['output_config'] as Map)['format']) !=
             canonicalJson((configured['output_config'] as Map?)?['format'])) {
@@ -292,6 +325,37 @@ final class AnthropicProtocolModel implements ChatModel {
         'configure cannot replace the runtime output schema.',
       );
     }
+    final definitions = <String, JsonObject>{
+      for (final raw in configured['tools'] as List? ?? const [])
+        if ((raw as Map)['name'] is String)
+          raw['name'] as String: Map<String, Object?>.from(raw),
+    };
+    if (lastAssistant != null) {
+      final metadata =
+          lastAssistant.providerData['anthropic.messages.metadata'];
+      final reason =
+          metadata?.lastOrNull?['stop_reason'] ??
+          (metadata?.lastOrNull?['delta'] is Map
+              ? (metadata!.last['delta'] as Map)['stop_reason']
+              : null);
+      if (reason == 'pause_turn' &&
+          request.messages.last.role != MessageRole.assistant) {
+        throw const FormatException(
+          'Continue the paused assistant turn before adding messages.',
+        );
+      }
+      if (reason == 'pause_turn' || reason == 'tool_use') {
+        final previous = lastAssistant.providerData['anthropic.messages.tools'];
+        if (previous != null &&
+            canonicalJson(previous) !=
+                canonicalJson(configured['tools'] ?? [])) {
+          throw ArgumentError(
+            'Preserve tools while continuing an unfinished hosted turn.',
+          );
+        }
+      }
+    }
+    final pendingServer = _pendingHostedHistory(messages);
     final blocks = <int, Map<String, dynamic>>{};
     final arguments = <int, StringBuffer>{};
     final reportedUsage = <String, Object?>{};
@@ -338,6 +402,9 @@ final class AnthropicProtocolModel implements ChatModel {
               'thinking',
               'redacted_thinking',
               'tool_use',
+              'server_tool_use',
+              'container_upload',
+              ...anthropicHostedResultNames.keys,
             }.contains(block['type'])) {
               throw UnsupportedError(
                 'Unsupported Anthropic content block: ${block['type']}',
@@ -375,7 +442,12 @@ final class AnthropicProtocolModel implements ChatModel {
                 block['signature'] =
                     '${block['signature'] ?? ''}${delta['signature']}';
               case 'input_json_delta':
-                _requireBlock(block, 'tool_use');
+                if (block['type'] != 'tool_use' &&
+                    block['type'] != 'server_tool_use') {
+                  throw const FormatException(
+                    'Tool delta does not match its block.',
+                  );
+                }
                 (arguments[index] ??= StringBuffer()).write(
                   delta['partial_json'],
                 );
@@ -399,12 +471,17 @@ final class AnthropicProtocolModel implements ChatModel {
             if (block == null || !openBlocks.remove(index)) {
               throw const FormatException('Stop without content block.');
             }
-            if (block['type'] == 'tool_use') {
+            if (block['type'] == 'tool_use' ||
+                block['type'] == 'server_tool_use') {
               final partial = arguments[index]?.toString();
               final input = partial == null || partial.isEmpty
                   ? block['input']
                   : jsonDecode(partial);
-              block['input'] = Map<String, dynamic>.from(input as Map);
+              block['input'] = block['type'] == 'tool_use'
+                  ? Map<String, dynamic>.from(input as Map)
+                  : input;
+            }
+            if (block['type'] == 'tool_use') {
               if (block['toolset_name'] != null) {
                 if (block['toolset_name'] != 'computer' ||
                     nativeTools.length != 1) {
@@ -432,11 +509,16 @@ final class AnthropicProtocolModel implements ChatModel {
             }
           case 'message_delta':
             metadata['delta'] = json['delta'];
+            if ((json['delta'] as Map)['container'] != null) {
+              _containerId((json['delta'] as Map)['container']);
+              metadata['container'] = (json['delta'] as Map)['container'];
+            }
             metadata['usage'] = {
               ...?metadata['usage'] as Map?,
               ...json['usage'] as Map,
             };
             reason = (json['delta'] as Map)['stop_reason'] as String? ?? reason;
+            if (reason != null) metadata['stop_reason'] = reason;
             reportedUsage.addAll({
               for (final entry in (json['usage'] as Map).entries)
                 if (entry.value != null) entry.key as String: entry.value,
@@ -465,8 +547,48 @@ final class AnthropicProtocolModel implements ChatModel {
       'max_tokens' || 'model_context_window_exceeded' => 'length',
       'tool_use' => 'tool_calls',
       'refusal' => 'refusal',
+      'pause_turn' => 'pause_turn',
       _ => throw UnsupportedError('Unsupported Anthropic stop reason: $reason'),
     };
+    if (reason == 'pause_turn' && stagedCalls.isNotEmpty) {
+      throw const FormatException(
+        'A paused server turn cannot await local tool results.',
+      );
+    }
+    _validateHostedBlocks(
+      blocks,
+      reason,
+      pending: pendingServer,
+      definitions: definitions,
+      previousIds: {
+        for (final message in request.messages)
+          for (final block
+              in message.providerData['anthropic.messages'] ?? <JsonObject>[])
+            if (block['type'] == 'tool_use' ||
+                block['type'] == 'server_tool_use')
+              block['id'] as String,
+      },
+    );
+    if (metadata['container'] != null) _containerId(metadata['container']);
+    if ((reason == 'pause_turn' || reason == 'tool_use') &&
+        pendingServer.values.any(
+          (name) => {
+            'code_execution',
+            'bash_code_execution',
+            'text_editor_code_execution',
+          }.contains(name),
+        )) {
+      final id =
+          _containerId(metadata['container']) ??
+          containerId ??
+          _containerId(configured['container']);
+      if (id == null) {
+        throw const FormatException(
+          'Unfinished code execution requires a container ID.',
+        );
+      }
+      metadata['container'] ??= {'id': id};
+    }
     if (stagedCalls.values.any((call) => call is NativeToolCall) &&
         reason != 'tool_use') {
       throw const FormatException(
@@ -494,6 +616,15 @@ final class AnthropicProtocolModel implements ChatModel {
       provider: 'anthropic.messages.metadata',
       items: [metadata],
     );
+    if (hosted.isNotEmpty) {
+      yield ProviderOutput(
+        provider: 'anthropic.messages.tools',
+        items: [
+          for (final raw in configured['tools'] as List)
+            Map<String, Object?>.from(raw as Map),
+        ],
+      );
+    }
     yield TokenUsage(
       inputTokens:
           (reportedUsage['input_tokens'] as int? ?? 0) +
@@ -506,7 +637,9 @@ final class AnthropicProtocolModel implements ChatModel {
           (reportedUsage['output_tokens_details'] as Map?)?['thinking_tokens']
               as int?,
     );
-    yield ModelFinished(finishReason);
+    yield reason == 'pause_turn'
+        ? ModelFinished.continuation(finishReason)
+        : ModelFinished(finishReason);
   }
 }
 
@@ -540,7 +673,9 @@ Object? _ownedValue(String field, Object? value) {
       for (final item in value)
         Map<String, dynamic>.from(item as Map)
           ..remove('cache_control')
-          ..remove('strict'),
+          ..remove('strict')
+          ..remove('allowed_callers')
+          ..remove('defer_loading'),
     ];
   }
   if (field == 'messages' && value is List) {
@@ -614,4 +749,177 @@ Object? _applyChanges(Object? original, Object? before, Object? after) {
     ];
   }
   return after;
+}
+
+String? _containerId(Object? value) {
+  if (value == null) return null;
+  final id = value is Map ? value['id'] : value;
+  if (id is! String || id.isEmpty) {
+    throw const FormatException('Invalid Anthropic container.');
+  }
+  return id;
+}
+
+void _validateHostedBlocks(
+  Map<int, Map<String, dynamic>> blocks,
+  String reason, {
+  required Map<String, String> pending,
+  required Map<String, JsonObject> definitions,
+  required Set<String> previousIds,
+}) {
+  final seen = {...previousIds, ...pending.keys};
+  final ordered = blocks.keys.toList()..sort();
+  for (final index in ordered) {
+    final block = blocks[index]!;
+    switch (block['type']) {
+      case 'server_tool_use':
+        final id = block['id'], name = block['name'];
+        if (id is! String ||
+            id.isEmpty ||
+            name is! String ||
+            !anthropicHostedResultNames.values.any(
+              (names) => names.contains(name),
+            ) ||
+            !seen.add(id) ||
+            !block.containsKey('input')) {
+          throw const FormatException('Invalid Anthropic server tool call.');
+        }
+        if (!_supportsHostedName(definitions, name)) {
+          throw const FormatException('Unregistered Anthropic hosted tool.');
+        }
+        pending[id] = name;
+      case 'tool_use':
+        final id = block['id'];
+        if (id is! String || id.isEmpty || !seen.add(id)) {
+          throw const FormatException(
+            'Duplicate or invalid Anthropic call ID.',
+          );
+        }
+        final caller = block['caller'];
+        if (caller != null && (caller is! Map || caller['type'] != 'direct')) {
+          if (caller is! Map ||
+              !{
+                'code_execution_20250825',
+                'code_execution_20260120',
+              }.contains(caller['type']) ||
+              pending[caller['tool_id']] != 'code_execution' ||
+              !((definitions[block['name']]?['allowed_callers'] as List?) ??
+                      const [])
+                  .any(
+                    (allowed) =>
+                        allowed == caller['type'] ||
+                        (caller['type'] == 'code_execution_20260120' &&
+                            allowed == 'code_execution_20260521'),
+                  )) {
+            throw const FormatException(
+              'Unregistered Anthropic programmatic tool caller.',
+            );
+          }
+        }
+      case 'container_upload':
+        if (block['file_id'] is! String ||
+            (block['file_id'] as String).isEmpty) {
+          throw const FormatException('Invalid Anthropic container upload.');
+        }
+      default:
+        final names = anthropicHostedResultNames[block['type']];
+        if (names != null) {
+          final id = block['tool_use_id'];
+          if (id is! String ||
+              !names.contains(pending[id]) ||
+              !block.containsKey('content')) {
+            throw const FormatException(
+              'Unmatched Anthropic server tool result.',
+            );
+          }
+          pending.remove(id);
+        }
+    }
+  }
+  if ((reason == 'end_turn' || reason == 'stop_sequence') &&
+      pending.isNotEmpty) {
+    throw const FormatException(
+      'Completed Anthropic turn has unfinished server tools.',
+    );
+  }
+}
+
+bool _supportsHostedName(Map<String, JsonObject> definitions, String name) {
+  if (anthropicHostedToolNames[definitions[name]?['type']] == name) return true;
+  if ({
+    'code_execution',
+    'bash_code_execution',
+    'text_editor_code_execution',
+  }.contains(name)) {
+    return definitions.values.any(
+      (tool) =>
+          anthropicHostedToolNames[tool['type']] == 'code_execution' ||
+          {
+            'web_search_20260209',
+            'web_search_20260318',
+            'web_fetch_20260209',
+            'web_fetch_20260309',
+            'web_fetch_20260318',
+          }.contains(tool['type']),
+    );
+  }
+  return false;
+}
+
+Map<String, String> _pendingHostedHistory(List<Map<String, dynamic>> messages) {
+  final pending = <String, String>{};
+  final seen = <String>{};
+  Set<String>? expectedClients;
+  for (final message in messages) {
+    final content = message['content'] as List;
+    if (message['role'] == 'user') {
+      if (expectedClients != null) {
+        final results = <String>{};
+        for (final raw in content) {
+          if (raw['type'] != 'tool_result' ||
+              raw['tool_use_id'] is! String ||
+              !results.add(raw['tool_use_id'] as String)) {
+            throw const FormatException(
+              'Deferred server tools require only client tool results.',
+            );
+          }
+        }
+        if (results.length != expectedClients.length ||
+            !results.containsAll(expectedClients)) {
+          throw const FormatException(
+            'Deferred server tools require every client result.',
+          );
+        }
+        expectedClients = null;
+      }
+      continue;
+    }
+    final clients = <String>{};
+    for (final raw in content) {
+      final block = raw as Map;
+      if (block['type'] == 'server_tool_use') {
+        final id = block['id'], name = block['name'];
+        if (id is! String || name is! String || !seen.add(id)) {
+          throw const FormatException('Invalid server tool history.');
+        }
+        pending[id] = name;
+      } else if (anthropicHostedResultNames.containsKey(block['type'])) {
+        if (!anthropicHostedResultNames[block['type']]!.contains(
+          pending[block['tool_use_id']],
+        )) {
+          throw const FormatException('Unmatched server result history.');
+        }
+        pending.remove(block['tool_use_id']);
+      } else if (block['type'] == 'tool_use') {
+        clients.add(block['id'] as String);
+      }
+    }
+    if (pending.isNotEmpty && clients.isNotEmpty) expectedClients = clients;
+  }
+  if (expectedClients != null) {
+    throw const FormatException(
+      'Deferred server tools are waiting on client results.',
+    );
+  }
+  return pending;
 }

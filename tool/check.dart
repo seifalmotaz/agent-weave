@@ -55,6 +55,7 @@ Future<void> main() async {
   await run('node', ['--test', 'tool/interop/inventory.test.mjs']);
   await run('node', ['--test', 'tool/interop/anthropic-inventory.test.mjs']);
   await run('node', ['tool/interop/anthropic-inventory.mjs', '--check']);
+  await run('dart', ['run', 'tool/anthropic_hosted_contract.dart']);
   await run('node', [
     '--test',
     'tool/interop/anthropic-computer-inventory.test.mjs',
@@ -103,6 +104,16 @@ Future<void> main() async {
     '--enable-asserts',
     'run',
     'examples/review_cases/anthropic_computer.dart',
+  ]);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/anthropic_hosted.dart',
+  ]);
+  await run('dart', [
+    '--enable-asserts',
+    'run',
+    'examples/review_cases/structured_continuation_client.dart',
   ]);
   await run('dart', [
     '--enable-asserts',

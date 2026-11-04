@@ -85,6 +85,7 @@ nav:
       - Gateway request fields: gateway-options.md
       - Together request fields: together-options.md
       - Anthropic Messages: anthropic.md
+      - Anthropic hosted tools: anthropic-hosted.md
       - Anthropic computer use: anthropic-computer.md
       - Ollama local models: ollama.md
       - Testing your application: testing.md

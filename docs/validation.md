@@ -24,17 +24,17 @@ and interoperability with the pinned official JavaScript client.
 The latest local-model and Dart Frog increment was checked on Dart 3.12.2. The prior
 147-test baseline was also checked on Dart 3.13.3.
 
-- 375 Dart unit and regression tests: tool validation, approvals, client tools,
+- 391 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 15 Serverpod integration tests with a real isolated PostgreSQL database:
+- 16 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 17 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 19 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, and seven media/history cases. The media cases include document
+  generation, two provider-continuation cases, and seven media/history cases. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
 - 4 additional official JavaScript scenarios use actual Dart Frog handlers and a
@@ -424,3 +424,39 @@ a Cloudflare bug: request cache overrides wrongly discarded an inherited Gateway
 ID during validation. The fix and consumer regression preserve default/override
 precedence and response request/cache metadata. These judgments are scoped, not
 an SDK-wide acceptance pass. No paid requests or package publications were made.
+
+## Anthropic hosted tools and provider continuations
+
+Ten hosted-tool test groups verify typed SDK snapshots and native extension
+fields, all six pinned hosted result families, fragmented server input, preserved
+containers and tools, duplicate/mismatched IDs, local-name collisions, caller-version aliases, missing containers, complete
+client-result batches and explicitly opted-in programmatic callers. Hosted calls
+never emit local executor events. A public-boundary contract script accepts all
+15 official server-tool type spellings from the existing pinned inventory and
+rejects known client tools. This is not exhaustive nested option validation.
+
+Six core tests cover counted provider continuations, usage, checkpoints, step
+limits, new-user rejection and explicit recovery, final schema validation,
+structured message serialization/hydration, legacy data and contradictory
+local-tool continuation. The PostgreSQL fixture reloads a paused native
+Anthropic code-execution turn through a recreated agent/store, preserves the
+container and tools, isolates owners, resumes with no new user message and
+hydrates the final structured answer. This is not a process-crash test.
+
+Two new official JavaScript scenarios exercise text and structured pauses. The
+stricter structured fixture exposed an errored intermediate placeholder despite
+a successful final answer. The runtime now sends a sanitized message snapshot
+for intermediate structured progress and persists completed structured data.
+Both the JavaScript client and a separately written Dart ChatClient consumer
+verify two runs and restored hydration without spurious structured errors.
+
+The independent Anthropic consumer passes eight loopback scenarios, including
+typed SDK hosted configuration, opaque search/citation replay, delta containers,
+programmatic app-tool approval, ordinary mixed approval with recreated agents,
+step-limit recovery and no extra dispatch on malformed/EOF/cancellation. Its
+scoped score is 8/10. The guide's complete first Dart program matches its
+executable example and was analyzed and compiled without paid execution.
+
+No live search, fetch, code execution, tool search, container, files or billing
+was exercised. Browser/MCP tools, public citation rendering and full nested
+semantics remain unfinished. No paid calls or package publications were made.

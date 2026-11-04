@@ -64,8 +64,9 @@ not a claim of full TanStack AI core parity.
   hosted-tool and output-media integrations remain unfinished. See [OpenRouter](openrouter.md).
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
-  Hosted tools, browser toolsets, pause-turn and complete nested field semantics
-  remain unfinished. The
+  Pinned hosted blocks, bounded paused turns and container reuse are integrated
+  with offline fixtures. Browser/MCP tools, live hosted behavior and complete
+  nested field semantics remain unfinished. The
   SDK-backed facade retains its pinned SDK transport cancellation limits.
   See [Anthropic](anthropic.md).
 - Together Chat has typed options and native JSON methods. Its agent adapter

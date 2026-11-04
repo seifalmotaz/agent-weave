@@ -111,11 +111,13 @@ The agent preserves provider content blocks for continuation, including
 signatures and unknown fields on supported block types. This replay data and raw
 responses may contain sensitive content; keep them private on the backend and
 out of user-facing hydration or logs. The normalized agent currently handles
-text, thinking, redacted thinking and client tool-use blocks with supported
+text, thinking, redacted thinking, client tool-use and pinned hosted-tool blocks with supported
 text, thinking, signature and input JSON deltas. Citation deltas are retained
 privately on text blocks for replay; there is no normalized UI citation event. Unknown block types or deltas
-fail explicitly. Hosted tools, audio/video and pause-turn continuations are not integrated into
-the agent loop; use raw native access when implementing those protocols yourself.
+fail explicitly. Hosted tools and bounded `pause_turn` continuation are integrated; see the
+[hosted-tool guide](anthropic-hosted.md). Audio/video, MCP, browser tools and
+complete nested semantics remain unfinished. Use raw native access for other
+protocols.
 For client computer use, see the [computer-use guide](anthropic-computer.md).
 File-ID document parts are supported by the native agent path; the typed SDK
 configuration path cannot yet decode them. URL and supported inline documents
