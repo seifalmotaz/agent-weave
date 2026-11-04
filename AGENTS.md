@@ -43,7 +43,10 @@ older contract from current definitions or use wire schema hashes as server
 authorization guards. Validate the entire resume batch before effects.
 Completed media and typed citations are public content; native output/replay
 metadata stays private. Citation answer offsets use UTF-16; source coordinates
-retain native units. Preserve message citations when cloning canonical history.
+retain native units. Preserve citations and references when cloning canonical
+history. Reference part spans are verified UTF-16 context, not native highlights;
+file-list positions are not text offsets. Scoped public file handles do not
+authorize retrieval.
 Keep credentials on the backend and outside source control.
 
 Authentication owns `ownerId`. Never accept it from a request body.

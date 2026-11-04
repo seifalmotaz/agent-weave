@@ -246,3 +246,17 @@ Update the reviewed projection, Dart serialization and parser tests before
 regenerating the published inventory with `--write`. A private replay field is
 not a public UI feature. Keep hosted execution distinct from registered local
 functions and explicitly reject lifecycles without a handler.
+
+
+## Native output reference contracts
+
+The hosted inventory also checks the reviewed Responses annotation/message/part
+projection and completed Chat message declarations. Update the immutable source
+pins, raw snapshots, reviewed declaration JSON, typed normalization and fixtures
+together. Review native coordinate meanings separately from their integer types.
+Do not convert provider indexes to UTF-16 or infer filenames from unrelated text.
+
+Run the reference consumers, both client metadata/replay cases and PostgreSQL
+approval recreation after a reference change. The default Chat streaming adapter
+uses raw SDK events and has its own strict completion guard; compatible adapters
+do not inherit that contract. Keep raw audit state separate from public handles.

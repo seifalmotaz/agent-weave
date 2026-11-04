@@ -26,7 +26,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   tool continuations remain open; this is not complete computer-use parity.
 - Selected OpenAI hosted Responses tools now have lossless native options,
   terminal validation, private replay and ordered completed image parts. Hosted
-  progress, citations, partial images, MCP/shell/custom/patch and live provider
+  progress, precise native-coordinate citation highlights, partial images,
+  MCP/shell/custom/patch and live provider
   behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
@@ -41,6 +42,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   annotations, client metadata and private replay across approvals. Other provider
   citations, custom-content document inputs, live quality and device rendering
   remain open.
+- Native OpenAI output references now preserve all four Responses annotation
+  forms and completed Chat URL references, including empty segments and opaque
+  native positions. Other provider references, live indexing conventions,
+  authorized download recipes and device rendering remain open.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.

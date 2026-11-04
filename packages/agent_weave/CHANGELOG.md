@@ -1,5 +1,8 @@
 # Unreleased
 
+- Add typed output references with opaque native positions, verified enclosing text segments, scoped file sources and persistent client metadata.
+- Add `FileCitationSource` to the sealed source family; exhaustive source switches must handle the new variant.
+
 - Add typed text citations, validated UTF-16 answer ranges, source locations, streaming events and persisted client hydration metadata.
 
 - Bind resumed approvals to versioned exact tool snapshots, including input/output schemas, execution kind, policies and native definitions; retain public TanStack hashes for wire compatibility.

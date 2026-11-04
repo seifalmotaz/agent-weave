@@ -11,6 +11,8 @@ override only after checking the published package and rerunning interop tests.
 ## Implemented contracts
 
 - Text streaming, standard reasoning events, and structured-output events.
+- Native OpenAI Responses output references and buffered Chat URL references; see
+  [output references](output-references.md).
 - Typed Anthropic text citations, CUSTOM events, snapshots and hydration; see
   [citations](citations.md).
 - Ordered completed media parts in assistant history, client snapshots and hydration.
@@ -48,7 +50,8 @@ and retain the old history. Public client bindings remain unchanged. See
   approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
   and general provider-hosted progress are not implemented. Citation normalization
-  currently covers the five pinned Anthropic variants; other providers remain open.
+  covers the five pinned Anthropic variants. OpenAI references retain opaque
+  provider coordinates; precise OpenAI highlights and other providers remain open.
 - Server tools execute sequentially. Applications can perform concurrency
   inside a tool, with their own cancellation and idempotency policy.
 - Disconnecting a direct run cancels its provider request. Replaying a stored

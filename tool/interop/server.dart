@@ -107,6 +107,19 @@ Future<void> main() async {
         [
           const TextDelta('A 🌿 grows.'),
           for (var i = 0; i < 2; i++)
+            ReferenceReady(
+              OutputReference(
+                provider: 'openai',
+                source: FileCitationSource(
+                  provider: 'openai',
+                  fileId: 'file-visible',
+                ),
+                partStart: 2,
+                partEnd: 4,
+                position: FileListPosition(99),
+              ),
+            ),
+          for (var i = 0; i < 2; i++)
             CitationReady(
               TextCitation(
                 start: 2,

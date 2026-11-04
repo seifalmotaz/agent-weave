@@ -54,6 +54,8 @@ Future<void> main() async {
                 '[${location.start}, ${location.end})',
           UrlCitationSource(:final url) => url,
           SearchResultCitationSource(:final source) => source,
+          FileCitationSource(:final provider, :final filename) =>
+            '$provider file: ${filename ?? 'unnamed'}',
         };
         print('$claim ← $source');
       }
@@ -148,9 +150,11 @@ Closed text-block citations remain attached to retained partial text after a
 later failure or cancellation. An unfinished block does not produce a citation.
 A citation does not prove the whole run succeeded. Display the run status too.
 
-Only the public projection enters events and hydration. Provider file IDs,
-encrypted citation indexes and unknown native fields stay in private replay
-state. Original response blocks remain unchanged in storage. Continuation input
+Only the public projection enters events and hydration. Anthropic provider file
+IDs, encrypted citation indexes and unknown native fields stay in private replay
+state. Other adapters can deliberately publish scoped `FileCitationSource`
+handles; see [output references](output-references.md). Original response blocks
+remain unchanged in storage. Continuation input
 omits the known response-only document `file_id` while retaining the web-search
 `encrypted_index` needed by the provider. Unknown citation types fail explicitly
 instead of exposing an unreviewed payload.

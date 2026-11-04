@@ -1,0 +1,101 @@
+{
+  "ChatCompletionMessage": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "content",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "refusal",
+        "optional": false,
+        "type": "string | null"
+      },
+      {
+        "name": "role",
+        "optional": false,
+        "type": "'assistant'"
+      },
+      {
+        "name": "annotations",
+        "optional": true,
+        "type": "Array<ChatCompletionMessage.Annotation>"
+      },
+      {
+        "name": "audio",
+        "optional": true,
+        "type": "ChatCompletionAudio | null"
+      },
+      {
+        "name": "function_call",
+        "optional": true,
+        "type": "ChatCompletionMessage.FunctionCall | null"
+      },
+      {
+        "name": "tool_calls",
+        "optional": true,
+        "type": "Array<ChatCompletionMessageToolCall>"
+      }
+    ]
+  },
+  "ChatCompletionMessage.Annotation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'url_citation'"
+      },
+      {
+        "name": "url_citation",
+        "optional": false,
+        "type": "Annotation.URLCitation"
+      }
+    ]
+  },
+  "ChatCompletionMessage.Annotation.URLCitation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "end_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "start_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "title",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "url",
+        "optional": false,
+        "type": "string"
+      }
+    ]
+  },
+  "ChatCompletionMessage.FunctionCall": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "arguments",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "optional": false,
+        "type": "string"
+      }
+    ]
+  }
+}

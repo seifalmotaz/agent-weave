@@ -86,3 +86,11 @@ print(response.headers['x-request-id']);
 
 The raw helper buffers responses; it does not add arbitrary SSE or multipart
 handling. It preserves data but does not implement missing tool/job lifecycles.
+
+
+## Native output references
+
+Responses normalizes four annotation forms with native positions and enclosing
+text segments. Completed Chat URL annotations use `streamText: false` because
+the installed typed decoder omits them. See [output references](output-references.md)
+for mode selection, privacy, persistence and remaining limits.

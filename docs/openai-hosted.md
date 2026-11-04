@@ -115,11 +115,11 @@ server-side `providerData`, excluded from public history and events. Unknown
 fields on recognized output items survive replay. Never expose raw checkpoints
 as a client history endpoint.
 
-Search citations, code outputs, container files and image metadata stay private.
-Public citation rendering, partial image progress, hosted-tool progress and
-container-file downloads are not normalized by this adapter. Applications that
-need these capabilities can use native SDK streams, but then own their
-normalization and lifecycle.
+Reviewed annotations produce public typed references, including scoped file
+handles. Code outputs, unselected metadata and opaque native fields stay private.
+Applications render source cards and authorize file retrieval. Precise native
+highlights, partial image progress, hosted-tool progress and container downloads
+remain outside this adapter's normalization contract.
 
 ## Verification and scope
 
@@ -134,3 +134,11 @@ private replay, native Dart and official JavaScript clients, and PostgreSQL
 history. No live hosted search, container, tool-search or Responses-image
 request was made for this increment. The earlier standalone Images API smoke
 test is a separate workflow. See [validation](validation.md).
+
+
+## Output references
+
+Completed Responses annotations now produce typed sources and native positions.
+See [output references](output-references.md) for all four forms, persistence,
+file authorization and the distinction between native indexes and UTF-16 text.
+Partial images, hosted progress and artifact hosting remain open.

@@ -77,3 +77,13 @@ source coordinates remain separate. The runtime validates boundaries, persists
 annotations with the assistant message and exposes safe citation metadata to
 clients. Put only public fields in a typed citation. Keep native replay fields
 in `ProviderOutput`. See [citations](citations.md) for source types and wire data.
+
+
+## Native output positions
+
+Emit `ReferenceReady(OutputReference(...))` when a source has a native range,
+insertion point or file-list ordinal that cannot be treated as a verified Dart
+text highlight. Supply the known UTF-16 enclosing `partStart`/`partEnd` separately.
+Keep provider positions opaque and use typed source fields. Scoped file handles
+are deliberate public data and require application authorization.
+See [output references](output-references.md).

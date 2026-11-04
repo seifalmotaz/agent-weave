@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'citations.dart';
+import 'references.dart';
 import 'cancellation.dart';
 
 typedef JsonObject = Map<String, Object?>;
@@ -360,6 +361,9 @@ final class ChatMessage {
 
   /// Citations into the flattened assistant [text], in UTF-16 code units.
   final List<TextCitation> citations;
+
+  /// Provider output references associated with enclosing text segments.
+  final List<OutputReference> references;
   final StructuredMessageOutput? structuredOutput;
 
   /// Provider replay state, including encrypted reasoning. Never sent to UI clients.
@@ -371,10 +375,12 @@ final class ChatMessage {
     Iterable<ToolCall> toolCalls = const [],
     this.toolCallId,
     Iterable<TextCitation> citations = const [],
+    Iterable<OutputReference> references = const [],
     this.structuredOutput,
     Map<String, List<JsonObject>> providerData = const {},
   }) : content = List.unmodifiable(content),
        citations = List.unmodifiable(citations),
+       references = List.unmodifiable(references),
        toolCalls = List.unmodifiable(toolCalls),
        providerData = Map.unmodifiable({
          for (final entry in providerData.entries)
@@ -386,6 +392,14 @@ final class ChatMessage {
       throw const FormatException(
         'Only assistant messages can contain citations.',
       );
+    }
+    if (role != MessageRole.assistant && this.references.isNotEmpty) {
+      throw const FormatException(
+        'Only assistant messages can contain references.',
+      );
+    }
+    for (final reference in this.references) {
+      reference.validateFor(text);
     }
     for (final citation in this.citations) {
       citation.validateFor(text);
@@ -419,6 +433,8 @@ final class ChatMessage {
     if (toolCallId != null) 'toolCallId': toolCallId,
     if (citations.isNotEmpty)
       'citations': [for (final citation in citations) citation.toJson()],
+    if (references.isNotEmpty)
+      'references': [for (final reference in references) reference.toJson()],
     if (providerData.isNotEmpty) 'providerData': providerData,
     if (structuredOutput != null)
       'structuredOutput': structuredOutput!.toJson(),
@@ -436,6 +452,7 @@ final class ChatMessage {
     ],
     toolCallId: json['toolCallId'] as String?,
     citations: _readCitations(json['citations']),
+    references: _readReferences(json['references']),
     structuredOutput: json['structuredOutput'] == null
         ? null
         : StructuredMessageOutput.fromJson(
@@ -460,6 +477,18 @@ List<TextCitation> _readCitations(Object? value) {
     ];
   } catch (_) {
     throw const FormatException('Invalid message citations.');
+  }
+}
+
+List<OutputReference> _readReferences(Object? value) {
+  if (value == null) return const [];
+  try {
+    return [
+      for (final item in value as List)
+        OutputReference.fromJson(Map<String, Object?>.from(item as Map)),
+    ];
+  } catch (_) {
+    throw const FormatException('Invalid message references.');
   }
 }
 
@@ -576,6 +605,12 @@ sealed class ModelEvent {
 final class TextDelta extends ModelEvent {
   final String text;
   const TextDelta(this.text);
+}
+
+/// A reference associated with text emitted so far in this model invocation.
+final class ReferenceReady extends ModelEvent {
+  final OutputReference reference;
+  const ReferenceReady(this.reference);
 }
 
 /// A validated citation into text emitted so far in this model invocation.

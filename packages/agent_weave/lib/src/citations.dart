@@ -43,6 +43,12 @@ sealed class CitationSource {
           json['url'] as String,
           title: json['title'] as String?,
         ),
+        'file' => FileCitationSource(
+          provider: json['provider'] as String,
+          fileId: json['fileId'] as String,
+          containerId: json['containerId'] as String?,
+          filename: json['filename'] as String?,
+        ),
         'document' => DocumentCitationSource(
           index: json['index'] as int,
           location: CitationLocation.fromJson(
@@ -82,6 +88,36 @@ final class UrlCitationSource extends CitationSource {
   }
   @override
   JsonObject toJson() => {'type': 'url', 'url': url, 'title': ?title};
+}
+
+/// A provider-scoped file identifier. Applications must authorize retrieval.
+final class FileCitationSource extends CitationSource {
+  final String provider;
+  final String fileId;
+  final String? containerId;
+  final String? filename;
+  FileCitationSource({
+    required this.provider,
+    required this.fileId,
+    this.containerId,
+    this.filename,
+  }) {
+    if (provider.trim().isEmpty ||
+        fileId.trim().isEmpty ||
+        (containerId != null && containerId!.trim().isEmpty)) {
+      throw const FormatException('Invalid file citation.');
+    }
+  }
+  @override
+  String? get title => filename;
+  @override
+  JsonObject toJson() => {
+    'type': 'file',
+    'provider': provider,
+    'fileId': fileId,
+    'containerId': ?containerId,
+    'filename': ?filename,
+  };
 }
 
 /// A location in the document at [index] in the provider request.

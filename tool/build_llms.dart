@@ -11,6 +11,7 @@ const documents = [
   'docs/providers.md',
   'docs/documents.md',
   'docs/citations.md',
+  'docs/output-references.md',
   'docs/computer-use.md',
   'docs/computer-parameters.md',
   'docs/openai.md',

@@ -26,12 +26,19 @@ JsonObject chatHydration(JsonObject? state) {
           {
             'id': message.id,
             'role': message.role.name,
-            if (message.citations.isNotEmpty)
+            if (message.citations.isNotEmpty || message.references.isNotEmpty)
               'metadata': {
                 'agent_weave': {
-                  'citations': [
-                    for (final citation in message.citations) citation.toJson(),
-                  ],
+                  if (message.citations.isNotEmpty)
+                    'citations': [
+                      for (final citation in message.citations)
+                        citation.toJson(),
+                    ],
+                  if (message.references.isNotEmpty)
+                    'references': [
+                      for (final reference in message.references)
+                        reference.toJson(),
+                    ],
                 },
               },
             'parts': [

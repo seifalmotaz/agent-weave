@@ -100,6 +100,8 @@ Future<void> main() async {
     'openrouter_images',
     'cloudflare_streaming',
     'openai_hosted',
+    'openai_references',
+    'openai_chat_references',
     'output_media_client',
   ]) {
     await run('dart', [

@@ -4,7 +4,7 @@
   "path": "src/resources/responses/responses.ts",
   "license": "Apache-2.0",
   "sha256": "096f8b75836632e8ee67636367c98621a7eaa9ca6eb106c400eea0d6a5ce5dc7",
-  "meaning": "Selected hosted Responses declarations and executable request fields only; not a claim of nested semantics, live model behavior, or endpoint parity. Only completed image result bytes become public ImagePart content; other image metadata stays private. Partial images, public citations, hosted progress and downloaded container files are not normalized. External type references are retained, not expanded. Other tools, local executors, and unselected declarations are excluded.",
+  "meaning": "Selected hosted Responses and output-reference declarations, with executable hosted request fields; not a claim of complete nested semantics, live behavior or endpoint parity. Four annotation forms have typed public reference projections. Native positions remain opaque, distinct from enclosing UTF-16 text segments. Scoped file handles are deliberately public references; unknown fields and native replay stay private. Completed image bytes become public ImagePart content. Partial images, precise native-coordinate highlights, hosted progress and downloaded container files remain open. External type references are retained, not expanded. Other tools, local executors and unselected declarations are excluded.",
   "dispositions": {
     "FileSearchTool": "raw-native-options",
     "FileSearchTool.RankingOptions": "raw-native-options",
@@ -12,6 +12,10 @@
     "ResponseCodeInterpreterToolCall": "private-replay",
     "ResponseCodeInterpreterToolCall.Logs": "private-replay",
     "ResponseCodeInterpreterToolCall.Image": "private-replay",
+    "ResponseContentPartAddedEvent": "private-replay",
+    "ResponseContentPartAddedEvent.ReasoningText": "private-replay",
+    "ResponseContentPartDoneEvent": "private-replay",
+    "ResponseContentPartDoneEvent.ReasoningText": "private-replay",
     "ResponseFileSearchToolCall": "private-replay",
     "ResponseFileSearchToolCall.Result": "private-replay",
     "ResponseFunctionWebSearch": "private-replay",
@@ -22,6 +26,19 @@
     "ResponseOutputItem.ImageGenerationCall": "private-replay",
     "ResponseOutputItem.ImageGenerationCall.Error": "private-replay",
     "ResponseOutputItem.ImageGenerationCall.Error.ModerationDetails": "private-replay",
+    "ResponseOutputMessage": "private-replay",
+    "ResponseOutputText": "reviewed-reference-output",
+    "ResponseOutputText.FileCitation": "reviewed-reference-output",
+    "ResponseOutputText.URLCitation": "reviewed-reference-output",
+    "ResponseOutputText.ContainerFileCitation": "reviewed-reference-output",
+    "ResponseOutputText.FilePath": "reviewed-reference-output",
+    "ResponseOutputText.Logprob": "reviewed-reference-output",
+    "ResponseOutputText.Logprob.TopLogprob": "reviewed-reference-output",
+    "ResponseOutputTextAnnotationAddedEvent": "reviewed-reference-output",
+    "ResponseOutputTextAnnotationAddedEvent.FileCitation": "reviewed-reference-output",
+    "ResponseOutputTextAnnotationAddedEvent.URLCitation": "reviewed-reference-output",
+    "ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation": "reviewed-reference-output",
+    "ResponseOutputTextAnnotationAddedEvent.FilePath": "reviewed-reference-output",
     "ResponseToolSearchCall": "private-replay",
     "ResponseToolSearchOutputItem": "private-replay",
     "Tool.CodeInterpreter": "raw-native-options",
@@ -169,6 +186,110 @@
           "name": "url",
           "optional": false,
           "type": "string"
+        }
+      ]
+    },
+    "ResponseContentPartAddedEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "part",
+          "optional": false,
+          "type": "ResponseOutputText | ResponseOutputRefusal | ResponseContentPartAddedEvent.ReasoningText"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.content_part.added'"
+        }
+      ]
+    },
+    "ResponseContentPartAddedEvent.ReasoningText": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'reasoning_text'"
+        }
+      ]
+    },
+    "ResponseContentPartDoneEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "part",
+          "optional": false,
+          "type": "ResponseOutputText | ResponseOutputRefusal | ResponseContentPartDoneEvent.ReasoningText"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.content_part.done'"
+        }
+      ]
+    },
+    "ResponseContentPartDoneEvent.ReasoningText": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'reasoning_text'"
         }
       ]
     },
@@ -444,6 +565,384 @@
           "name": "moderation_stage",
           "optional": false,
           "type": "'input' | 'output' | 'unknown'"
+        }
+      ]
+    },
+    "ResponseOutputMessage": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "content",
+          "optional": false,
+          "type": "Array<ResponseOutputText | ResponseOutputRefusal>"
+        },
+        {
+          "name": "role",
+          "optional": false,
+          "type": "'assistant'"
+        },
+        {
+          "name": "status",
+          "optional": false,
+          "type": "'in_progress' | 'completed' | 'incomplete'"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'message'"
+        },
+        {
+          "name": "phase",
+          "optional": true,
+          "type": "'commentary' | 'final_answer' | null"
+        }
+      ]
+    },
+    "ResponseOutputText": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "annotations",
+          "optional": false,
+          "type": "Array<ResponseOutputText.FileCitation | ResponseOutputText.URLCitation | ResponseOutputText.ContainerFileCitation | ResponseOutputText.FilePath>"
+        },
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'output_text'"
+        },
+        {
+          "name": "logprobs",
+          "optional": true,
+          "type": "Array<ResponseOutputText.Logprob>"
+        }
+      ]
+    },
+    "ResponseOutputText.FileCitation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "filename",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'file_citation'"
+        }
+      ]
+    },
+    "ResponseOutputText.URLCitation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "end_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'url_citation'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ResponseOutputText.ContainerFileCitation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "container_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "end_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "filename",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "start_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'container_file_citation'"
+        }
+      ]
+    },
+    "ResponseOutputText.FilePath": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'file_path'"
+        }
+      ]
+    },
+    "ResponseOutputText.Logprob": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "token",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "bytes",
+          "optional": false,
+          "type": "Array<number>"
+        },
+        {
+          "name": "logprob",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "top_logprobs",
+          "optional": false,
+          "type": "Array<Logprob.TopLogprob>"
+        }
+      ]
+    },
+    "ResponseOutputText.Logprob.TopLogprob": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "token",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "bytes",
+          "optional": false,
+          "type": "Array<number>"
+        },
+        {
+          "name": "logprob",
+          "optional": false,
+          "type": "number"
+        }
+      ]
+    },
+    "ResponseOutputTextAnnotationAddedEvent": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "annotation",
+          "optional": false,
+          "type": "ResponseOutputTextAnnotationAddedEvent.FileCitation | ResponseOutputTextAnnotationAddedEvent.URLCitation | ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation | ResponseOutputTextAnnotationAddedEvent.FilePath | null"
+        },
+        {
+          "name": "annotation_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "content_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "item_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "output_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "sequence_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'response.output_text.annotation.added'"
+        }
+      ]
+    },
+    "ResponseOutputTextAnnotationAddedEvent.FileCitation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "filename",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'file_citation'"
+        }
+      ]
+    },
+    "ResponseOutputTextAnnotationAddedEvent.URLCitation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "end_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'url_citation'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "container_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "end_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "filename",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "start_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'container_file_citation'"
+        }
+      ]
+    },
+    "ResponseOutputTextAnnotationAddedEvent.FilePath": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'file_path'"
         }
       ]
     },
@@ -811,6 +1310,114 @@
           "name": "type",
           "optional": true,
           "type": "'approximate'"
+        }
+      ]
+    }
+  },
+  "chatSource": {
+    "repository": "openai/openai-node",
+    "revision": "9854bd60f7e2a5840baa61d86d9a288d2127ae8f",
+    "path": "src/resources/chat/completions/completions.ts",
+    "license": "Apache-2.0",
+    "sha256": "327c9ea669ff39a5460714a4c84d52d6e6d2d619ea91a1bf23608571ab037aa9"
+  },
+  "chatDeclarations": {
+    "ChatCompletionMessage": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "refusal",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "role",
+          "optional": false,
+          "type": "'assistant'"
+        },
+        {
+          "name": "annotations",
+          "optional": true,
+          "type": "Array<ChatCompletionMessage.Annotation>"
+        },
+        {
+          "name": "audio",
+          "optional": true,
+          "type": "ChatCompletionAudio | null"
+        },
+        {
+          "name": "function_call",
+          "optional": true,
+          "type": "ChatCompletionMessage.FunctionCall | null"
+        },
+        {
+          "name": "tool_calls",
+          "optional": true,
+          "type": "Array<ChatCompletionMessageToolCall>"
+        }
+      ]
+    },
+    "ChatCompletionMessage.Annotation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'url_citation'"
+        },
+        {
+          "name": "url_citation",
+          "optional": false,
+          "type": "Annotation.URLCitation"
+        }
+      ]
+    },
+    "ChatCompletionMessage.Annotation.URLCitation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "end_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "ChatCompletionMessage.FunctionCall": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "arguments",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
         }
       ]
     }

@@ -40,6 +40,8 @@ Future<void> main() async {
                 '[${location.start}, ${location.end})',
           UrlCitationSource(:final url) => url,
           SearchResultCitationSource(:final source) => source,
+          FileCitationSource(:final provider, :final filename) =>
+            '$provider file: ${filename ?? 'unnamed'}',
         };
         print('$claim ← $source');
       }

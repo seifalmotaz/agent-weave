@@ -225,3 +225,18 @@ contract and let ordinary clients retain metadata. Provider replay remains a
 separate private contract, including opaque fields that cannot be public. See
 [citations](citations.md) for the five supported Anthropic projections and replay
 input differences.
+
+
+## Provider output references
+
+`OutputReference` retains a typed source, enclosing UTF-16 part and a distinct
+provider-reported range, insertion point or file-list position. Native coordinates
+are opaque and never become `TextCitation` offsets automatically. Zero-range
+container outputs and references on empty parts are representable without
+inventing a highlight. Typed file sources carry an explicit provider namespace.
+
+The runtime persists references and emits indexed CUSTOM events plus terminal
+snapshots. Hydration stores references and citations in the same public metadata
+bag. Native output remains private, with only reviewed fields projected.
+Applications own file authorization and download routing. See
+[output references](output-references.md).

@@ -116,7 +116,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Typed tools and approvals](docs/tools.md)
 - [Persisted approval contracts and migration](docs/approval-contracts.md)
 - [Provider author guide](docs/providers.md)
-- [Documents](docs/documents.md) · [Citations](docs/citations.md)
+- [Documents](docs/documents.md) · [Citations](docs/citations.md) · [Output references](docs/output-references.md)
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [OpenAI hosted tools and images](docs/openai-hosted.md)

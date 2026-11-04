@@ -1,0 +1,6 @@
+{
+  "repository": "openai/openai-node",
+  "revision": "9854bd60f7e2a5840baa61d86d9a288d2127ae8f",
+  "path": "src/resources/chat/completions/completions.ts",
+  "license": "Apache-2.0"
+}

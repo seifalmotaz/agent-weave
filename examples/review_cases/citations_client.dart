@@ -21,6 +21,13 @@ Future<void> main() async {
     citedText: 'The source quotation differs from the generated answer.',
   );
   final store = MemoryRunStore();
+  final reference = OutputReference(
+    provider: 'openai',
+    source: FileCitationSource(provider: 'openai', fileId: 'file-visible'),
+    partStart: 2,
+    partEnd: 4,
+    position: FileListPosition(99),
+  );
   final agent = AiAgent<void>(
     store: store,
     model: ScriptedChatModel(
@@ -28,6 +35,8 @@ Future<void> main() async {
         [
           const TextDelta('A 🌿 grows.'),
           CitationReady(citation),
+          ReferenceReady(reference),
+          ReferenceReady(reference),
           ProviderOutput(
             provider: 'fixture.private',
             items: [
@@ -66,11 +75,13 @@ Future<void> main() async {
   });
   final url = 'http://127.0.0.1:${server.port}/chat';
   final events = <Map<String, dynamic>>[];
+  final referenceEvents = <Map<String, dynamic>>[];
   final chat = client.ChatClient(
     connection: client.fetchServerSentEvents(url),
     threadId: 'thread',
     onCustomEvent: (event, _) {
       if (event['name'] == 'agent_weave:citation') events.add(event);
+      if (event['name'] == 'agent_weave:reference') referenceEvents.add(event);
     },
   );
   final restored = client.ChatClient(
@@ -99,6 +110,26 @@ Future<void> main() async {
       'UTF16 span',
     );
     check(jsonEquals(decoded.toJson(), citation.toJson()), 'citation data');
+    final refs = live.metadata!['agent_weave']['references'] as List;
+    check(referenceEvents.length == 2, 'expected two equal references');
+    check(refs.length == 2, 'references coexist with citations');
+    for (var i = 0; i < refs.length; i++) {
+      final restoredReference = OutputReference.fromJson(
+        Map<String, Object?>.from(refs[i] as Map),
+      );
+      check(
+        jsonEquals(restoredReference.toJson(), reference.toJson()),
+        'typed reference',
+      );
+      check(
+        referenceEvents[i]['value']['referenceIndex'] == i,
+        'stable reference index',
+      );
+      check(
+        referenceEvents[i]['value']['messageId'] == live.id,
+        'reference message',
+      );
+    }
     await restored.attach();
     check(restored.error == null, 'hydration failure: ${restored.error}');
     final reloaded = restored.messages.singleWhere(
@@ -110,7 +141,7 @@ Future<void> main() async {
       !(await history()).contains('PRIVATE-CITATION'),
       'private replay leak',
     );
-    print('PASS Dart SSE citations and Serverpod history hydration');
+    print('PASS Dart citations/references and Serverpod history hydration');
   } finally {
     await chat.dispose();
     await restored.dispose();

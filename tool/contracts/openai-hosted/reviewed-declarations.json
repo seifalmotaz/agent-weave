@@ -135,6 +135,110 @@
       }
     ]
   },
+  "ResponseContentPartAddedEvent": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "content_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "item_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "output_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "part",
+        "optional": false,
+        "type": "ResponseOutputText | ResponseOutputRefusal | ResponseContentPartAddedEvent.ReasoningText"
+      },
+      {
+        "name": "sequence_number",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'response.content_part.added'"
+      }
+    ]
+  },
+  "ResponseContentPartAddedEvent.ReasoningText": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "text",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'reasoning_text'"
+      }
+    ]
+  },
+  "ResponseContentPartDoneEvent": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "content_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "item_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "output_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "part",
+        "optional": false,
+        "type": "ResponseOutputText | ResponseOutputRefusal | ResponseContentPartDoneEvent.ReasoningText"
+      },
+      {
+        "name": "sequence_number",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'response.content_part.done'"
+      }
+    ]
+  },
+  "ResponseContentPartDoneEvent.ReasoningText": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "text",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'reasoning_text'"
+      }
+    ]
+  },
   "ResponseFileSearchToolCall": {
     "kind": "interface",
     "extends": [],
@@ -407,6 +511,384 @@
         "name": "moderation_stage",
         "optional": false,
         "type": "'input' | 'output' | 'unknown'"
+      }
+    ]
+  },
+  "ResponseOutputMessage": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "content",
+        "optional": false,
+        "type": "Array<ResponseOutputText | ResponseOutputRefusal>"
+      },
+      {
+        "name": "role",
+        "optional": false,
+        "type": "'assistant'"
+      },
+      {
+        "name": "status",
+        "optional": false,
+        "type": "'in_progress' | 'completed' | 'incomplete'"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'message'"
+      },
+      {
+        "name": "phase",
+        "optional": true,
+        "type": "'commentary' | 'final_answer' | null"
+      }
+    ]
+  },
+  "ResponseOutputText": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "annotations",
+        "optional": false,
+        "type": "Array<ResponseOutputText.FileCitation | ResponseOutputText.URLCitation | ResponseOutputText.ContainerFileCitation | ResponseOutputText.FilePath>"
+      },
+      {
+        "name": "text",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'output_text'"
+      },
+      {
+        "name": "logprobs",
+        "optional": true,
+        "type": "Array<ResponseOutputText.Logprob>"
+      }
+    ]
+  },
+  "ResponseOutputText.FileCitation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "file_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "filename",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'file_citation'"
+      }
+    ]
+  },
+  "ResponseOutputText.URLCitation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "end_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "start_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "title",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'url_citation'"
+      },
+      {
+        "name": "url",
+        "optional": false,
+        "type": "string"
+      }
+    ]
+  },
+  "ResponseOutputText.ContainerFileCitation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "container_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "end_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "file_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "filename",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "start_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'container_file_citation'"
+      }
+    ]
+  },
+  "ResponseOutputText.FilePath": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "file_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'file_path'"
+      }
+    ]
+  },
+  "ResponseOutputText.Logprob": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "token",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "bytes",
+        "optional": false,
+        "type": "Array<number>"
+      },
+      {
+        "name": "logprob",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "top_logprobs",
+        "optional": false,
+        "type": "Array<Logprob.TopLogprob>"
+      }
+    ]
+  },
+  "ResponseOutputText.Logprob.TopLogprob": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "token",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "bytes",
+        "optional": false,
+        "type": "Array<number>"
+      },
+      {
+        "name": "logprob",
+        "optional": false,
+        "type": "number"
+      }
+    ]
+  },
+  "ResponseOutputTextAnnotationAddedEvent": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "annotation",
+        "optional": false,
+        "type": "ResponseOutputTextAnnotationAddedEvent.FileCitation | ResponseOutputTextAnnotationAddedEvent.URLCitation | ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation | ResponseOutputTextAnnotationAddedEvent.FilePath | null"
+      },
+      {
+        "name": "annotation_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "content_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "item_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "output_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "sequence_number",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'response.output_text.annotation.added'"
+      }
+    ]
+  },
+  "ResponseOutputTextAnnotationAddedEvent.FileCitation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "file_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "filename",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'file_citation'"
+      }
+    ]
+  },
+  "ResponseOutputTextAnnotationAddedEvent.URLCitation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "end_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "start_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "title",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'url_citation'"
+      },
+      {
+        "name": "url",
+        "optional": false,
+        "type": "string"
+      }
+    ]
+  },
+  "ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "container_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "end_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "file_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "filename",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "start_index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'container_file_citation'"
+      }
+    ]
+  },
+  "ResponseOutputTextAnnotationAddedEvent.FilePath": {
+    "kind": "interface",
+    "extends": [],
+    "fields": [
+      {
+        "name": "file_id",
+        "optional": false,
+        "type": "string"
+      },
+      {
+        "name": "index",
+        "optional": false,
+        "type": "number"
+      },
+      {
+        "name": "type",
+        "optional": false,
+        "type": "'file_path'"
       }
     ]
   },

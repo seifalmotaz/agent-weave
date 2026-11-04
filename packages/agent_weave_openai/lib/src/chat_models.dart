@@ -4,6 +4,8 @@ import 'package:agent_weave/agent_weave.dart';
 import 'package:openai_dart/openai_dart.dart' as api;
 import 'computer_tool.dart';
 import 'hosted_tool.dart';
+import 'output_references.dart';
+import 'platform_api.dart';
 
 /// Caller owns [client] and closes it when the application shuts down.
 final class OpenAIResponsesModel implements ChatModel {
@@ -370,6 +372,7 @@ final class ResponsesProtocolModel implements ChatModel {
     final doneComputers = <String>{};
     String? actualModel;
     final streamedText = StringBuffer();
+    final references = ResponsesReferences();
     await for (final json in _transport(immutableJson(options), cancellation)) {
       cancellation.throwIfCancelled();
       if (terminalResponse != null) {
@@ -380,6 +383,7 @@ final class ResponsesProtocolModel implements ChatModel {
           actualModel = reported;
         }
       }
+      if (providerDataKey == 'openai.responses') references.observe(json);
       switch (json['type']) {
         case 'response.output_text.delta' || 'response.refusal.delta':
           final text = json['delta'] as String;
@@ -542,6 +546,13 @@ final class ResponsesProtocolModel implements ChatModel {
       }
     }
     final finalText = _outputText(output);
+    final outputReferences = providerDataKey == 'openai.responses'
+        ? references.finish(
+            output,
+            streamedText: streamedText.toString(),
+            finalText: finalText,
+          )
+        : <OutputReference>[];
     if (streamedText.isEmpty && finalText.isNotEmpty) {
       yield TextDelta(finalText);
     }
@@ -560,6 +571,9 @@ final class ResponsesProtocolModel implements ChatModel {
         );
       }
       yield ContentPartReady(media.image, textOffset: media.offset);
+    }
+    for (final reference in outputReferences) {
+      yield ReferenceReady(reference);
     }
     for (final call in calls) {
       yield switch (call) {
@@ -598,6 +612,7 @@ final class ResponsesProtocolModel implements ChatModel {
 final class OpenAIChatModel implements ChatModel {
   final api.OpenAIClient client;
   final String model;
+  final bool streamText;
   final api.ChatCompletionCreateRequest Function(
     api.ChatCompletionCreateRequest,
   )?
@@ -606,6 +621,7 @@ final class OpenAIChatModel implements ChatModel {
     required this.client,
     required this.model,
     this.configure,
+    this.streamText = true,
   });
   @override
   ModelCapabilities get capabilities => ChatCompletionsProtocolModel(
@@ -617,19 +633,182 @@ final class OpenAIChatModel implements ChatModel {
   Stream<JsonObject> _transport(
     api.ChatCompletionCreateRequest request,
     CancellationToken cancellation,
-  ) => client.chat.completions
-      .createStream(request, abortTrigger: cancellation.whenCancelled)
-      .map((event) => event.toJson());
+  ) async* {
+    var hasToolCalls = false;
+    var finished = false;
+    await for (final event in client.chat.completions.streamSseEvents(
+      endpoint: '/chat/completions',
+      body: {...request.toJson(), 'stream': true},
+      abortTrigger: cancellation.whenCancelled,
+    )) {
+      if (event['error'] != null || event['_event'] == 'error') {
+        throw StateError('OpenAI Chat stream failed.');
+      }
+      for (final raw in event['choices'] as List? ?? []) {
+        final choice = raw as Map;
+        final delta = choice['delta'];
+        if (delta is Map &&
+            delta['annotations'] != null &&
+            (delta['annotations'] is! List ||
+                (delta['annotations'] as List).isNotEmpty)) {
+          throw UnsupportedError(
+            'Streamed Chat annotations are not supported; use streamText: false or Responses.',
+          );
+        }
+        if (choice['index'] != 0) continue;
+        if (finished) {
+          throw const FormatException('Chat choice updated after finish.');
+        }
+        final toolCalls = delta is Map ? delta['tool_calls'] : null;
+        if (toolCalls != null && toolCalls is! List) {
+          throw const FormatException('Invalid Chat tool call delta.');
+        }
+        if (toolCalls is List && toolCalls.isNotEmpty) hasToolCalls = true;
+        final reason = choice['finish_reason'];
+        if (reason != null) {
+          if (!{
+            'stop',
+            'length',
+            'tool_calls',
+            'content_filter',
+          }.contains(reason)) {
+            throw UnsupportedError('Unsupported Chat finish reason: $reason');
+          }
+          if ((hasToolCalls && reason != 'tool_calls') ||
+              (!hasToolCalls && reason == 'tool_calls')) {
+            throw const FormatException(
+              'Chat finish reason does not match tool calls.',
+            );
+          }
+          finished = true;
+        }
+      }
+      yield event;
+    }
+  }
 
   @override
   Stream<ModelEvent> stream(
     ModelRequest request, {
     required CancellationToken cancellation,
-  }) => ChatCompletionsProtocolModel(
-    model: model,
-    transport: _transport,
-    configure: configure,
-  ).stream(request, cancellation: cancellation);
+  }) {
+    if (streamText) {
+      return ChatCompletionsProtocolModel(
+        model: model,
+        transport: _transport,
+        configure: configure,
+      ).stream(request, cancellation: cancellation);
+    }
+    return _buffered(request, cancellation);
+  }
+
+  Stream<ModelEvent> _buffered(
+    ModelRequest request,
+    CancellationToken cancellation,
+  ) async* {
+    JsonObject? rawResponse;
+    var references = <OutputReference>[];
+    Stream<JsonObject> transport(
+      api.ChatCompletionCreateRequest params,
+      CancellationToken token,
+    ) async* {
+      final body = params.toJson()..remove('stream_options');
+      body['stream'] = false;
+      final JsonObject response;
+      try {
+        response = await OpenAIPlatformApi(client).request(
+          '/chat/completions',
+          method: OpenAIHttpMethod.post,
+          body: body,
+          cancellation: token,
+        );
+      } catch (_) {
+        token.throwIfCancelled();
+        rethrow;
+      }
+      token.throwIfCancelled();
+      if (response['error'] != null) {
+        throw StateError('OpenAI Chat response failed.');
+      }
+      final choices = response['choices'];
+      if (choices is! List || choices.length != 1 || choices.single is! Map) {
+        throw const FormatException('Invalid Chat completion choices.');
+      }
+      final choice = choices.single as Map;
+      if (choice['index'] != 0 || choice['message'] is! Map) {
+        throw const FormatException('Invalid Chat completion message.');
+      }
+      final message = Map<String, Object?>.from(choice['message'] as Map);
+      if (message['role'] != 'assistant') {
+        throw const FormatException('Invalid Chat assistant role.');
+      }
+      if ((message['content'] != null && message['content'] is! String) ||
+          (message['refusal'] != null && message['refusal'] is! String)) {
+        throw const FormatException('Invalid Chat message text.');
+      }
+      if (message['audio'] != null) {
+        throw UnsupportedError('Chat audio output is not supported.');
+      }
+      final reason = choice['finish_reason'];
+      if (!{
+        'stop',
+        'length',
+        'tool_calls',
+        'content_filter',
+      }.contains(reason)) {
+        throw UnsupportedError('Unsupported Chat finish reason: $reason');
+      }
+      final toolCalls = message['tool_calls'];
+      if (toolCalls != null && toolCalls is! List) {
+        throw const FormatException('Invalid Chat tool calls.');
+      }
+      final tools = toolCalls as List? ?? const [];
+      if ((tools.isNotEmpty && reason != 'tool_calls') ||
+          (tools.isEmpty && reason == 'tool_calls')) {
+        throw const FormatException(
+          'Chat finish reason does not match tool calls.',
+        );
+      }
+      references = chatOutputReferences(message);
+      rawResponse = immutableJson(response);
+      yield {
+        'model': response['model'],
+        if (response['usage'] != null) 'usage': response['usage'],
+        'choices': [
+          {
+            'index': 0,
+            'finish_reason': reason,
+            'delta': {
+              'content': message['content'],
+              'refusal': message['refusal'],
+              if (message['tool_calls'] != null)
+                'tool_calls': [
+                  for (var i = 0; i < tools.length; i++)
+                    {...Map<String, Object?>.from(tools[i] as Map), 'index': i},
+                ],
+            },
+          },
+        ],
+      };
+    }
+
+    await for (final event in ChatCompletionsProtocolModel(
+      model: model,
+      transport: transport,
+      configure: configure,
+    ).stream(request, cancellation: cancellation)) {
+      if (event is ModelFinished) {
+        for (final reference in references) {
+          yield ReferenceReady(reference);
+        }
+        yield ProviderOutput(
+          provider: 'openai.chat_completions',
+          items: [rawResponse!],
+        );
+      }
+      yield event;
+    }
+  }
 }
 
 /// Chat Completions request serialization and event normalization.

@@ -134,3 +134,11 @@ cancellation before response headers, during stalled bodies, and through the
 public stream wrappers while retaining shared-client ownership. The contribution
 is submitted, not merged or released. AgentWeave's native client already uses
 its own shared transport and does not require this unreleased SDK change.
+
+
+## Upstream citation file identifiers
+
+The pinned SDK 9.0.1 drops `file_id` on known document citation response types.
+AgentWeave preserves raw native blocks independently. The typed SDK correction
+was submitted as [upstream PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441);
+this does not update the AgentWeave dependency or publish a release.

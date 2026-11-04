@@ -118,7 +118,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [Typed tools and approvals](docs/tools.md)
 - [Persisted approval contracts and migration](docs/approval-contracts.md)
 - [Provider author guide](docs/providers.md)
-- [Documents](docs/documents.md) · [Citations](docs/citations.md)
+- [Documents](docs/documents.md) · [Citations](docs/citations.md) · [Output references](docs/output-references.md)
 - [OpenAI native computer use](docs/computer-use.md)
 - [OpenAI capabilities](docs/openai.md)
 - [OpenAI hosted tools and images](docs/openai-hosted.md)
@@ -170,7 +170,8 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   tool continuations remain open; this is not complete computer-use parity.
 - Selected OpenAI hosted Responses tools now have lossless native options,
   terminal validation, private replay and ordered completed image parts. Hosted
-  progress, citations, partial images, MCP/shell/custom/patch and live provider
+  progress, precise native-coordinate citation highlights, partial images,
+  MCP/shell/custom/patch and live provider
   behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
@@ -185,6 +186,10 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   annotations, client metadata and private replay across approvals. Other provider
   citations, custom-content document inputs, live quality and device rendering
   remain open.
+- Native OpenAI output references now preserve all four Responses annotation
+  forms and completed Chat URL references, including empty segments and opaque
+  native positions. Other provider references, live indexing conventions,
+  authorized download recipes and device rendering remain open.
 - Preserve provider options and metadata without letting configuration silently
   replace server-owned history, schemas, tools, or execution bounds. Unsupported
   response modes must fail explicitly or use a clearly separate native API.
@@ -953,6 +958,33 @@ Final capability verification: with `citations: true`, the native model advertis
 After adding `citationIndex`, the independent native consumer passes with explicit indexes 0 through 4 matching citation order and analyzes cleanly. The guide directs renderers to upsert by message ID and index, preserving equal distinct citations during replay. The scoped score remains 8/10. This consumer did not independently run an end-to-end JS rejoin.
 
 
+## Round 19: upstream SDK file identifiers
+
+# Round 19: upstream Anthropic SDK citation file IDs
+
+**9/10 for the tested local SDK flow.** With Dart 3.13.3 and the upstream worktree package config, `anthropic_citation_consumer.dart` passes using a loopback HTTP server. The application calls `client.messages.create`, obtains typed character/page/block citation file IDs, JSON-serializes and reloads the message, and verifies equality and hash-map lookup. `copyWith()` retains IDs, explicit null clears each variant, cleared IDs are absent from JSON, and citation diagnostics redact IDs. The app replays the stored response through `toInputMessage()` in a second real SDK HTTP request: all citations remain, while response-only `file_id` fields are omitted. A real `messages.createStream` feeds `MessageStreamAccumulator`; accumulated citations retain IDs and also convert to input without them.
+
+The same consumer fails to compile against AgentWeave's currently pinned anthropic_sdk_dart 9.0.1 because the three typed getters and `copyWith(fileId:)` do not exist. This is a local upstream worktree review; the patch is not evidence of a published package or an updated AgentWeave pin. No live provider, paid call, or production data was used. The consumer does not test every provider citation variant, retry/cancellation, or full SDK compatibility suite.
+
+The patch is submitted as [upstream PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441). AgentWeave remains pinned to SDK 9.0.1; its raw native path preserves these fields independently.
+
+## Round 20: OpenAI references
+
+# Round 20 independent OpenAI Responses references review
+
+**8/10 for the tested native Responses flow.** `dart run examples/review_cases/openai_references.dart` passes and Dart analysis reports no issues. The offline SDK loopback consumer covers all four pinned annotation forms: URL, a container file with 0/0 native range, two identical file insertion citations, and a file-list ordinal 99 without a fabricated filename. Multiple output-text parts include emoji, an annotated empty part and a later part; the expected UTF-16 enclosing spans survive alongside a generated PNG. It does not interpret provider-native positions as Dart string offsets.
+
+Public references arrive with stable indexes and exactly match reconnect hydration, preserve duplicates, and round-trip through typed messages. The consumer uses a scoped file source to construct a `DocumentPart`, checks wrong-owner history and approval attempts, and recreates the agent after a tool approval to verify exact native message replay while private opaque fields do not enter public events or hydration. Conflicting streamed/terminal annotations, an unsafe credential-bearing URL, early EOF, and cancellation before terminal fail without a public reference or tool execution.
+
+DX: the typed source/position variants make the file-list versus insertion distinction clear, and `partStart`/`partEnd` offer usable enclosing context without pretending native indexes are UTF-16. Applications must still implement authenticated, owner-scoped file retrieval and render the custom events or hydrated metadata; raw file IDs are deliberately public scoped handles, not download URLs. The fixture does not establish OpenAI's undocumented native Unicode offset semantics, live model behavior, Flutter rendering, actual file download, durable database behavior, or Chat Completions behavior. No paid calls were made.
+
+**8/10 for the independently tested buffered Chat path.** `dart run examples/review_cases/openai_chat_references.dart` passes and Dart analysis is clean. A real SDK loopback request with `streamText: false` forwards typed `web_search_options`, normalizes a nested URL reference with an emoji-containing enclosing text span and opaque native positions, and presents matching live-event and hydration metadata. A malicious nested file discriminator remains a URL rather than creating a file source. Full raw response metadata stays private through approval and recreation; response-only annotations are not sent in the next Chat input. Schema configuration and protected runtime messages are checked, malformed URLs release no tool call or reference, and the default streaming path allows empty annotations but explicitly rejects nonempty ones.
+
+For applications that need citations, choosing buffered Chat sacrifices token-by-token delivery; the typed flag and explicit error make the boundary discoverable, but callers must deliberately render reference metadata. This review did not establish native Unicode index semantics or test a live model, rendering, file resolution, durable storage or streamed annotation support.
+
+Final guide review: the first Dart block of `docs/output-references.md` byte-matches `examples/openai_references_demo.dart`. The demo and both independent consumer files analyze cleanly; the demo compiles to a kernel without making a billable request, and both loopback consumers pass again. The guide clearly distinguishes enclosing UTF-16 context from unspecified provider coordinates, covers 0/0, buffered Chat, replay, metadata and authenticated file resolution. No additional concrete DX issue was found. The independently scoped scores remain 8/10 for each native path; this review did not independently rerun JS or PostgreSQL.
+
+
 # Source: docs/architecture.md
 
 # Architecture
@@ -1182,6 +1214,21 @@ contract and let ordinary clients retain metadata. Provider replay remains a
 separate private contract, including opaque fields that cannot be public. See
 [citations](citations.md) for the five supported Anthropic projections and replay
 input differences.
+
+
+## Provider output references
+
+`OutputReference` retains a typed source, enclosing UTF-16 part and a distinct
+provider-reported range, insertion point or file-list position. Native coordinates
+are opaque and never become `TextCitation` offsets automatically. Zero-range
+container outputs and references on empty parts are representable without
+inventing a highlight. Typed file sources carry an explicit provider namespace.
+
+The runtime persists references and emits indexed CUSTOM events plus terminal
+snapshots. Hydration stores references and citations in the same public metadata
+bag. Native output remains private, with only reviewed fields projected.
+Applications own file authorization and download routing. See
+[output references](output-references.md).
 
 
 # Source: docs/tools.md
@@ -1424,6 +1471,16 @@ clients. Put only public fields in a typed citation. Keep native replay fields
 in `ProviderOutput`. See [citations](citations.md) for source types and wire data.
 
 
+## Native output positions
+
+Emit `ReferenceReady(OutputReference(...))` when a source has a native range,
+insertion point or file-list ordinal that cannot be treated as a verified Dart
+text highlight. Supply the known UTF-16 enclosing `partStart`/`partEnd` separately.
+Keep provider positions opaque and use typed source fields. Scoped file handles
+are deliberate public data and require application authorization.
+See [output references](output-references.md).
+
+
 # Source: docs/documents.md
 
 # Send documents to a model
@@ -1593,6 +1650,8 @@ Future<void> main() async {
                 '[${location.start}, ${location.end})',
           UrlCitationSource(:final url) => url,
           SearchResultCitationSource(:final source) => source,
+          FileCitationSource(:final provider, :final filename) =>
+            '$provider file: ${filename ?? 'unnamed'}',
         };
         print('$claim ← $source');
       }
@@ -1687,9 +1746,11 @@ Closed text-block citations remain attached to retained partial text after a
 later failure or cancellation. An unfinished block does not produce a citation.
 A citation does not prove the whole run succeeded. Display the run status too.
 
-Only the public projection enters events and hydration. Provider file IDs,
-encrypted citation indexes and unknown native fields stay in private replay
-state. Original response blocks remain unchanged in storage. Continuation input
+Only the public projection enters events and hydration. Anthropic provider file
+IDs, encrypted citation indexes and unknown native fields stay in private replay
+state. Other adapters can deliberately publish scoped `FileCitationSource`
+handles; see [output references](output-references.md). Original response blocks
+remain unchanged in storage. Continuation input
 omits the known response-only document `file_id` while retaining the web-search
 `encrypted_index` needed by the provider. Unknown citation types fail explicitly
 instead of exposing an unreviewed payload.
@@ -1720,6 +1781,213 @@ dart run tool/check.dart
 The independent consumer uses loopback HTTP. Additional checks exercise both
 clients and real PostgreSQL approval recreation. These fixtures do not contact
 Anthropic or prove model availability, citation quality or Flutter rendering.
+
+
+# Source: docs/output-references.md
+
+# Read output references
+
+OpenAI references describe URLs, cited files and generated artifacts.
+`ChatMessage.references` preserves their distinct positions and enclosing text
+segments. Use [text citations](citations.md) when an adapter can supply a verified
+UTF-16 answer highlight.
+
+## Run a source-backed answer
+
+Set `OPENAI_API_KEY` and `OPENAI_MODEL`, then run
+`dart run examples/openai_references_demo.dart` from the workspace. Choose a model
+that supports web search. The command makes a billable request; repository
+checks only compile its source.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_openai/agent_weave_openai.dart' as openai;
+
+Future<void> main() async {
+  final key = Platform.environment['OPENAI_API_KEY'];
+  final model = Platform.environment['OPENAI_MODEL'];
+  if (key == null || key.isEmpty || model == null || model.isEmpty) {
+    throw StateError('Set OPENAI_API_KEY and OPENAI_MODEL.');
+  }
+  final client = openai.OpenAIClient.withApiKey(key);
+  try {
+    final result = await generateText(
+      model: openai.OpenAIResponsesModel.native(
+        client: client,
+        model: model,
+        hostedTools: [
+          openai.OpenAIHostedTool.fromJson({'type': 'web_search'}),
+        ],
+      ),
+      prompt: 'Find the latest stable Dart release and cite its release notes.',
+    );
+    for (final message in result.responseMessages) {
+      if (message.role != MessageRole.assistant) continue;
+      print(message.text);
+      for (final reference in message.references) {
+        final source = switch (reference.source) {
+          UrlCitationSource(:final url, :final title) =>
+            '${title ?? url}: $url',
+          FileCitationSource(:final provider, :final filename) =>
+            '$provider file: ${filename ?? 'unnamed'}, resolve on your backend',
+          DocumentCitationSource(:final index) => 'Document $index',
+          SearchResultCitationSource(:final source) => source,
+        };
+        print(source);
+        print('Reported position: ${reference.position.toJson()}');
+      }
+    }
+  } finally {
+    client.close();
+  }
+}
+```
+
+## Choose the right coordinates
+
+Each `OutputReference` contains its provider, typed source, native position and
+`partStart`/`partEnd` segment. The segment is an enclosing output-text part in
+UTF-16 code units, with an exclusive end. It may be empty. It identifies context,
+not the exact cited words. You can read that context with
+`message.text.substring(reference.partStart, reference.partEnd)`.
+
+`reference.position` retains the provider's reported values:
+
+| Position | Meaning |
+| --- | --- |
+| `ProviderTextRange` | Reported start/end values. A zero/zero pair is retained. |
+| `ProviderTextPosition` | Reported insertion index in output text. |
+| `FileListPosition` | Ordinal in a file list, not a text offset. |
+
+Do not pass these native values to `String.substring`. The reviewed OpenAI
+reference does not establish a Unicode unit or a precise end convention. Its
+[Code Interpreter example](https://developers.openai.com/api/docs/guides/tools-code-interpreter)
+also uses zero/zero coordinates for a generated file. AgentWeave preserves those
+values without inventing a highlight or converting the pair into a point.
+Synthetic Unicode tests verify the enclosing segment, not the service's indexing
+convention.
+
+## Read each OpenAI form
+
+| Native form | Dart source | Position |
+| --- | --- | --- |
+| Responses `url_citation` | `UrlCitationSource` | `ProviderTextRange` |
+| Responses `file_citation` | `FileCitationSource` with filename | `ProviderTextPosition` |
+| Responses `container_file_citation` | `FileCitationSource` with container and filename | `ProviderTextRange` |
+| Responses `file_path` | `FileCitationSource` without an invented filename | `FileListPosition` |
+| Completed Chat `url_citation` | `UrlCitationSource` | `ProviderTextRange` |
+
+The contracts and reviewed declarations are in the
+[OpenAI inventory](openai-hosted-inventory.json). Responses uses flat annotation
+objects. Completed Chat uses a nested `url_citation` object; an unknown nested
+field cannot change the documented annotation kind.
+
+Responses references are emitted after a valid terminal response and stream EOF.
+The adapter reconciles annotation-added, content-part and output-item echoes with
+terminal output by native indexes. Identical echoes do not add references twice;
+two identical annotations at different indexes remain distinct. Null annotation
+placeholders do not invent an entry. Conflicting, unknown or malformed entries
+fail before local tool execution. Streamed text must match the final text before
+the adapter attaches a reference to its enclosing segment.
+
+Raw output and opaque fields remain unchanged in private provider replay.
+Only reviewed source and position fields enter public references. Compatible
+Responses endpoints do not inherit OpenAI annotation semantics automatically.
+
+## Use completed Chat URL references
+
+Use `OpenAIChatModel(client: client, model: modelId, streamText: false)` when you
+need completed Chat annotations. The buffered request retains native response
+JSON because the installed SDK's typed Chat decoder drops these annotations.
+The existing typed configuration and runtime-owned messages, tools, schema and
+limits still apply. The request sends `stream: false` and omits stream-only
+usage options. It produces one completed text result with references, rather
+than token-by-token delivery.
+
+The default streaming mode accepts an empty annotation list but explicitly
+rejects nonempty or malformed streamed Chat annotations. Use buffered Chat or
+native Responses for supported references. Native Chat also rejects unknown or
+inconsistent finish reasons before tools and permits a final empty-choice usage
+event. Provider-specific adapters keep their own protocol rules.
+
+The buffered raw response is private in `openai.chat_completions`. Response-only
+Chat annotations are not inserted into subsequent request messages. Other
+completed output modes, such as audio and legacy function calls, are not part of
+this adapter's reference contract.
+
+## Render and restore references
+
+`ReferenceReady(reference)` is the provider-neutral model event. The runtime
+publishes this extension:
+
+```json
+{
+  "type": "CUSTOM",
+  "name": "agent_weave:reference",
+  "value": {
+    "messageId": "assistant-message",
+    "referenceIndex": 0,
+    "reference": {
+      "provider": "openai",
+      "source": {"type": "file", "provider": "openai", "fileId": "file-id"},
+      "partStart": 0,
+      "partEnd": 0,
+      "position": {"type": "file_list", "index": 4}
+    }
+  }
+}
+```
+
+Upsert incremental entries by `(messageId, referenceIndex)` to handle replay.
+Replace them from `message.metadata.agent_weave.references` on a message snapshot
+or history hydration. Decode each JSON entry with `OutputReference.fromJson` in
+Dart. Citation and reference arrays can coexist in the same metadata bag. Their
+indexes are independent. Applications render the data; a generic TanStack
+client retains metadata but does not create source cards for you.
+
+Partial-run metadata remains associated with its retained text. References can
+exist on an empty message part, so an empty text string does not imply that no
+artifact was produced. A retained reference does not prove the run completed.
+
+## Resolve file handles on the backend
+
+`FileCitationSource` exposes `provider`, `fileId`, optional `containerId` and
+optional `filename`. These are intentional public scoped handles, not URLs or
+credentials. The `title` getter returns the actual filename when present.
+AgentWeave does not manufacture a filename, download a file or host an artifact.
+
+Bind each uploaded or generated file to the authenticated application owner.
+Check that ownership and provider before using a backend API client to retrieve
+bytes or returning a controlled application URL. A submitted file ID alone is
+not authorization. Container files need their matching container context.
+Apply the same check when reusing a handle in `DocumentPart.fileId`; the
+`openai` provider namespace is shared by references and document input. Do not
+assume that a container file ID is an ordinary uploaded-file ID; adapt it through
+your backend when the target operation requires a different file resource.
+
+Keep API credentials on the backend. Do not expose an unrestricted file proxy
+that accepts arbitrary provider IDs. This SDK does not know your application's
+file records or access policy. URL references are also application content;
+HTTP(S) validation does not detect secrets in query strings or decide whether
+a link is appropriate for a user.
+
+## Reproduce the checks
+
+```sh
+dart test packages/agent_weave/test/references_test.dart
+dart test packages/agent_weave_openai/test/output_references_test.dart
+dart run examples/review_cases/openai_references.dart
+dart run examples/review_cases/openai_chat_references.dart
+dart run examples/review_cases/citations_client.dart
+dart run tool/check.dart
+```
+
+Local checks exercise native SDK loopback calls, typed persistence, approvals,
+PostgreSQL recreation, both clients and completed-log replay. No live OpenAI
+request is needed. Live model acceptance, precise native highlighting, actual
+file downloads and Flutter rendering remain unverified.
 
 
 # Source: docs/computer-use.md
@@ -2215,6 +2483,14 @@ The raw helper buffers responses; it does not add arbitrary SSE or multipart
 handling. It preserves data but does not implement missing tool/job lifecycles.
 
 
+## Native output references
+
+Responses normalizes four annotation forms with native positions and enclosing
+text segments. Completed Chat URL annotations use `streamText: false` because
+the installed typed decoder omits them. See [output references](output-references.md)
+for mode selection, privacy, persistence and remaining limits.
+
+
 # Source: docs/openai-hosted.md
 
 # OpenAI hosted tools
@@ -2334,11 +2610,11 @@ server-side `providerData`, excluded from public history and events. Unknown
 fields on recognized output items survive replay. Never expose raw checkpoints
 as a client history endpoint.
 
-Search citations, code outputs, container files and image metadata stay private.
-Public citation rendering, partial image progress, hosted-tool progress and
-container-file downloads are not normalized by this adapter. Applications that
-need these capabilities can use native SDK streams, but then own their
-normalization and lifecycle.
+Reviewed annotations produce public typed references, including scoped file
+handles. Code outputs, unselected metadata and opaque native fields stay private.
+Applications render source cards and authorize file retrieval. Precise native
+highlights, partial image progress, hosted-tool progress and container downloads
+remain outside this adapter's normalization contract.
 
 ## Verification and scope
 
@@ -2355,13 +2631,21 @@ request was made for this increment. The earlier standalone Images API smoke
 test is a separate workflow. See [validation](validation.md).
 
 
+## Output references
+
+Completed Responses annotations now produce typed sources and native positions.
+See [output references](output-references.md) for all four forms, persistence,
+file authorization and the distinction between native indexes and UTF-16 text.
+Partial images, hosted progress and artifact hosting remain open.
+
+
 # Source: docs/openai-hosted-parameters.md
 
 # OpenAI hosted tool inventory
 
-Generated from the pinned [official Node SDK declarations](openai-hosted-inventory.json). See [the usage guide](openai-hosted.md).
+Generated from the pinned [official Node SDK declarations](openai-hosted-inventory.json). See [the usage guide](openai-hosted.md) and [output references](output-references.md).
 
-Selected hosted Responses declarations and executable request fields only; not a claim of nested semantics, live model behavior, or endpoint parity. Only completed image result bytes become public ImagePart content; other image metadata stays private. Partial images, public citations, hosted progress and downloaded container files are not normalized. External type references are retained, not expanded. Other tools, local executors, and unselected declarations are excluded.
+Selected hosted Responses and output-reference declarations, with executable hosted request fields; not a claim of complete nested semantics, live behavior or endpoint parity. Four annotation forms have typed public reference projections. Native positions remain opaque, distinct from enclosing UTF-16 text segments. Scoped file handles are deliberately public references; unknown fields and native replay stay private. Completed image bytes become public ImagePart content. Partial images, precise native-coordinate highlights, hosted progress and downloaded container files remain open. External type references are retained, not expanded. Other tools, local executors and unselected declarations are excluded.
 
 ## FileSearchTool
 
@@ -2424,6 +2708,50 @@ Disposition: private-replay
 | --- | --- |
 | type | `'image'` |
 | url | `string` |
+
+## ResponseContentPartAddedEvent
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| content_index | `number` |
+| item_id | `string` |
+| output_index | `number` |
+| part | `ResponseOutputText \| ResponseOutputRefusal \| ResponseContentPartAddedEvent.ReasoningText` |
+| sequence_number | `number` |
+| type | `'response.content_part.added'` |
+
+## ResponseContentPartAddedEvent.ReasoningText
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| text | `string` |
+| type | `'reasoning_text'` |
+
+## ResponseContentPartDoneEvent
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| content_index | `number` |
+| item_id | `string` |
+| output_index | `number` |
+| part | `ResponseOutputText \| ResponseOutputRefusal \| ResponseContentPartDoneEvent.ReasoningText` |
+| sequence_number | `number` |
+| type | `'response.content_part.done'` |
+
+## ResponseContentPartDoneEvent.ReasoningText
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| text | `string` |
+| type | `'reasoning_text'` |
 
 ## ResponseFileSearchToolCall
 
@@ -2539,6 +2867,157 @@ Disposition: private-replay
 | --- | --- |
 | categories | `Array<string>` |
 | moderation_stage | `'input' \| 'output' \| 'unknown'` |
+
+## ResponseOutputMessage
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| content | `Array<ResponseOutputText \| ResponseOutputRefusal>` |
+| role | `'assistant'` |
+| status | `'in_progress' \| 'completed' \| 'incomplete'` |
+| type | `'message'` |
+| phase? | `'commentary' \| 'final_answer' \| null` |
+
+## ResponseOutputText
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| annotations | `Array<ResponseOutputText.FileCitation \| ResponseOutputText.URLCitation \| ResponseOutputText.ContainerFileCitation \| ResponseOutputText.FilePath>` |
+| text | `string` |
+| type | `'output_text'` |
+| logprobs? | `Array<ResponseOutputText.Logprob>` |
+
+## ResponseOutputText.FileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| filename | `string` |
+| index | `number` |
+| type | `'file_citation'` |
+
+## ResponseOutputText.URLCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| end_index | `number` |
+| start_index | `number` |
+| title | `string` |
+| type | `'url_citation'` |
+| url | `string` |
+
+## ResponseOutputText.ContainerFileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| container_id | `string` |
+| end_index | `number` |
+| file_id | `string` |
+| filename | `string` |
+| start_index | `number` |
+| type | `'container_file_citation'` |
+
+## ResponseOutputText.FilePath
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| index | `number` |
+| type | `'file_path'` |
+
+## ResponseOutputText.Logprob
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| token | `string` |
+| bytes | `Array<number>` |
+| logprob | `number` |
+| top_logprobs | `Array<Logprob.TopLogprob>` |
+
+## ResponseOutputText.Logprob.TopLogprob
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| token | `string` |
+| bytes | `Array<number>` |
+| logprob | `number` |
+
+## ResponseOutputTextAnnotationAddedEvent
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| annotation | `ResponseOutputTextAnnotationAddedEvent.FileCitation \| ResponseOutputTextAnnotationAddedEvent.URLCitation \| ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation \| ResponseOutputTextAnnotationAddedEvent.FilePath \| null` |
+| annotation_index | `number` |
+| content_index | `number` |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.output_text.annotation.added'` |
+
+## ResponseOutputTextAnnotationAddedEvent.FileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| filename | `string` |
+| index | `number` |
+| type | `'file_citation'` |
+
+## ResponseOutputTextAnnotationAddedEvent.URLCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| end_index | `number` |
+| start_index | `number` |
+| title | `string` |
+| type | `'url_citation'` |
+| url | `string` |
+
+## ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| container_id | `string` |
+| end_index | `number` |
+| file_id | `string` |
+| filename | `string` |
+| start_index | `number` |
+| type | `'container_file_citation'` |
+
+## ResponseOutputTextAnnotationAddedEvent.FilePath
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| index | `number` |
+| type | `'file_path'` |
 
 ## ResponseToolSearchCall
 
@@ -2682,6 +3161,49 @@ Disposition: raw-native-options
 | region? | `string \| null` |
 | timezone? | `string \| null` |
 | type? | `'approximate'` |
+
+## ChatCompletionMessage
+
+Disposition: private-buffered-response
+
+| Field | Source type |
+| --- | --- |
+| content | `string \| null` |
+| refusal | `string \| null` |
+| role | `'assistant'` |
+| annotations? | `Array<ChatCompletionMessage.Annotation>` |
+| audio? | `ChatCompletionAudio \| null` |
+| function_call? | `ChatCompletionMessage.FunctionCall \| null` |
+| tool_calls? | `Array<ChatCompletionMessageToolCall>` |
+
+## ChatCompletionMessage.Annotation
+
+Disposition: buffered-reference-output
+
+| Field | Source type |
+| --- | --- |
+| type | `'url_citation'` |
+| url_citation | `Annotation.URLCitation` |
+
+## ChatCompletionMessage.Annotation.URLCitation
+
+Disposition: buffered-reference-output
+
+| Field | Source type |
+| --- | --- |
+| end_index | `number` |
+| start_index | `number` |
+| title | `string` |
+| url | `string` |
+
+## ChatCompletionMessage.FunctionCall
+
+Disposition: private-buffered-response
+
+| Field | Source type |
+| --- | --- |
+| arguments | `string` |
+| name | `string` |
 
 
 # Source: docs/openrouter.md
@@ -3981,6 +4503,14 @@ is submitted, not merged or released. AgentWeave's native client already uses
 its own shared transport and does not require this unreleased SDK change.
 
 
+## Upstream citation file identifiers
+
+The pinned SDK 9.0.1 drops `file_id` on known document citation response types.
+AgentWeave preserves raw native blocks independently. The typed SDK correction
+was submitted as [upstream PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441);
+this does not update the AgentWeave dependency or publish a release.
+
+
 # Source: docs/anthropic-hosted.md
 
 # Anthropic hosted tools
@@ -4688,6 +5218,8 @@ override only after checking the published package and rerunning interop tests.
 ## Implemented contracts
 
 - Text streaming, standard reasoning events, and structured-output events.
+- Native OpenAI Responses output references and buffered Chat URL references; see
+  [output references](output-references.md).
 - Typed Anthropic text citations, CUSTOM events, snapshots and hydration; see
   [citations](citations.md).
 - Ordered completed media parts in assistant history, client snapshots and hydration.
@@ -4725,7 +5257,8 @@ and retain the old history. Public client bindings remain unchanged. See
   approval arguments cannot be edited.
 - Custom approval payload schemas, application-defined generic interrupts, subagents, MCP discovery,
   and general provider-hosted progress are not implemented. Citation normalization
-  currently covers the five pinned Anthropic variants; other providers remain open.
+  covers the five pinned Anthropic variants. OpenAI references retain opaque
+  provider coordinates; precise OpenAI highlights and other providers remain open.
 - Server tools execute sequentially. Applications can perform concurrency
   inside a tool, with their own cancellation and idempotency policy.
 - Disconnecting a direct run cancels its provider request. Replaying a stored
@@ -5039,6 +5572,20 @@ not a public UI feature. Keep hosted execution distinct from registered local
 functions and explicitly reject lifecycles without a handler.
 
 
+## Native output reference contracts
+
+The hosted inventory also checks the reviewed Responses annotation/message/part
+projection and completed Chat message declarations. Update the immutable source
+pins, raw snapshots, reviewed declaration JSON, typed normalization and fixtures
+together. Review native coordinate meanings separately from their integer types.
+Do not convert provider indexes to UTF-16 or infer filenames from unrelated text.
+
+Run the reference consumers, both client metadata/replay cases and PostgreSQL
+approval recreation after a reference change. The default Chat streaming adapter
+uses raw SDK events and has its own strict completion guard; compatible adapters
+do not inherit that contract. Keep raw audit state separate from public handles.
+
+
 # Source: docs/validation.md
 
 # Validation
@@ -5064,13 +5611,13 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest typed-citation increment was checked on
+The latest native-output-reference increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 460 Dart unit and regression tests: tool validation, approvals, client tools,
+- 484 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 21 Serverpod integration tests with a real isolated PostgreSQL database:
+- 22 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -5658,6 +6205,51 @@ four. This is completed-log replay evidence, not automatic reconnection during
 a live provider call.
 
 
+## Upstream SDK citation file IDs
+
+The isolated upstream correction in
+[PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441) retains nullable
+file IDs in the three document citation response DTOs and leaves request types
+unchanged. Dart 3.13.3 checks passed 1,851 package unit tests with three
+environment-key skips and strict analysis. An independent actual SDK loopback
+consumer covers stored-message reload, cache equality, clear/copy, streaming and
+`toInputMessage()` request projection; its scoped score is 9/10.
+The sparse checkout used a cached remapped package configuration, not a fresh
+monorepo bootstrap. This contribution does not update AgentWeave's SDK pin or
+publish a package.
+
+## Native OpenAI output references
+
+The full Dart 3.12.2 check passes 484 unit/regression tests and 22 real
+PostgreSQL/Serverpod tests, both clients, all consumers and contract checks. Three
+documentation tests and a strict site build pass.
+
+Core fixtures exercise native range, insertion and file-list position types,
+empty enclosing parts, JSON snapshots, immutable collections, invalid spans,
+provider mismatches, partial failure and cancellation. The existing citation
+suite continues to pass. OpenAI fixtures cover all four Responses annotations,
+initial and streamed echoes, null placeholders, exact text reconciliation,
+unknown/conflicting data, EOF and cancellation before tool effects. Buffered
+Chat fixtures cover native nested URL annotations, typed options/schema guards,
+private audit data, cancellation isolation and malformed output. Native Chat
+streaming rejects unknown/inconsistent finishes and late choices before tools.
+
+Independent native SDK loopback consumers score the selected Responses and
+buffered Chat flows 8/10 each. A PostgreSQL test recreates an approval and verifies
+all four typed reference forms, event order, private replay, owner isolation and
+intentional public scoped file IDs. Its initial assertion incorrectly expected
+only an assistant in `responseMessages`; filtering out the tool result corrected
+that fixture. Both clients retain references alongside citations through snapshots,
+history restoration and completed-log replay; replay upserts retain legitimate
+duplicates. Guide examples byte-match their runnable sources and compile without
+running the billable demos.
+
+No paid calls were made. Native Unicode offset interpretation, live model
+acceptance, actual authenticated file download, production rendering and other
+providers' reference normalization remain unverified. These checks preserve
+reported positions; they do not establish precise inline highlighting.
+
+
 # Source: CONTRIBUTING.md
 
 # Contribute to AgentWeave
@@ -5729,7 +6321,10 @@ older contract from current definitions or use wire schema hashes as server
 authorization guards. Validate the entire resume batch before effects.
 Completed media and typed citations are public content; native output/replay
 metadata stays private. Citation answer offsets use UTF-16; source coordinates
-retain native units. Preserve message citations when cloning canonical history.
+retain native units. Preserve citations and references when cloning canonical
+history. Reference part spans are verified UTF-16 context, not native highlights;
+file-list positions are not text offsets. Scoped public file handles do not
+authorize retrieval.
 Keep credentials on the backend and outside source control.
 
 Authentication owns `ownerId`. Never accept it from a request body.

@@ -1,5 +1,8 @@
 # Unreleased
 
+- Publish typed Responses references and buffered Chat URL annotations while keeping provider metadata private.
+- Use raw native Chat events and reject unknown/inconsistent finish reasons before tools; compatible-provider adapters retain their own contracts.
+
 - Add native Responses options and selected hosted search, code, server tool-search and complete image output with private replay.
 - Validate terminal calls before releasing application tools; preserve raw response metadata separately.
 - Reject unregistered Chat/compatible Responses tools and exact large-number mutations in runtime-owned schemas.

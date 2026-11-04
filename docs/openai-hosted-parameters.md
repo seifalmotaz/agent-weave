@@ -1,8 +1,8 @@
 # OpenAI hosted tool inventory
 
-Generated from the pinned [official Node SDK declarations](openai-hosted-inventory.json). See [the usage guide](openai-hosted.md).
+Generated from the pinned [official Node SDK declarations](openai-hosted-inventory.json). See [the usage guide](openai-hosted.md) and [output references](output-references.md).
 
-Selected hosted Responses declarations and executable request fields only; not a claim of nested semantics, live model behavior, or endpoint parity. Only completed image result bytes become public ImagePart content; other image metadata stays private. Partial images, public citations, hosted progress and downloaded container files are not normalized. External type references are retained, not expanded. Other tools, local executors, and unselected declarations are excluded.
+Selected hosted Responses and output-reference declarations, with executable hosted request fields; not a claim of complete nested semantics, live behavior or endpoint parity. Four annotation forms have typed public reference projections. Native positions remain opaque, distinct from enclosing UTF-16 text segments. Scoped file handles are deliberately public references; unknown fields and native replay stay private. Completed image bytes become public ImagePart content. Partial images, precise native-coordinate highlights, hosted progress and downloaded container files remain open. External type references are retained, not expanded. Other tools, local executors and unselected declarations are excluded.
 
 ## FileSearchTool
 
@@ -65,6 +65,50 @@ Disposition: private-replay
 | --- | --- |
 | type | `'image'` |
 | url | `string` |
+
+## ResponseContentPartAddedEvent
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| content_index | `number` |
+| item_id | `string` |
+| output_index | `number` |
+| part | `ResponseOutputText \| ResponseOutputRefusal \| ResponseContentPartAddedEvent.ReasoningText` |
+| sequence_number | `number` |
+| type | `'response.content_part.added'` |
+
+## ResponseContentPartAddedEvent.ReasoningText
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| text | `string` |
+| type | `'reasoning_text'` |
+
+## ResponseContentPartDoneEvent
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| content_index | `number` |
+| item_id | `string` |
+| output_index | `number` |
+| part | `ResponseOutputText \| ResponseOutputRefusal \| ResponseContentPartDoneEvent.ReasoningText` |
+| sequence_number | `number` |
+| type | `'response.content_part.done'` |
+
+## ResponseContentPartDoneEvent.ReasoningText
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| text | `string` |
+| type | `'reasoning_text'` |
 
 ## ResponseFileSearchToolCall
 
@@ -180,6 +224,157 @@ Disposition: private-replay
 | --- | --- |
 | categories | `Array<string>` |
 | moderation_stage | `'input' \| 'output' \| 'unknown'` |
+
+## ResponseOutputMessage
+
+Disposition: private-replay
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| content | `Array<ResponseOutputText \| ResponseOutputRefusal>` |
+| role | `'assistant'` |
+| status | `'in_progress' \| 'completed' \| 'incomplete'` |
+| type | `'message'` |
+| phase? | `'commentary' \| 'final_answer' \| null` |
+
+## ResponseOutputText
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| annotations | `Array<ResponseOutputText.FileCitation \| ResponseOutputText.URLCitation \| ResponseOutputText.ContainerFileCitation \| ResponseOutputText.FilePath>` |
+| text | `string` |
+| type | `'output_text'` |
+| logprobs? | `Array<ResponseOutputText.Logprob>` |
+
+## ResponseOutputText.FileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| filename | `string` |
+| index | `number` |
+| type | `'file_citation'` |
+
+## ResponseOutputText.URLCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| end_index | `number` |
+| start_index | `number` |
+| title | `string` |
+| type | `'url_citation'` |
+| url | `string` |
+
+## ResponseOutputText.ContainerFileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| container_id | `string` |
+| end_index | `number` |
+| file_id | `string` |
+| filename | `string` |
+| start_index | `number` |
+| type | `'container_file_citation'` |
+
+## ResponseOutputText.FilePath
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| index | `number` |
+| type | `'file_path'` |
+
+## ResponseOutputText.Logprob
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| token | `string` |
+| bytes | `Array<number>` |
+| logprob | `number` |
+| top_logprobs | `Array<Logprob.TopLogprob>` |
+
+## ResponseOutputText.Logprob.TopLogprob
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| token | `string` |
+| bytes | `Array<number>` |
+| logprob | `number` |
+
+## ResponseOutputTextAnnotationAddedEvent
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| annotation | `ResponseOutputTextAnnotationAddedEvent.FileCitation \| ResponseOutputTextAnnotationAddedEvent.URLCitation \| ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation \| ResponseOutputTextAnnotationAddedEvent.FilePath \| null` |
+| annotation_index | `number` |
+| content_index | `number` |
+| item_id | `string` |
+| output_index | `number` |
+| sequence_number | `number` |
+| type | `'response.output_text.annotation.added'` |
+
+## ResponseOutputTextAnnotationAddedEvent.FileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| filename | `string` |
+| index | `number` |
+| type | `'file_citation'` |
+
+## ResponseOutputTextAnnotationAddedEvent.URLCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| end_index | `number` |
+| start_index | `number` |
+| title | `string` |
+| type | `'url_citation'` |
+| url | `string` |
+
+## ResponseOutputTextAnnotationAddedEvent.ContainerFileCitation
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| container_id | `string` |
+| end_index | `number` |
+| file_id | `string` |
+| filename | `string` |
+| start_index | `number` |
+| type | `'container_file_citation'` |
+
+## ResponseOutputTextAnnotationAddedEvent.FilePath
+
+Disposition: reviewed-reference-output
+
+| Field | Source type |
+| --- | --- |
+| file_id | `string` |
+| index | `number` |
+| type | `'file_path'` |
 
 ## ResponseToolSearchCall
 
@@ -323,3 +518,46 @@ Disposition: raw-native-options
 | region? | `string \| null` |
 | timezone? | `string \| null` |
 | type? | `'approximate'` |
+
+## ChatCompletionMessage
+
+Disposition: private-buffered-response
+
+| Field | Source type |
+| --- | --- |
+| content | `string \| null` |
+| refusal | `string \| null` |
+| role | `'assistant'` |
+| annotations? | `Array<ChatCompletionMessage.Annotation>` |
+| audio? | `ChatCompletionAudio \| null` |
+| function_call? | `ChatCompletionMessage.FunctionCall \| null` |
+| tool_calls? | `Array<ChatCompletionMessageToolCall>` |
+
+## ChatCompletionMessage.Annotation
+
+Disposition: buffered-reference-output
+
+| Field | Source type |
+| --- | --- |
+| type | `'url_citation'` |
+| url_citation | `Annotation.URLCitation` |
+
+## ChatCompletionMessage.Annotation.URLCitation
+
+Disposition: buffered-reference-output
+
+| Field | Source type |
+| --- | --- |
+| end_index | `number` |
+| start_index | `number` |
+| title | `string` |
+| url | `string` |
+
+## ChatCompletionMessage.FunctionCall
+
+Disposition: private-buffered-response
+
+| Field | Source type |
+| --- | --- |
+| arguments | `string` |
+| name | `string` |

@@ -78,6 +78,7 @@ nav:
       - Custom providers: providers.md
       - Documents: documents.md
       - Document citations: citations.md
+      - Output references: output-references.md
       - OpenAI computer use: computer-use.md
       - OpenAI capabilities: openai.md
       - OpenAI hosted tools: openai-hosted.md

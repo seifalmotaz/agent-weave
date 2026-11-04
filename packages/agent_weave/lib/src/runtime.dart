@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'package:json_schema/json_schema.dart';
 import 'cancellation.dart';
 import 'citations.dart';
+import 'references.dart';
 import 'diagnostics.dart';
 import 'model.dart';
 import 'protocol.dart';
@@ -193,12 +194,13 @@ final class AiAgent<C> {
     String? partialMessageId;
     StringBuffer? partialText;
     List<TextCitation>? partialCitations;
+    List<OutputReference>? partialReferences;
     void preservePartial() {
       final id = partialMessageId;
       final text = partialText;
       if (id != null &&
           text != null &&
-          text.isNotEmpty &&
+          (text.isNotEmpty || (partialReferences?.isNotEmpty ?? false)) &&
           !messages.any((m) => m.id == id)) {
         messages.add(
           ChatMessage(
@@ -206,6 +208,7 @@ final class AiAgent<C> {
             role: MessageRole.assistant,
             content: [TextPart(text.toString())],
             citations: partialCitations ?? const [],
+            references: partialReferences ?? const [],
           ),
         );
       }
@@ -485,6 +488,8 @@ final class AiAgent<C> {
         final text = StringBuffer();
         final media = <({int offset, ContentPart part})>[];
         final citations = <TextCitation>[];
+        final references = <OutputReference>[];
+        partialReferences = references;
         partialCitations = citations;
         var hasMedia = false;
         partialMessageId = messageId;
@@ -529,6 +534,17 @@ final class AiAgent<C> {
               yield await event('TEXT_MESSAGE_CONTENT', {
                 'messageId': messageId,
                 'delta': delta,
+              });
+            case ReferenceReady(:final reference):
+              reference.validateFor(text.toString());
+              references.add(reference);
+              yield await event('CUSTOM', {
+                'name': 'agent_weave:reference',
+                'value': {
+                  'messageId': messageId,
+                  'referenceIndex': references.length - 1,
+                  'reference': reference.toJson(),
+                },
               });
             case CitationReady(:final citation):
               citation.validateFor(text.toString());
@@ -650,6 +666,7 @@ final class AiAgent<C> {
             role: MessageRole.assistant,
             content: content,
             citations: citations,
+            references: references,
             toolCalls: calls,
             providerData: providerData,
           ),
@@ -657,6 +674,7 @@ final class AiAgent<C> {
         partialMessageId = null;
         partialText = null;
         partialCitations = null;
+        partialReferences = null;
         // Checkpoint before executing tools; event deltas use an append-only log.
         await store.save(
           ownerId: ownerId,
@@ -675,6 +693,7 @@ final class AiAgent<C> {
         if (continueTurn) {
           if (hasMedia ||
               citations.isNotEmpty ||
+              references.isNotEmpty ||
               (outputSchema != null && textStarted)) {
             // A paused invocation is progress text, not a failed JSON answer.
             yield await event('MESSAGES_SNAPSHOT', {
@@ -694,6 +713,7 @@ final class AiAgent<C> {
               role: MessageRole.assistant,
               content: content,
               citations: citations,
+              references: references,
               providerData: providerData,
               structuredOutput: StructuredMessageOutput(text.toString()),
             );
@@ -706,7 +726,7 @@ final class AiAgent<C> {
               },
             });
           }
-          if (hasMedia || citations.isNotEmpty) {
+          if (hasMedia || citations.isNotEmpty || references.isNotEmpty) {
             yield await event('MESSAGES_SNAPSHOT', {
               'messages': chatHydration(state())['messages'],
             });
@@ -717,6 +737,7 @@ final class AiAgent<C> {
         }
         if (hasMedia ||
             citations.isNotEmpty ||
+            references.isNotEmpty ||
             (outputSchema != null && textStarted)) {
           yield await event('MESSAGES_SNAPSHOT', {
             'messages': chatHydration(state())['messages'],

@@ -21,13 +21,13 @@ and interoperability with the pinned official JavaScript client.
 
 ## Verified locally
 
-The latest typed-citation increment was checked on
+The latest native-output-reference increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 460 Dart unit and regression tests: tool validation, approvals, client tools,
+- 484 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 21 Serverpod integration tests with a real isolated PostgreSQL database:
+- 22 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -613,3 +613,48 @@ JavaScript fixture reads the actual stored log through the adapter's GET
 message and index retains two identical citations after replay without creating
 four. This is completed-log replay evidence, not automatic reconnection during
 a live provider call.
+
+
+## Upstream SDK citation file IDs
+
+The isolated upstream correction in
+[PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441) retains nullable
+file IDs in the three document citation response DTOs and leaves request types
+unchanged. Dart 3.13.3 checks passed 1,851 package unit tests with three
+environment-key skips and strict analysis. An independent actual SDK loopback
+consumer covers stored-message reload, cache equality, clear/copy, streaming and
+`toInputMessage()` request projection; its scoped score is 9/10.
+The sparse checkout used a cached remapped package configuration, not a fresh
+monorepo bootstrap. This contribution does not update AgentWeave's SDK pin or
+publish a package.
+
+## Native OpenAI output references
+
+The full Dart 3.12.2 check passes 484 unit/regression tests and 22 real
+PostgreSQL/Serverpod tests, both clients, all consumers and contract checks. Three
+documentation tests and a strict site build pass.
+
+Core fixtures exercise native range, insertion and file-list position types,
+empty enclosing parts, JSON snapshots, immutable collections, invalid spans,
+provider mismatches, partial failure and cancellation. The existing citation
+suite continues to pass. OpenAI fixtures cover all four Responses annotations,
+initial and streamed echoes, null placeholders, exact text reconciliation,
+unknown/conflicting data, EOF and cancellation before tool effects. Buffered
+Chat fixtures cover native nested URL annotations, typed options/schema guards,
+private audit data, cancellation isolation and malformed output. Native Chat
+streaming rejects unknown/inconsistent finishes and late choices before tools.
+
+Independent native SDK loopback consumers score the selected Responses and
+buffered Chat flows 8/10 each. A PostgreSQL test recreates an approval and verifies
+all four typed reference forms, event order, private replay, owner isolation and
+intentional public scoped file IDs. Its initial assertion incorrectly expected
+only an assistant in `responseMessages`; filtering out the tool result corrected
+that fixture. Both clients retain references alongside citations through snapshots,
+history restoration and completed-log replay; replay upserts retain legitimate
+duplicates. Guide examples byte-match their runnable sources and compile without
+running the billable demos.
+
+No paid calls were made. Native Unicode offset interpretation, live model
+acceptance, actual authenticated file download, production rendering and other
+providers' reference normalization remain unverified. These checks preserve
+reported positions; they do not establish precise inline highlighting.

@@ -74,9 +74,17 @@ try {
   }
   const seenCitations = [];
   const citationPositions = new Map();
+  const seenReferences = [];
+  const referencePositions = new Map();
   let citationRunId;
   const citationConnection = fetchServerSentEvents(`${base}/citations`);
   function recordCitation(name, value) {
+    if (name === 'agent_weave:reference') {
+      CustomEventSchema.parse({type: 'CUSTOM', name, value});
+      seenReferences.push(value);
+      referencePositions.set(`${value.messageId}:${value.referenceIndex}`, value.reference);
+      return;
+    }
     if (name !== 'agent_weave:citation') return;
     CustomEventSchema.parse({type: 'CUSTOM', name, value});
     seenCitations.push(value);
@@ -96,6 +104,14 @@ try {
     assert.deepEqual(seenCitations.map(c => c.citationIndex), [0, 1]);
     assert.equal(seenCitations[0].messageId, live.id);
     const annotations = live.metadata.agent_weave.citations;
+    const references = live.metadata.agent_weave.references;
+    assert.equal(references.length, 2);
+    assert.deepEqual(references, seenReferences.map(r => r.reference));
+    assert.deepEqual(seenReferences.map(r => r.referenceIndex), [0, 1]);
+    assert.equal(references[0].source.fileId, 'file-visible');
+    assert.equal(references[0].position.type, 'file_list');
+    assert.equal(references[0].position.index, 99);
+    assert.equal(references[0].source.filename, undefined);
     assert.deepEqual(annotations, seenCitations.map(c => c.citation));
     assert.deepEqual(annotations[0], annotations[1]);
     assert.equal('A 🌿 grows.'.slice(annotations[0].start, annotations[0].end), '🌿');
@@ -117,10 +133,13 @@ try {
       assert.equal(replay.getError(), undefined);
       assert.equal(seenCitations.length, 4);
       assert.equal(citationPositions.size, 2);
+      assert.equal(seenReferences.length, 4);
+      assert.equal(referencePositions.size, 2);
+      assert.deepEqual([...referencePositions.values()], references);
       assert.deepEqual([...citationPositions.values()], annotations);
       assert.deepEqual(replay.getMessages().find(m => m.role === 'assistant').metadata, live.metadata);
     } finally { replay.dispose(); }
-    console.log('PASS official JS client: typed citations, duplicate-safe replay, snapshot and hydration');
+    console.log('PASS official JS client: citations/references, duplicate-safe replay, snapshot and hydration');
   } finally { citations.dispose(); }
   const media = new ChatClient({threadId: 'output-media', connection: fetchServerSentEvents(`${base}/media`)});
   try {
