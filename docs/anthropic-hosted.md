@@ -23,6 +23,7 @@ Future<void> main() async {
   try {
     final agent = AiAgent<void>(
       model: client.chatModel(
+        authorityBindingId: 'example-anthropic-account',
         model: modelId,
         hostedTools: [
           anthropic.AnthropicHostedTool(
@@ -80,8 +81,10 @@ Pass the resulting values through `hostedTools` on
 `AnthropicNativeClient.chatModel`, `AnthropicProtocolModel`, or the SDK-backed
 `AnthropicChatModel`. Hosted names must be unique and cannot shadow registered
 application tool names. The runtime protects the complete tool list from
-replacement by `configure`. Provider decorations such as `allowed_callers`,
-`defer_loading`, `strict` and cache control can be set through configuration.
+replacement. Managed tools require `authorityBindingId` and frozen options;
+`configure` is rejected at construction. Use `functionToolOptions` for registered
+function decorations such as `allowed_callers`, `defer_loading`, `strict` and
+cache control.
 
 ## Pauses, replay and containers
 
@@ -139,7 +142,7 @@ text blocks for replay; this release has no public citation-rendering event.
 
 The normalizer accepts the pinned content union, including search, fetch, code,
 bash-code, text-editor-code and tool-search results plus container uploads.
-Unknown top-level blocks or deltas fail explicitly. MCP, browser tools and
+Unknown top-level blocks or deltas fail explicitly. MCP uses its own [connector contract](anthropic-mcp.md). Browser tools and
 complete nested response semantics remain outside this integration.
 
 Local fixtures cover typed and raw definitions, fragmented server input, opaque
@@ -153,3 +156,44 @@ The [official programmatic-calling guide](https://platform.claude.com/docs/en/ag
 describes caller aliases, required containers and timeout limits. Container
 expiry can still reject a later continuation; application tools must implement
 idempotency and reconcile external effects. No live expiry policy is certified.
+
+## Immutable request options
+
+`AnthropicChatModel`, `AnthropicProtocolModel` and the native client's
+`chatModel` snapshot these declarations and include them in the private model
+continuation profile:
+
+| Parameter | Purpose |
+| --- | --- |
+| `options` | Native request fields such as thinking, metadata, request cache control and output effort; runtime-owned history, schema and bounds are excluded |
+| `toolChoice` | Native tool-choice object |
+| `functionToolOptions` | Registered function name to strict, defer-loading, allowed-caller and cache-control decorations |
+| `container` | Initial container ID or native object, including skills; returned IDs take precedence and remain protected |
+| `messageDecorations` | Stable user-message ID to content-part-indexed decoration maps; null entries leave a part unchanged |
+| `systemCacheControl` | Cache control on the runtime's system instruction text block |
+
+For example, a user message named `brief` whose first part is a document can use:
+
+```dart
+messageDecorations: {
+  'brief': [
+    {
+      'context': 'A customer brief',
+      'cache_control': {'type': 'ephemeral'},
+      'citations': {'enabled': true},
+    },
+  ],
+},
+systemCacheControl: {'type': 'ephemeral'},
+```
+
+These maps cannot replace document source, title, text or tool input. Text and
+image parts accept cache control; documents also accept context and citation
+configuration. The existing citation rules still require all documents enabled
+or all disabled, and reject citations with structured output. The caller must
+supply a system instruction when using `systemCacheControl`.
+
+Callbacks remain available for ordinary models without managed tools. Their
+validation occurs on the next invocation and can fail after an approved local
+tool has run. Prefer declarative options for resumed applications. The model
+constructors are no longer const because they copy caller-owned collections.

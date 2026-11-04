@@ -24,4 +24,5 @@ jobs:
       - run: node tool/interop/computer-inventory.mjs --upstream
       - run: node tool/interop/openai-hosted-inventory.mjs --upstream
       - run: node tool/interop/anthropic-inventory.mjs --upstream
+      - run: node tool/interop/anthropic-mcp-inventory.mjs --upstream
       - run: node tool/interop/anthropic-computer-inventory.mjs --upstream

@@ -276,3 +276,28 @@ Run the reference consumers, both client metadata/replay cases and PostgreSQL
 approval recreation after a reference change. The default Chat streaming adapter
 uses raw SDK events and has its own strict completion guard; compatible adapters
 do not inherit that contract. Keep raw audit state separate from public handles.
+
+## Anthropic MCP contracts and migration
+
+The selected beta Messages MCP declarations are pinned separately from the GA
+Messages inventory in `tool/contracts/anthropic-mcp`. Preserve its unmodified
+source and Apache license. Review the root list, recursive type/union projection,
+source hash, documentation constraints and Dart executable fixture together.
+`--write` refuses an unreviewed source/projection change. `--upstream` compares
+current official main without changing the pin.
+
+```sh
+node --test tool/interop/anthropic-mcp-inventory.test.mjs
+node tool/interop/anthropic-mcp-inventory.mjs --check
+node tool/interop/anthropic-mcp-inventory.mjs --upstream
+```
+
+After review, update the source and reviewed declarations, implementation,
+normalization tests, configuration fixture and evidence before regenerating
+with `--write`. Constructor field coverage is not workflow or live proof.
+
+Anthropic managed tools now require `authorityBindingId`; callbacks migrate to
+immutable request, function, container and message/system-cache parameters.
+See [hosted options](anthropic-hosted.md#immutable-request-options). Both model
+constructors are non-const. Keep the original profile through unfinished turns;
+legacy pending state without it fails closed, without a table migration.

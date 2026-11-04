@@ -93,6 +93,7 @@ nav:
       - Together request fields: together-options.md
       - Anthropic Messages: anthropic.md
       - Anthropic hosted tools: anthropic-hosted.md
+      - Anthropic MCP connector: anthropic-mcp.md
       - Anthropic computer use: anthropic-computer.md
       - Ollama local models: ollama.md
       - Testing your application: testing.md
@@ -112,6 +113,7 @@ nav:
       - OpenAI hosted fields: openai-hosted-parameters.md
       - Anthropic request fields: anthropic-parameters.md
       - Anthropic computer fields: anthropic-computer-parameters.md
+      - Anthropic MCP fields: anthropic-mcp-parameters.md
       - Ollama API fields: ollama-parameters.md
       - Developer reviews: dx-review.md
       - Coding-agent guide: agent-guide.md

@@ -163,6 +163,7 @@ Future<void> journey(String mode) async {
   final store = MemoryRunStore();
   AiAgent<void> agent() => AiAgent<void>(
     model: client.chatModel(
+      authorityBindingId: 'example-anthropic-account',
       model: 'fixture',
       hostedTools: [
         api.AnthropicHostedTool(const api.WebSearchTool(maxUses: 3)),
@@ -420,21 +421,14 @@ Future<void> programmatic(String allowedCaller) async {
   final store = MemoryRunStore();
   AiAgent<void> agent() => AiAgent<void>(
     model: client.chatModel(
+      authorityBindingId: 'example-anthropic-account',
       model: 'fixture',
       hostedTools: [api.AnthropicHostedTool(api.CodeExecutionBuiltInTool())],
-      configure: (body) => {
-        ...body,
-        'tools': [
-          for (final tool in body['tools'] as List)
-            if ((tool as Map)['name'] == 'double')
-              {
-                ...tool,
-                'allowed_callers': [allowedCaller],
-                'defer_loading': true,
-              }
-            else
-              tool,
-        ],
+      functionToolOptions: {
+        'double': {
+          'allowed_callers': [allowedCaller],
+          'defer_loading': true,
+        },
       },
     ),
     store: store,

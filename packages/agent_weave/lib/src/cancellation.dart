@@ -32,6 +32,41 @@ final class CancellationToken {
     return controller.stream;
   }
 
+  /// Wait for an already-started future or stop waiting when cancelled.
+  ///
+  /// Cancellation does not stop the underlying operation. Its eventual error is
+  /// consumed if it finishes after this wait has been cancelled.
+  Future<T> waitFor<T>(Future<T> future) async {
+    final result = Completer<T>();
+    void cancelled() {
+      if (!result.isCompleted) result.completeError(const RunCancelled());
+    }
+
+    future.then<void>(
+      (value) {
+        if (!result.isCompleted) result.complete(value);
+      },
+      onError: (Object error, StackTrace stack) {
+        if (!result.isCompleted) result.completeError(error, stack);
+      },
+    );
+    if (isCancelled) {
+      cancelled();
+    } else {
+      _listeners.add(cancelled);
+    }
+    try {
+      final value = await result.future;
+      throwIfCancelled();
+      return value;
+    } catch (_) {
+      throwIfCancelled();
+      rethrow;
+    } finally {
+      _listeners.remove(cancelled);
+    }
+  }
+
   /// Bind one stream invocation to this signal without cancelling its siblings.
   Stream<T> bindStream<T>(
     Stream<T> Function(CancellationToken child) create, {

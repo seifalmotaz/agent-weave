@@ -24,10 +24,10 @@ and interoperability with the pinned official JavaScript client.
 The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
 SDK and the stable channel; inspect the run for the commit you use.
 
-- 566 Dart unit and regression tests: tool validation, approvals, client tools,
+- 611 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 26 Serverpod integration tests with a real isolated PostgreSQL database:
+- 31 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -772,7 +772,8 @@ live remote effect executes exactly once.
 
 ## Upstream MCP output contribution
 
-[PR #443](https://github.com/davidmigloz/ai_clients_dart/pull/443) fixes native MCP
+[PR #443](https://github.com/davidmigloz/ai_clients_dart/pull/443), merged upstream on
+2026-11-04, fixes native MCP
 output decoding in `openai_dart`. The installed 11.0.1 and freshly checked
 upstream base `35e2d435` failed four native output examples through both public
 parsers; calls required an undocumented `call_id`, and discovery/approval items
@@ -787,10 +788,13 @@ The independent public-client loopback consumer also sends the actual approval
 response using the existing `ResponseInput.fromOutputItems` factory. Generic
 `CreateResponseRequest.fromJson` still rejects that MCP input; typed input and
 conversation-resource models are separate known gaps, not covered by this output
-fix. AgentWeave's SDK dependency pin remains unchanged. No live or paid call,
-upstream merge or package publication is implied by this submitted PR.
+fix. AgentWeave's SDK dependency remains pinned to published 11.0.1. The recorded
+SDK validation describes the submitted patch; the upstream merge is separate
+from adopting or publishing an SDK release. No live or paid call was made.
 
 ## Anthropic MCP execution guard
+
+Historical round-25 boundary. The native MCP section below describes its replacement with owned configuration and replay.
 
 A separate consumer review found that native `configure` could send legacy
 `mcp_servers` despite unsupported MCP output normalization. Its local synthetic
@@ -834,3 +838,61 @@ remote execution, automatic authority discovery, identity-provider behavior or
 exactly-once external effects. Undeclared custom adapters do not receive an
 identity guarantee; other built-in providers need their own profile support.
 No paid provider call was made for this increment.
+
+## Native Anthropic MCP and credential cancellation
+
+Owned Messages MCP configuration supports explicit legacy, 2025 and 2026 beta
+modes. Configuration fixtures and the selected official beta declaration
+inventory cover server options, credentials, defaults/per-tool filters, cache
+control and pinned tool descriptors. The normalizer privately retains native
+use/result/listing blocks and unknown fields. Tests cover duplicate/orphan IDs,
+non-object JSON input, truncated/refused pending calls, explicit and recorded
+listing integrity, current-call allow/deny policy, mixed local approval and counted paused turns.
+
+Five new PostgreSQL tests use an actual loopback HTTP provider fixture. Each
+beta mode recreates a mixed local/MCP turn, rejects changed server, remote
+credential binding, provider authority, options, model and beta before any
+local effect or resumed request, and completes with refreshed credentials under
+the original binding. Other cases reload a 2026 provider-only pause at the step
+limit and verify that an uncertain 503 send blocks a later recreated request.
+Native blocks stay private in hydration/journals and credentials stay outside
+saved configuration. The provider fixture does not perform remote MCP effects.
+
+Independent public-API consumers exercise multiple servers/toolsets, deferred
+results, native and SDK-backed clients, all three beta modes, metadata echo
+sanitization, one-send 503 behavior and cancellation boundaries. The tracked
+recipe is `examples/review_cases/anthropic_mcp.dart`. The scoped score is 8/10
+with the new guide, not overall SDK acceptance.
+
+A separate stalled-OAuth probe reproduced and then verified the fix in both
+Anthropic and OpenAI MCP. Cancellation now releases the in-memory reservation
+before the resolver returns, without sending or setting an indeterminate
+marker; late failures are consumed. Core tests also cover pre-cancellation,
+success/failure propagation and listener isolation. The underlying application
+Future is not cancelled. SDK 9.0.1's pending-response-header abort limitation
+still applies after dispatch; native transport remains the recommended path.
+
+No paid provider call, actual OAuth server, external MCP effect, cloud-platform
+acceptance or mobile UI was tested. Private provider-generated content can
+contain sensitive data; preserving opaque replay is distinct from sanitizing
+owned credentials in configuration, metadata and errors. This is not complete
+Anthropic API, inline tool-change or Managed Agents coverage.
+
+MCP transport diagnostics retain HTTP status and a redacted native request ID,
+without provider body/headers. The pinned SDK's streaming path loses the server
+request ID; a public MockClient reproduction confirms this on published 9.0.1
+and freshly fetched upstream main `eed64e89576f9d977fb0cf7728d766cf898f079a`,
+including the merged cancellation fix. This is an upstream metadata gap, not a
+claim about actual remote effects. Local correlation IDs are not substituted.
+
+The streaming-error correction is submitted as
+[upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445).
+The additive `ApiException.requestId` reads server response metadata for typed
+Messages, raw POST/GET and default JSONL errors; it never substitutes a local
+correlation ID. Streaming metadata excludes body excerpts and unrelated headers,
+while existing exception messages/details can still contain provider content.
+Invalid or oversized numeric retry headers return an ordinary rate-limit
+exception. RFC 1123 date parsing and custom JSONL error factories are outside
+this fix. With credentials unset, 1,872 SDK unit tests pass with three skipped,
+and package analysis is clean. Independent public-client and adversarial
+retry-header probes pass. This PR is not a published dependency update.

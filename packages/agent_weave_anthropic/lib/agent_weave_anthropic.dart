@@ -6,3 +6,10 @@ export 'src/protocol.dart';
 export 'src/native_client.dart';
 export 'src/computer_tool.dart';
 export 'src/hosted_tool.dart' show AnthropicHostedTool;
+
+export 'src/mcp_tool.dart'
+    show
+        AnthropicMcpBeta,
+        AnthropicMcpServer,
+        AnthropicMcpToolset,
+        AnthropicMcpToolConfig;

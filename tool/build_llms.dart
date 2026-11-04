@@ -30,6 +30,8 @@ const documents = [
   'docs/together-options.md',
   'docs/anthropic.md',
   'docs/anthropic-hosted.md',
+  'docs/anthropic-mcp.md',
+  'docs/anthropic-mcp-parameters.md',
   'docs/anthropic-parameters.md',
   'docs/anthropic-computer.md',
   'docs/anthropic-computer-parameters.md',

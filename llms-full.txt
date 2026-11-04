@@ -18,7 +18,7 @@ using it in production.
 | Package | Use it for |
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
-| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, private replay, cache controls, and cancellation |
+| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, MCP, private replay, cache controls, and cancellation |
 | [`agent_weave_ollama`](packages/agent_weave_ollama) | Local Ollama chat, typed options, embeddings and native NDJSON |
 | [`agent_weave_dart_frog`](packages/agent_weave_dart_frog) | Authenticated Dart Frog chat, history, replay and generation handlers |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
@@ -129,6 +129,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI hosted tools and images](docs/openai-hosted.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
+- [Anthropic MCP connector](docs/anthropic-mcp.md)
 - [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
 - [OpenRouter Chat images](docs/openrouter-images.md)
@@ -180,7 +181,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
-  browser/MCP tools, live citation quality and full nested semantics remain
+  browser tools, live MCP/citation behavior and full nested semantics remain
   open. Constructor coverage is not workflow certification.
 - OpenRouter Chat now handles selected completed text/image output, with private
   replay across approvals; its dedicated Image API, streamed Chat image extensions
@@ -195,6 +196,11 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   forms and completed Chat URL references, including empty segments and opaque
   native positions. Other provider references, live indexing conventions,
   authorized download recipes and device rendering remain open.
+- Native Anthropic Messages MCP now supports explicit legacy/2025/2026 modes,
+  private use/result/listing replay, owner-bound credentials, mixed local
+  approvals, immutable provider profiles and uncertain-send protection. Live
+  remote execution, OAuth providers, inline tool changes and platform acceptance
+  remain open; offline tests are not a complete native API certification.
 - Native OpenAI Responses MCP now supports private discovery/call replay, multiple
   server configurations, credential resolution and approval/denial decisions.
   Generic client, loopback and durable fixtures do not establish live remote
@@ -1396,6 +1402,8 @@ request counts; it cannot establish live exactly-once remote execution.
 
 ## Round 25: Anthropic MCP baseline and interim guard
 
+Historical review: round 27 below replaces this interim boundary with owned MCP integration.
+
 The independent native Anthropic consumer scored the attempted MCP journey
 **1.5/10**. Unlike OpenAI's approval path, the documented connector uses
 provider-executed `mcp_tool_use` and `mcp_tool_result` blocks. Modern toolset
@@ -1440,6 +1448,36 @@ profile drift, retained pending history and credential rotation. The tracked
 `model_continuation_test.dart` files and OpenAI `model_profile_test.dart` make
 these regressions reproducible through `dart run tool/check.dart`.
 
+## Round 27: native Anthropic MCP
+
+The independent developer wrote and ran public-API consumers for multiple
+servers, mixed/deferred calls, local approval, changed configuration, token
+refresh, all three beta modes, listing replay, native and SDK-backed HTTP
+fixtures, 503 one-send behavior and cancellation boundaries. The scoped score
+was **7.5/10**, rising to **8/10** after checking the runnable guide and
+credential-resolution cancellation. These are scoped offline scores.
+
+It found a legacy no-tools cast failure and a synthetic credential echo in
+message-delta checkpoint metadata. Both were fixed and the original probes now
+pass. A separate schema review found incomplete MCP at terminal stop reasons
+and scalar/list/null native input; those received regressions. Declared request,
+function, container and document/system caching options preserve the previous
+callback workflows for managed models.
+
+Run `dart --enable-asserts run examples/review_cases/anthropic_mcp.dart` for the
+tracked independent application. It verifies two server/toolsets, deferred MCP
+with a local approval, pre-effect profile rejection, unchanged-token-authority
+refresh, exact private replay and hydration/journal boundaries. Mocked HTTP
+responses do not execute a real remote tool or establish provider availability.
+PostgreSQL verification is separate from the developer's review.
+
+A later independent probe reproduced cancellation stalling during an unresolved
+OAuth Future in both MCP adapters. The shared cancellation-aware wait now
+finishes without provider dispatch or an indeterminate marker, permits an
+in-memory reservation to be reacquired before the resolver finishes, and
+consumes late resolver errors. It does not cancel the underlying OAuth work.
+The guide's live example compiled without execution and matches its code block.
+
 
 # Source: docs/architecture.md
 
@@ -1470,7 +1508,7 @@ operation.
 An adapter can implement `ModelContinuationContract` to bind its frozen,
 secret-free execution profile across a pending batch or provider pause. Core
 checks the original private snapshot before resumed effects and dispatch.
-Native OpenAI Responses uses it for managed tools, options and provider/account
+Native OpenAI Responses and Anthropic Messages use it for managed tools, options and provider/account
 authority; other adapters need their own declaration. Unbound custom models do
 not gain an identity guarantee. See [approval contracts](approval-contracts.md).
 
@@ -1695,6 +1733,16 @@ bag. Native output remains private, with only reviewed fields projected.
 Applications own file authorization and download routing. See
 [output references](output-references.md).
 
+## Anthropic MCP ownership
+
+MCP servers and toolsets are owned immutable provider configuration. The adapter
+resolves credentials per request and emits `ProviderExecutionStarting` before
+dispatch so core can checkpoint an uncertain effect. Remote use/results and
+2026 listings remain private native replay; they never invoke local executors.
+A mixed local turn can defer remote execution until local results are returned.
+The same model profile, beta and server authority survive that approval or a
+provider-only pause. See [MCP](anthropic-mcp.md).
+
 
 # Source: docs/tools.md
 
@@ -1846,11 +1894,12 @@ restarts until the turn finishes. Mismatches preserve the old checkpoint and
 release the attempted run's reservation. Retry with the original configuration
 or start a new conversation; never rebind an old approval to today's settings.
 
-Native OpenAI Responses models implement this capability. Their profiles bind
+Native OpenAI Responses and Anthropic Messages models implement this capability.
+Their profiles bind
 the model and protocol, stable `authorityBindingId`, complete ordered managed
 tool definitions, MCP credential bindings, `toolChoice`, frozen `functionToolOptions` and
-`options`.
-Managed tools require an authority ID and reject arbitrary `configure`
+`options`. Anthropic additionally binds initial container, document/system
+cache declarations and its beta list. Managed tools require an authority ID and reject arbitrary `configure`
 callbacks. Credential rotation under the same logical account is permitted;
 actual tokens are resolved per request and stay outside the profile. The
 application must assign authority IDs honestly, including endpoint and account
@@ -5572,7 +5621,8 @@ the provider.
 
 Existing integrations can still construct `AnthropicChatModel` with an
 `anthropic_sdk_dart` `AnthropicClient` and a typed `MessageCreateRequest`
-`configure` callback. The SDK client is caller-owned. The typed callback's patch
+`configure` callback for models without managed tools. Managed tools use
+frozen options and require an authority binding. The SDK client is caller-owned. The typed callback's patch
 preserves unknown unchanged JSON fields; edits to fields or lists can replace the
 corresponding values. The SDK's typed representation still cannot express every
 new provider field. Prefer the native client for unknown fields and
@@ -5588,7 +5638,8 @@ text, thinking, redacted thinking, client tool-use and pinned hosted-tool blocks
 text, thinking, signature and input JSON deltas. Citation blocks are normalized as typed message annotations and additive UI
 events; opaque native fields remain private. See [document citations](citations.md). Unknown block types or deltas
 fail explicitly. Hosted tools and bounded `pause_turn` continuation are integrated; see the
-[hosted-tool guide](anthropic-hosted.md). Audio/video, MCP, browser tools and
+[hosted-tool guide](anthropic-hosted.md). MCP calls, results and listing replay are integrated through owned server
+configuration; see [MCP](anthropic-mcp.md). Audio/video, browser tools and
 complete nested semantics remain unfinished. Use raw native access for other
 protocols.
 For client computer use, see the [computer-use guide](anthropic-computer.md).
@@ -5605,7 +5656,7 @@ they do not establish live model support or complete endpoint parity.
 [SDK PR #432](https://github.com/davidmigloz/ai_clients_dart/pull/432) adds prompt
 cancellation before response headers, during stalled bodies, and through the
 public stream wrappers while retaining shared-client ownership. The contribution
-is submitted, not merged or released. AgentWeave's native client already uses
+is merged; published SDK 9.0.1 does not include it. AgentWeave's native client already uses
 its own shared transport and does not require this unreleased SDK change.
 
 ## Upstream citation file identifiers
@@ -5615,19 +5666,17 @@ AgentWeave preserves raw native blocks independently. The typed SDK correction
 was merged in [upstream PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441).
 The dependency remains pinned to 9.0.1 until an upstream release includes the fix.
 
-## MCP connector boundary
+## MCP connector
 
-The agent model does not yet normalize Anthropic MCP server calls and results.
-Nonempty `mcp_servers` configuration is rejected before HTTP dispatch, as is
-unsupported `mcp_toolset` injection. Null or empty server lists and unrelated
-request options remain available. This is an interim execution guard, not MCP
-integration; the complete owned lifecycle remains planned work.
+Declare owned `mcpServers` for native provider-executed calls, results and 2026
+listing replay. Mixed local approvals, bounded paused turns, immutable provider
+profiles and indeterminate-send recovery have offline fixtures. Raw callback
+injection of MCP servers/toolsets remains rejected. See the
+[MCP connector guide](anthropic-mcp.md), runnable example and field inventory.
 
-Use explicit raw `AnthropicNativeClient.createMessage` or `streamMessages` for
-advanced API access when your application owns the full provider contract.
-Raw access does not add agent normalization, checkpointing or effect recovery.
-The pinned typed SDK cannot represent `mcp_servers`; a typed JSON reconstruction
-can discard that field and send an ordinary request. It does not enable MCP.
+The pinned typed SDK cannot represent `mcp_servers`; AgentWeave's SDK facade
+sends the owned native JSON without that lossy reconstruction. Raw native APIs
+remain separate from the normalized agent and its checkpoints.
 
 
 # Source: docs/anthropic-hosted.md
@@ -5657,6 +5706,7 @@ Future<void> main() async {
   try {
     final agent = AiAgent<void>(
       model: client.chatModel(
+        authorityBindingId: 'example-anthropic-account',
         model: modelId,
         hostedTools: [
           anthropic.AnthropicHostedTool(
@@ -5714,8 +5764,10 @@ Pass the resulting values through `hostedTools` on
 `AnthropicNativeClient.chatModel`, `AnthropicProtocolModel`, or the SDK-backed
 `AnthropicChatModel`. Hosted names must be unique and cannot shadow registered
 application tool names. The runtime protects the complete tool list from
-replacement by `configure`. Provider decorations such as `allowed_callers`,
-`defer_loading`, `strict` and cache control can be set through configuration.
+replacement. Managed tools require `authorityBindingId` and frozen options;
+`configure` is rejected at construction. Use `functionToolOptions` for registered
+function decorations such as `allowed_callers`, `defer_loading`, `strict` and
+cache control.
 
 ## Pauses, replay and containers
 
@@ -5773,7 +5825,7 @@ text blocks for replay; this release has no public citation-rendering event.
 
 The normalizer accepts the pinned content union, including search, fetch, code,
 bash-code, text-editor-code and tool-search results plus container uploads.
-Unknown top-level blocks or deltas fail explicitly. MCP, browser tools and
+Unknown top-level blocks or deltas fail explicitly. MCP uses its own [connector contract](anthropic-mcp.md). Browser tools and
 complete nested response semantics remain outside this integration.
 
 Local fixtures cover typed and raw definitions, fragmented server input, opaque
@@ -5787,6 +5839,563 @@ The [official programmatic-calling guide](https://platform.claude.com/docs/en/ag
 describes caller aliases, required containers and timeout limits. Container
 expiry can still reject a later continuation; application tools must implement
 idempotency and reconcile external effects. No live expiry policy is certified.
+
+## Immutable request options
+
+`AnthropicChatModel`, `AnthropicProtocolModel` and the native client's
+`chatModel` snapshot these declarations and include them in the private model
+continuation profile:
+
+| Parameter | Purpose |
+| --- | --- |
+| `options` | Native request fields such as thinking, metadata, request cache control and output effort; runtime-owned history, schema and bounds are excluded |
+| `toolChoice` | Native tool-choice object |
+| `functionToolOptions` | Registered function name to strict, defer-loading, allowed-caller and cache-control decorations |
+| `container` | Initial container ID or native object, including skills; returned IDs take precedence and remain protected |
+| `messageDecorations` | Stable user-message ID to content-part-indexed decoration maps; null entries leave a part unchanged |
+| `systemCacheControl` | Cache control on the runtime's system instruction text block |
+
+For example, a user message named `brief` whose first part is a document can use:
+
+```dart
+messageDecorations: {
+  'brief': [
+    {
+      'context': 'A customer brief',
+      'cache_control': {'type': 'ephemeral'},
+      'citations': {'enabled': true},
+    },
+  ],
+},
+systemCacheControl: {'type': 'ephemeral'},
+```
+
+These maps cannot replace document source, title, text or tool input. Text and
+image parts accept cache control; documents also accept context and citation
+configuration. The existing citation rules still require all documents enabled
+or all disabled, and reject citations with structured output. The caller must
+supply a system instruction when using `systemCacheControl`.
+
+Callbacks remain available for ordinary models without managed tools. Their
+validation occurs on the next invocation and can fail after an approved local
+tool has run. Prefer declarative options for resumed applications. The model
+constructors are no longer const because they copy caller-owned collections.
+
+
+# Source: docs/anthropic-mcp.md
+
+# Connect Anthropic MCP tools
+
+Use `mcpServers` with `AnthropicNativeClient.chatModel`, `AnthropicChatModel`, or
+`AnthropicProtocolModel`. Anthropic executes the selected remote tools. They do
+not become local `Tool` registrations or application approval requests.
+
+## Run the example
+
+Set `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`, `MCP_SERVER_URL` and
+`MCP_ALLOWED_TOOL`, then run `dart run examples/anthropic_mcp_demo.dart`.
+Choose a trusted server and one tool appropriate for the request. Optional
+`MCP_ACCESS_TOKEN` supplies its OAuth token; `MCP_PROMPT` changes the question.
+Running this example makes billable requests and can execute that remote tool.
+The example uses memory storage and bounds provider continuations with
+`maxSteps`; repository checks compile it without running it.
+
+```dart
+import 'dart:io';
+
+import 'package:agent_weave/agent_weave.dart';
+import 'package:agent_weave_anthropic/agent_weave_anthropic.dart' as anthropic;
+
+Future<void> main() async {
+  final environment = Platform.environment;
+  final key = environment['ANTHROPIC_API_KEY'];
+  final model = environment['ANTHROPIC_MODEL'];
+  final url = environment['MCP_SERVER_URL'];
+  final tool = environment['MCP_ALLOWED_TOOL'];
+  if ([key, model, url, tool].any((value) => value == null || value.isEmpty)) {
+    throw StateError(
+      'Set ANTHROPIC_API_KEY, ANTHROPIC_MODEL, MCP_SERVER_URL and MCP_ALLOWED_TOOL.',
+    );
+  }
+  final token = environment['MCP_ACCESS_TOKEN'];
+  final client = anthropic.AnthropicNativeClient.withApiKey(apiKey: key!);
+  try {
+    final agent = AiAgent<void>(
+      model: client.chatModel(
+        model: model!,
+        authorityBindingId: 'local-example/anthropic-account',
+        options: {'temperature': 0.2},
+        mcpServers: [
+          anthropic.AnthropicMcpServer(
+            name: 'support',
+            url: Uri.parse(url!),
+            beta: anthropic.AnthropicMcpBeta.client20260915,
+            toolset: anthropic.AnthropicMcpToolset(
+              defaultConfig: anthropic.AnthropicMcpToolConfig(enabled: false),
+              configs: {tool!: anthropic.AnthropicMcpToolConfig(enabled: true)},
+            ),
+            credentialBindingId: token == null
+                ? null
+                : 'local-example/mcp-account',
+            authorizationToken: token == null ? null : () => token,
+          ),
+        ],
+      ),
+      maxSteps: 4,
+      maxOutputTokens: 1024,
+    );
+    final result = await agent.generate(
+      ChatRequest(
+        threadId: 'support',
+        runId: 'question',
+        messages: [
+          ChatMessage.user(
+            environment['MCP_PROMPT'] ??
+                'Use $tool to find information about Dart streams.',
+            id: 'u',
+          ),
+        ],
+      ),
+      ownerId: 'local-example',
+      context: null,
+    );
+    print(result.text);
+  } on AgentRunException catch (error) {
+    stderr.writeln('${error.code}: ${error.message}');
+    exitCode = 1;
+  } finally {
+    client.close();
+  }
+}
+```
+
+For the reproducible offline application, run:
+
+```sh
+dart --enable-asserts run examples/review_cases/anthropic_mcp.dart
+```
+
+It uses an SDK-compatible HTTP fixture and two MCP servers. It verifies a
+mixed local approval, deferred remote result, configuration rejection and
+credential rotation. It does not contact Anthropic or execute remote effects.
+
+## Declare servers, tools and authority
+
+Each `AnthropicMcpServer` has a unique name, an HTTPS URL and an explicit beta.
+All servers in one model use the same beta. Modern modes generate exactly one
+matching toolset per server. `AnthropicMcpToolset` supports default and per-tool
+`enabled`/`deferLoading`, `cacheControl` and native `fromJson` extensions. Unknown
+tool names in `configs` are retained because discovery can change.
+
+| Beta | Wire configuration |
+| --- | --- |
+| `client20260915` | Modern server/toolset plus recorded listings and optional pinned tools; documented for the Claude API |
+| `client20251120` | Modern server/toolset; cloud-platform availability differs |
+| `legacy20250404` | Deprecated server `tool_configuration`; no toolsets or pinned descriptors |
+
+The modes follow the [official connector contract](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector).
+Legacy mode requires `legacyToolConfiguration` or the native
+`tool_configuration` field through `fromJson`. It rejects modern toolsets.
+Pinned tool descriptors belong in `AnthropicMcpToolset(tools: [...])` and require
+`client20260915`. Each descriptor has a name, input schema and optional
+description. Beta acceptance by a live model or cloud platform is unverified.
+
+The SDK-backed facade sends the owned native MCP JSON through its raw stream
+method; the pinned SDK's typed Messages request does not represent these server
+fields. Reconstructing an SDK request from arbitrary JSON is not MCP support.
+
+Managed MCP or hosted tools require a stable, nonsecret `authorityBindingId`
+for the provider account and endpoint/routing configuration. Change it when
+that authority changes; never use an API key. Additional request parameters
+belong in frozen `options`, with `toolChoice` for selection. Configuration
+callbacks are rejected when managed tools are present. Core binds the original
+model, beta flags, authority, toolsets, options and credential identities before
+resuming local effects or dispatch. Changing them invalidates the unfinished
+turn. See [continuation contracts](approval-contracts.md).
+
+Client-level beta flags are merged with the owned MCP header rather than
+replaced. Duplicate flags collapse; conflicting MCP versions fail before
+transport. The effective beta list is retained in the private model profile.
+
+## Resolve owner-bound credentials
+
+Create the model in the authenticated backend scope. Derive the owner from the
+session, and resolve that owner's token on each outbound request:
+
+```dart
+final server = anthropic.AnthropicMcpServer(
+  name: 'support',
+  url: Uri.https('support.example.com', '/mcp'),
+  beta: anthropic.AnthropicMcpBeta.client20260915,
+  credentialBindingId: account.stableAuthorizationIdentity,
+  authorizationToken: () => tokens.accessTokenFor(authenticatedOwner, account),
+);
+```
+
+`account` and `tokens` are application services. The binding identifies the
+remote account and authorization scope. Token refresh under that same binding
+is allowed. Literal `authorization_token` through `fromJson` is extracted into
+a private resolver and requires the same kind of binding. Authless servers are
+valid. OAuth acquisition and refresh policy belong to the application.
+
+Definitions and contracts exclude owned credentials. Resolution errors and
+known transport/metadata echoes are sanitized. Keep secrets out of URLs,
+unknown options and logs. Returned tool content, signed thinking and opaque
+replay may contain private data; those blocks are kept exactly on the backend.
+They are not a promise that arbitrary provider-generated content is secret-free.
+Only publish `chatHydration` and normal agent events to clients.
+
+## Mixed calls, pauses and recovery
+
+MCP calls and results remain provider-owned `mcp_tool_use` and
+`mcp_tool_result` blocks. Discovery listings remain private, including unknown
+fields. Matching uses native IDs and server names; it does not share the local
+function namespace. A remote tool may have the same name as a registered local
+tool without invoking that local executor.
+
+A `tool_use` response may defer remote execution until the application supplies
+its local results. `AiAgent` can pause for those local approvals, persist them
+and recreate the model with the same profile. It sends local results before the
+next invocation and retains the original MCP blocks. A `pause_turn` uses normal
+step accounting and durable continuation. These mechanics follow the
+[server-tool lifecycle](https://platform.claude.com/docs/en/agents-and-tools/tool-use/server-tools).
+No OpenAI-style remote approval is invented for Anthropic MCP.
+
+The 2026 listing is replayed unchanged with its beta on subsequent requests.
+You can copy a trusted listing into `toolset.tools` for an explicitly pinned
+configuration after completing the current turn, or in a new conversation.
+Do not replace the profile of an unfinished turn to pin or change its tools.
+
+For Serverpod, use `ServerpodRunStore(session)` behind the authenticated agent
+factory. The original private model profile survives local approvals and
+provider-only step-limit restarts. Owner-scoped history and event journals keep
+native MCP IDs, inputs, results and credentials out of client snapshots.
+
+Each potentially effectful dispatch checkpoints `ProviderExecutionStarting`
+first. Failure, cancellation or a crash after that boundary leaves an
+indeterminate outcome and blocks automatic resend, including initial requests.
+Inspect external effects and start a new conversation; a matching configuration
+does not prove the effect did not occur. This is conservative if a crash occurs
+between the checkpoint and the actual send. A validated terminal checkpoint
+clears the marker atomically with the continuation state.
+
+Cancellation during credential resolution stops waiting without dispatching;
+it cannot cancel the application's underlying OAuth operation. Set OAuth
+timeouts in that resolver; the provider HTTP timeout begins at transport work. A request that
+was already accepted may still execute remotely. Backend `AgentRunException.cause` retains a sanitized `JsonHttpException` for
+HTTP failures, with status and the native transport's redacted request ID.
+Error bodies and response headers are dropped. SDK 9.0.1 streaming exceptions
+retain status but omit the server request ID; do not mistake a client correlation
+ID for it. [Upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445)
+addresses this loss and is separate from a released SDK dependency.
+The native transport has no
+automatic retries. The SDK-backed stream also makes one send, but pinned SDK
+9.0.1 cannot abort while waiting for response headers. Prefer the native client
+for request-scoped transport cancellation.
+
+## Preserved options and current limits
+
+Managed tools use immutable `options`, `functionToolOptions`, `container`,
+`messageDecorations` and `systemCacheControl` in place of callback mutations.
+These preserve the existing function, caching and document configuration paths;
+see [hosted-tool options](anthropic-hosted.md#immutable-request-options).
+Unknown request fields retain native JSON but do not establish orchestration.
+
+The current pinned MCP result content is a string or an array of text blocks.
+Current calls disabled by the server/toolset policy or absent from an explicit
+pin fail before accompanying local calls are exposed. Completed historical calls
+remain replayable when a later turn narrows its policy. Malformed correlation,
+missing required fields, duplicate IDs and unsupported
+block kinds fail explicitly. Unfinished MCP calls require a genuine local-tool
+turn or `pause_turn`; they cannot silently finish on truncation or refusal.
+
+Live remote execution, OAuth providers, platform/model availability, mobile
+rendering and exactly-once effects remain unverified. Inline mid-conversation
+tool-addition/removal message directives, Managed Agents and other endpoint
+lifecycles are outside this integration. Explicit raw native APIs remain
+available when the application owns the full protocol.
+
+The [MCP field inventory](anthropic-mcp-parameters.md) records the selected
+pinned declarations and executable configuration fixture. Its presence is not
+evidence of complete Anthropic API coverage.
+
+
+# Source: docs/anthropic-mcp-parameters.md
+
+# Anthropic MCP Messages contract
+
+Generated from the [pinned inventory](anthropic-mcp-inventory.json). See the [official connector guide](https://platform.claude.com/docs/en/agents-and-tools/mcp-connector).
+
+Selected MCP Messages declarations and recursively referenced local types. The Dart fixture exercises owned configuration and credential separation, not SSE normalization, provider acceptance or live execution. MCP result content in this pinned contract is string or an array of text blocks; private replay and continuation are tested separately.
+
+- `mcp-client-2025-04-04`: Deprecated legacy server tool_configuration; provider availability is not established.
+- `mcp-client-2025-11-20`: Modern matching server and toolset; supported cloud platforms vary.
+- `mcp-client-2026-09-15`: Claude API listing and pinned tool descriptors; replay listings with this beta.
+
+## BetaCacheControlEphemeral
+
+| Field | Source type |
+| --- | --- |
+| type | `'ephemeral'` |
+| ttl? | `'5m' \| '1h'` |
+
+## BetaCitationCharLocation
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| document_index | `number` |
+| document_title | `string \| null` |
+| end_char_index | `number` |
+| file_id | `string \| null` |
+| start_char_index | `number` |
+| type | `'char_location'` |
+
+## BetaCitationCharLocationParam
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| document_index | `number` |
+| document_title | `string \| null` |
+| end_char_index | `number` |
+| start_char_index | `number` |
+| type | `'char_location'` |
+
+## BetaCitationContentBlockLocation
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| document_index | `number` |
+| document_title | `string \| null` |
+| end_block_index | `number` |
+| file_id | `string \| null` |
+| start_block_index | `number` |
+| type | `'content_block_location'` |
+
+## BetaCitationContentBlockLocationParam
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| document_index | `number` |
+| document_title | `string \| null` |
+| end_block_index | `number` |
+| start_block_index | `number` |
+| type | `'content_block_location'` |
+
+## BetaCitationPageLocation
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| document_index | `number` |
+| document_title | `string \| null` |
+| end_page_number | `number` |
+| file_id | `string \| null` |
+| start_page_number | `number` |
+| type | `'page_location'` |
+
+## BetaCitationPageLocationParam
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| document_index | `number` |
+| document_title | `string \| null` |
+| end_page_number | `number` |
+| start_page_number | `number` |
+| type | `'page_location'` |
+
+## BetaCitationSearchResultLocation
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| end_block_index | `number` |
+| search_result_index | `number` |
+| source | `string` |
+| start_block_index | `number` |
+| title | `string \| null` |
+| type | `'search_result_location'` |
+
+## BetaCitationSearchResultLocationParam
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| end_block_index | `number` |
+| search_result_index | `number` |
+| source | `string` |
+| start_block_index | `number` |
+| title | `string \| null` |
+| type | `'search_result_location'` |
+
+## BetaCitationsWebSearchResultLocation
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| encrypted_index | `string` |
+| title | `string \| null` |
+| type | `'web_search_result_location'` |
+| url | `string` |
+
+## BetaCitationWebSearchResultLocationParam
+
+| Field | Source type |
+| --- | --- |
+| cited_text | `string` |
+| encrypted_index | `string` |
+| title | `string \| null` |
+| type | `'web_search_result_location'` |
+| url | `string` |
+
+## BetaMCPTool
+
+| Field | Source type |
+| --- | --- |
+| input_schema | `{
+    [key: string]: unknown;
+}` |
+| name | `string` |
+| description? | `string` |
+
+## BetaMCPToolConfig
+
+| Field | Source type |
+| --- | --- |
+| defer_loading? | `boolean` |
+| enabled? | `boolean` |
+
+## BetaMCPToolDefaultConfig
+
+| Field | Source type |
+| --- | --- |
+| defer_loading? | `boolean` |
+| enabled? | `boolean` |
+
+## BetaMCPToolListingBlock
+
+| Field | Source type |
+| --- | --- |
+| mcp_server_name | `string` |
+| tools | `Array<BetaMCPTool>` |
+| type | `'mcp_tool_listing'` |
+
+## BetaMCPToolListingBlockParam
+
+| Field | Source type |
+| --- | --- |
+| mcp_server_name | `string` |
+| tools | `Array<BetaMCPToolParam>` |
+| type | `'mcp_tool_listing'` |
+
+## BetaMCPToolParam
+
+| Field | Source type |
+| --- | --- |
+| input_schema | `{
+    [key: string]: unknown;
+}` |
+| name | `string` |
+| description? | `string \| null` |
+
+## BetaMCPToolResultBlock
+
+| Field | Source type |
+| --- | --- |
+| content | `string \| Array<BetaTextBlock>` |
+| is_error | `boolean` |
+| tool_use_id | `string` |
+| type | `'mcp_tool_result'` |
+
+## BetaMCPToolset
+
+| Field | Source type |
+| --- | --- |
+| mcp_server_name | `string` |
+| type | `'mcp_toolset'` |
+| cache_control? | `BetaCacheControlEphemeral \| null` |
+| configs? | `{
+    [key: string]: BetaMCPToolConfig;
+} \| null` |
+| default_config? | `BetaMCPToolDefaultConfig` |
+| tools? | `Array<BetaMCPToolParam> \| null` |
+
+## BetaMCPToolUseBlock
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| input | `unknown` |
+| name | `string` |
+| server_name | `string` |
+| type | `'mcp_tool_use'` |
+
+## BetaMCPToolUseBlockParam
+
+| Field | Source type |
+| --- | --- |
+| id | `string` |
+| input | `unknown` |
+| name | `string` |
+| server_name | `string` |
+| type | `'mcp_tool_use'` |
+| cache_control? | `BetaCacheControlEphemeral \| null` |
+
+## BetaRequestMCPServerToolConfiguration
+
+| Field | Source type |
+| --- | --- |
+| allowed_tools? | `Array<string> \| null` |
+| enabled? | `boolean \| null` |
+
+## BetaRequestMCPServerURLDefinition
+
+| Field | Source type |
+| --- | --- |
+| name | `string` |
+| type | `'url'` |
+| url | `string` |
+| authorization_token? | `string \| null` |
+| tool_configuration? | `BetaRequestMCPServerToolConfiguration \| null` |
+
+## BetaRequestMCPToolResultBlockParam
+
+| Field | Source type |
+| --- | --- |
+| tool_use_id | `string` |
+| type | `'mcp_tool_result'` |
+| cache_control? | `BetaCacheControlEphemeral \| null` |
+| content? | `string \| Array<BetaTextBlockParam>` |
+| is_error? | `boolean` |
+
+## BetaTextBlock
+
+| Field | Source type |
+| --- | --- |
+| citations | `Array<BetaTextCitation> \| null` |
+| text | `string` |
+| type | `'text'` |
+
+## BetaTextBlockParam
+
+| Field | Source type |
+| --- | --- |
+| text | `string` |
+| type | `'text'` |
+| cache_control? | `BetaCacheControlEphemeral \| null` |
+| citations? | `Array<BetaTextCitationParam> \| null` |
+
+## BetaTextCitation
+
+`BetaCitationCharLocation | BetaCitationPageLocation | BetaCitationContentBlockLocation | BetaCitationsWebSearchResultLocation | BetaCitationSearchResultLocation`
+
+## BetaTextCitationParam
+
+`BetaCitationCharLocationParam | BetaCitationPageLocationParam | BetaCitationContentBlockLocationParam | BetaCitationWebSearchResultLocationParam | BetaCitationSearchResultLocationParam`
 
 
 # Source: docs/anthropic-parameters.md
@@ -5802,21 +6411,21 @@ These dispositions describe top-level access only. Arbitrary native JSON does no
 | max_tokens | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
 | messages | runtime-owned | Runtime-owned history, source and title; native document context/cache/citations decorations are supported. Five pinned citation variants have typed output and private replay with offline fixtures. Custom-content documents, search-result inputs and live behavior remain unverified. |
 | system | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
-| tools | runtime-owned | Runtime application tools and provider-model hostedTools are built and protected by the adapter. Selected pinned hosted blocks, approvals and paused continuation have offline fixtures; full nested semantics and live behavior remain unverified. |
-| model | mixed | Adapter model constructor and SDK configure; native JSON accepts caller input. |
+| tools | runtime-owned | Runtime local tools and owned hosted/MCP declarations are protected. Managed models use frozen function options and provider authority. The separate beta MCP inventory covers server/toolsets and native use/result/listing replay; live and full nested semantics remain unverified. |
+| model | runtime-owned | Immutable adapter model constructor; configure cannot replace it. Explicit raw-native JSON remains caller-owned. |
 | output_config | mixed | SDK configure; runtime output schema is protected when requested. Native JSON accepts caller input. |
 | stream | runtime-owned | Agent uses SDK streaming; native client controls the request mode. |
 | user_profile_id | mixed | The adapter exposes a userProfileId header; native JSON accepts this body field separately. |
-| cache_control | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| container | mixed | Initial configuration uses SDK/native JSON. Returned container IDs from message-start/delta are retained privately and reused across paused and local-tool continuations; inherited IDs are protected. Live expiry and files are unverified. |
-| diagnostics | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| inference_geo | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| metadata | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| service_tier | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| speed | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| stop_sequences | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| thinking | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| tool_choice | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| cache_control | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| container | mixed | Explicit immutable initial container ID/object, including skills. Returned IDs are retained privately, take precedence and remain protected across paused and local-tool continuation. Live expiry/files remain unverified. |
+| diagnostics | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| inference_geo | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| metadata | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| service_tier | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| speed | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| stop_sequences | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| thinking | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| tool_choice | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
 | workspace_id | native-json | Native JSON accepts this field; SDK configure support depends on the Dart SDK version. Agent semantics are not established. |
 
 The inventory follows selected local type references for Messages requests, responses and stream events. Imported declarations and unrelated endpoints are outside its scope. Review protocol behavior and provider documentation separately.
@@ -6299,7 +6908,7 @@ The workspace has `agent_weave_openai` backed by `openai_dart` 11.0.1, plus the 
 | Provider and API | What the repo implements | Significant missing work and evidence |
 | --- | --- | --- |
 | OpenAI native Responses and Chat | Dedicated SDK-backed adapter, selected generation/media wrappers and typed/native options; Responses also supports the application-executed native computer tool and selected hosted-tool output with lossless private replay and completed images. Remote MCP approval/denial and private replay have offline coverage; see [MCP approvals](openai-mcp.md). | See [OpenAI audit](openai-options-audit.md): shell/custom/patch continuations, precise public highlights, hosted progress, partial images, other events/transport and complete field-by-field coverage remain open. The selected hosted declaration inventory is in [hosted tools](openai-hosted.md). Computer model and driver behavior require separate live verification. |
-| Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Complete nested semantics, browser/MCP tools, other endpoint workflows and live hosted behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
+| Anthropic native Messages | Native JSON/SSE client with request options, rotating credentials, deadlines and cancellation; a guarded Messages normalizer retains unknown fields on supported blocks, signed thinking, private citations and cumulative usage. The typed SDK facade remains available. | The [inventory](anthropic-parameters.md) classifies 19 request fields and follows selected nested declarations. The 17-member application-executed computer toolset and scoped file-ID documents are integrated. Pinned hosted result blocks, bounded paused turns and container reuse now have offline integration fixtures. Native MCP use/result/listing replay, three explicit beta modes, mixed local approvals and indeterminate recovery have offline fixtures; see [MCP](anthropic-mcp.md). Complete nested semantics, browser tools, inline tool-change messages, other endpoint workflows and live behavior remain incomplete. Raw access and SDK exports do not establish those integrations. See [Anthropic](anthropic.md). |
 | OpenRouter Chat and Responses | Native JSON/SSE client, separate Chat and stateless Responses adapters, selected typed provider/routing/reasoning/cache/plugin options and immutable native extensions. Selected completed Chat image output, private ordered reasoning replay and actual provider/usage/cost metadata are retained; raw envelopes remain accessible. | The [inventory](openrouter-api-reference.md) records all 146 pinned operations. Only Chat and Responses have selected integrations; management, background jobs, hosted tools, dedicated Images API, other media and exhaustive fragment/model behavior remain incomplete. Fixtures are not live billing, routing or cache evidence. See [OpenRouter](openrouter.md). |
 | Together Chat Completions | Native JSON client and agent adapter, typed options, and offline request and streaming fixtures. The [chat inventory](together-chat-inventory.json) records the disposition of 27 pinned request fields. | The inventory is not complete API or model certification. Native-only fields include multiple choices and legacy function calls. Media and schema acceptance, billing, live cancellation, and live Together behavior remain unverified. See [Together](together.md). |
 | Vercel AI Gateway | Public Chat Completions and Responses adapters, typed routing options, raw native JSON and event envelopes, and offline fixtures. | Selected request serialization and stream behavior do not prove live provider semantics, cost, or exhaustive API coverage. Provider identity is not inferred. The internal AI SDK V4 wire protocol is separate. See [Vercel AI Gateway](vercel-gateway.md). |
@@ -6344,6 +6953,7 @@ override only after checking the published package and rerunning interop tests.
 - Ordered completed media parts in assistant history, client snapshots and hydration.
 - Selected OpenAI Responses hosted search, code, image and server tool-search
   output with private replay; see [hosted tools](openai-hosted.md).
+- Anthropic Messages MCP servers, private use/result/listing replay and mixed local-tool continuation; see [MCP](anthropic-mcp.md).
 - OpenAI Responses remote MCP configuration, private discovery/replay and provider-owned approval/denial through generic client interrupts; see [MCP approvals](openai-mcp.md).
 - Configured server tools, client-tool pauses, and default tool approvals.
 - Selected OpenAI Responses native computer calls with application-owned
@@ -6364,7 +6974,8 @@ not a claim of full TanStack AI core parity.
 
 ## Declared provider identity across resumes
 
-Native OpenAI Responses binds unfinished local approvals and provider pauses to
+Native OpenAI Responses and Anthropic Messages bind unfinished local approvals
+and provider pauses to
 its declared model, frozen options, complete managed-tool set and stable provider
 account/transport authority. Managed tools require `authorityBindingId` and
 immutable `options`/`toolChoice` in place of arbitrary configuration callbacks.
@@ -6421,7 +7032,8 @@ and retain the old history. Public client bindings remain unchanged. See
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
   Pinned hosted blocks, bounded paused turns and container reuse are integrated
-  with offline fixtures. Browser/MCP tools, live hosted behavior and complete
+  with offline fixtures. MCP adds three explicit beta modes and private listing
+  replay; browser tools, live hosted behavior and complete
   nested field semantics remain unfinished. The
   SDK-backed facade retains its pinned SDK transport cancellation limits.
   See [Anthropic](anthropic.md).
@@ -6733,6 +7345,31 @@ approval recreation after a reference change. The default Chat streaming adapter
 uses raw SDK events and has its own strict completion guard; compatible adapters
 do not inherit that contract. Keep raw audit state separate from public handles.
 
+## Anthropic MCP contracts and migration
+
+The selected beta Messages MCP declarations are pinned separately from the GA
+Messages inventory in `tool/contracts/anthropic-mcp`. Preserve its unmodified
+source and Apache license. Review the root list, recursive type/union projection,
+source hash, documentation constraints and Dart executable fixture together.
+`--write` refuses an unreviewed source/projection change. `--upstream` compares
+current official main without changing the pin.
+
+```sh
+node --test tool/interop/anthropic-mcp-inventory.test.mjs
+node tool/interop/anthropic-mcp-inventory.mjs --check
+node tool/interop/anthropic-mcp-inventory.mjs --upstream
+```
+
+After review, update the source and reviewed declarations, implementation,
+normalization tests, configuration fixture and evidence before regenerating
+with `--write`. Constructor field coverage is not workflow or live proof.
+
+Anthropic managed tools now require `authorityBindingId`; callbacks migrate to
+immutable request, function, container and message/system-cache parameters.
+See [hosted options](anthropic-hosted.md#immutable-request-options). Both model
+constructors are non-const. Keep the original profile through unfinished turns;
+legacy pending state without it fails closed, without a table migration.
+
 
 # Source: docs/validation.md
 
@@ -6762,10 +7399,10 @@ and interoperability with the pinned official JavaScript client.
 The latest local verification used Dart 3.12.2. GitHub CI checks both the minimum
 SDK and the stable channel; inspect the run for the commit you use.
 
-- 566 Dart unit and regression tests: tool validation, approvals, client tools,
+- 611 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
-- 26 Serverpod integration tests with a real isolated PostgreSQL database:
+- 31 Serverpod integration tests with a real isolated PostgreSQL database:
   authenticated endpoints, a generated-client WebSocket, HTTP/SSE, history,
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
@@ -7510,7 +8147,8 @@ live remote effect executes exactly once.
 
 ## Upstream MCP output contribution
 
-[PR #443](https://github.com/davidmigloz/ai_clients_dart/pull/443) fixes native MCP
+[PR #443](https://github.com/davidmigloz/ai_clients_dart/pull/443), merged upstream on
+2026-11-04, fixes native MCP
 output decoding in `openai_dart`. The installed 11.0.1 and freshly checked
 upstream base `35e2d435` failed four native output examples through both public
 parsers; calls required an undocumented `call_id`, and discovery/approval items
@@ -7525,10 +8163,13 @@ The independent public-client loopback consumer also sends the actual approval
 response using the existing `ResponseInput.fromOutputItems` factory. Generic
 `CreateResponseRequest.fromJson` still rejects that MCP input; typed input and
 conversation-resource models are separate known gaps, not covered by this output
-fix. AgentWeave's SDK dependency pin remains unchanged. No live or paid call,
-upstream merge or package publication is implied by this submitted PR.
+fix. AgentWeave's SDK dependency remains pinned to published 11.0.1. The recorded
+SDK validation describes the submitted patch; the upstream merge is separate
+from adopting or publishing an SDK release. No live or paid call was made.
 
 ## Anthropic MCP execution guard
+
+Historical round-25 boundary. The native MCP section below describes its replacement with owned configuration and replay.
 
 A separate consumer review found that native `configure` could send legacy
 `mcp_servers` despite unsupported MCP output normalization. Its local synthetic
@@ -7572,6 +8213,64 @@ remote execution, automatic authority discovery, identity-provider behavior or
 exactly-once external effects. Undeclared custom adapters do not receive an
 identity guarantee; other built-in providers need their own profile support.
 No paid provider call was made for this increment.
+
+## Native Anthropic MCP and credential cancellation
+
+Owned Messages MCP configuration supports explicit legacy, 2025 and 2026 beta
+modes. Configuration fixtures and the selected official beta declaration
+inventory cover server options, credentials, defaults/per-tool filters, cache
+control and pinned tool descriptors. The normalizer privately retains native
+use/result/listing blocks and unknown fields. Tests cover duplicate/orphan IDs,
+non-object JSON input, truncated/refused pending calls, explicit and recorded
+listing integrity, current-call allow/deny policy, mixed local approval and counted paused turns.
+
+Five new PostgreSQL tests use an actual loopback HTTP provider fixture. Each
+beta mode recreates a mixed local/MCP turn, rejects changed server, remote
+credential binding, provider authority, options, model and beta before any
+local effect or resumed request, and completes with refreshed credentials under
+the original binding. Other cases reload a 2026 provider-only pause at the step
+limit and verify that an uncertain 503 send blocks a later recreated request.
+Native blocks stay private in hydration/journals and credentials stay outside
+saved configuration. The provider fixture does not perform remote MCP effects.
+
+Independent public-API consumers exercise multiple servers/toolsets, deferred
+results, native and SDK-backed clients, all three beta modes, metadata echo
+sanitization, one-send 503 behavior and cancellation boundaries. The tracked
+recipe is `examples/review_cases/anthropic_mcp.dart`. The scoped score is 8/10
+with the new guide, not overall SDK acceptance.
+
+A separate stalled-OAuth probe reproduced and then verified the fix in both
+Anthropic and OpenAI MCP. Cancellation now releases the in-memory reservation
+before the resolver returns, without sending or setting an indeterminate
+marker; late failures are consumed. Core tests also cover pre-cancellation,
+success/failure propagation and listener isolation. The underlying application
+Future is not cancelled. SDK 9.0.1's pending-response-header abort limitation
+still applies after dispatch; native transport remains the recommended path.
+
+No paid provider call, actual OAuth server, external MCP effect, cloud-platform
+acceptance or mobile UI was tested. Private provider-generated content can
+contain sensitive data; preserving opaque replay is distinct from sanitizing
+owned credentials in configuration, metadata and errors. This is not complete
+Anthropic API, inline tool-change or Managed Agents coverage.
+
+MCP transport diagnostics retain HTTP status and a redacted native request ID,
+without provider body/headers. The pinned SDK's streaming path loses the server
+request ID; a public MockClient reproduction confirms this on published 9.0.1
+and freshly fetched upstream main `eed64e89576f9d977fb0cf7728d766cf898f079a`,
+including the merged cancellation fix. This is an upstream metadata gap, not a
+claim about actual remote effects. Local correlation IDs are not substituted.
+
+The streaming-error correction is submitted as
+[upstream PR #445](https://github.com/davidmigloz/ai_clients_dart/pull/445).
+The additive `ApiException.requestId` reads server response metadata for typed
+Messages, raw POST/GET and default JSONL errors; it never substitutes a local
+correlation ID. Streaming metadata excludes body excerpts and unrelated headers,
+while existing exception messages/details can still contain provider content.
+Invalid or oversized numeric retry headers return an ordinary rate-limit
+exception. RFC 1123 date parsing and custom JSONL error factories are outside
+this fix. With credentials unset, 1,872 SDK unit tests pass with three skipped,
+and package analysis is clean. Independent public-client and adversarial
+retry-header probes pass. This PR is not a published dependency update.
 
 
 # Source: CONTRIBUTING.md
@@ -7646,6 +8345,8 @@ authorization guards. Validate the entire resume batch before effects. Persist o
 continuation contracts across unfinished turns; never reconstruct a missing
 profile from current configuration. Provider-managed execution must declare
 secret-free authority and freeze its options before local tools resume.
+Native MCP work remains provider-owned: preserve private correlation and listing
+replay, and checkpoint possible remote execution before dispatch.
 Completed media and typed citations are public content; native output/replay
 metadata stays private. Citation answer offsets use UTF-16; source coordinates
 retain native units. Preserve citations and references when cloning canonical

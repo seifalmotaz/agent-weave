@@ -1,6 +1,7 @@
 # Unreleased
 
-- Reject unsupported legacy MCP server configuration before agent transport; keep explicit raw native API access available.
+- Replace the interim MCP guard with owned server/toolset configuration for legacy, 2025 and 2026 beta modes, private call/result/listing replay, deferred local-tool continuation and indeterminate-send protection; continue rejecting raw configuration injection.
+- Bind model continuations to immutable provider authority, betas, managed tools and request options. Managed tools require `authorityBindingId`; use `options`, `toolChoice`, `functionToolOptions`, `container`, `messageDecorations` and `systemCacheControl` instead of `configure`. Model constructors copy collections and are no longer const.
 
 - Enable document citations and publish typed citation spans while preserving private replay.
 

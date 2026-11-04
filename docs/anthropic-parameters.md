@@ -9,21 +9,21 @@ These dispositions describe top-level access only. Arbitrary native JSON does no
 | max_tokens | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
 | messages | runtime-owned | Runtime-owned history, source and title; native document context/cache/citations decorations are supported. Five pinned citation variants have typed output and private replay with offline fixtures. Custom-content documents, search-result inputs and live behavior remain unverified. |
 | system | runtime-owned | Built and protected by the agent adapter; native JSON accepts caller input. |
-| tools | runtime-owned | Runtime application tools and provider-model hostedTools are built and protected by the adapter. Selected pinned hosted blocks, approvals and paused continuation have offline fixtures; full nested semantics and live behavior remain unverified. |
-| model | mixed | Adapter model constructor and SDK configure; native JSON accepts caller input. |
+| tools | runtime-owned | Runtime local tools and owned hosted/MCP declarations are protected. Managed models use frozen function options and provider authority. The separate beta MCP inventory covers server/toolsets and native use/result/listing replay; live and full nested semantics remain unverified. |
+| model | runtime-owned | Immutable adapter model constructor; configure cannot replace it. Explicit raw-native JSON remains caller-owned. |
 | output_config | mixed | SDK configure; runtime output schema is protected when requested. Native JSON accepts caller input. |
 | stream | runtime-owned | Agent uses SDK streaming; native client controls the request mode. |
 | user_profile_id | mixed | The adapter exposes a userProfileId header; native JSON accepts this body field separately. |
-| cache_control | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| container | mixed | Initial configuration uses SDK/native JSON. Returned container IDs from message-start/delta are retained privately and reused across paused and local-tool continuations; inherited IDs are protected. Live expiry and files are unverified. |
-| diagnostics | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| inference_geo | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| metadata | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| service_tier | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| speed | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| stop_sequences | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| thinking | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
-| tool_choice | sdk-configure | Dart SDK 9.0.1 request configure; native JSON also accepts this field. Nested agent semantics are not established. |
+| cache_control | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| container | mixed | Explicit immutable initial container ID/object, including skills. Returned IDs are retained privately, take precedence and remain protected across paused and local-tool continuation. Live expiry/files remain unverified. |
+| diagnostics | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| inference_geo | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| metadata | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| service_tier | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| speed | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| stop_sequences | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| thinking | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
+| tool_choice | mixed | Immutable agent options, or typed/native configure for models without managed tools; explicit raw JSON also accepts the field. Forwarding does not prove full nested or live semantics. |
 | workspace_id | native-json | Native JSON accepts this field; SDK configure support depends on the Dart SDK version. Agent semantics are not established. |
 
 The inventory follows selected local type references for Messages requests, responses and stream events. Imported declarations and unrelated endpoints are outside its scope. Review protocol behavior and provider documentation separately.

@@ -99,7 +99,8 @@ the provider.
 
 Existing integrations can still construct `AnthropicChatModel` with an
 `anthropic_sdk_dart` `AnthropicClient` and a typed `MessageCreateRequest`
-`configure` callback. The SDK client is caller-owned. The typed callback's patch
+`configure` callback for models without managed tools. Managed tools use
+frozen options and require an authority binding. The SDK client is caller-owned. The typed callback's patch
 preserves unknown unchanged JSON fields; edits to fields or lists can replace the
 corresponding values. The SDK's typed representation still cannot express every
 new provider field. Prefer the native client for unknown fields and
@@ -115,7 +116,8 @@ text, thinking, redacted thinking, client tool-use and pinned hosted-tool blocks
 text, thinking, signature and input JSON deltas. Citation blocks are normalized as typed message annotations and additive UI
 events; opaque native fields remain private. See [document citations](citations.md). Unknown block types or deltas
 fail explicitly. Hosted tools and bounded `pause_turn` continuation are integrated; see the
-[hosted-tool guide](anthropic-hosted.md). Audio/video, MCP, browser tools and
+[hosted-tool guide](anthropic-hosted.md). MCP calls, results and listing replay are integrated through owned server
+configuration; see [MCP](anthropic-mcp.md). Audio/video, browser tools and
 complete nested semantics remain unfinished. Use raw native access for other
 protocols.
 For client computer use, see the [computer-use guide](anthropic-computer.md).
@@ -132,7 +134,7 @@ they do not establish live model support or complete endpoint parity.
 [SDK PR #432](https://github.com/davidmigloz/ai_clients_dart/pull/432) adds prompt
 cancellation before response headers, during stalled bodies, and through the
 public stream wrappers while retaining shared-client ownership. The contribution
-is submitted, not merged or released. AgentWeave's native client already uses
+is merged; published SDK 9.0.1 does not include it. AgentWeave's native client already uses
 its own shared transport and does not require this unreleased SDK change.
 
 ## Upstream citation file identifiers
@@ -142,16 +144,14 @@ AgentWeave preserves raw native blocks independently. The typed SDK correction
 was merged in [upstream PR #441](https://github.com/davidmigloz/ai_clients_dart/pull/441).
 The dependency remains pinned to 9.0.1 until an upstream release includes the fix.
 
-## MCP connector boundary
+## MCP connector
 
-The agent model does not yet normalize Anthropic MCP server calls and results.
-Nonempty `mcp_servers` configuration is rejected before HTTP dispatch, as is
-unsupported `mcp_toolset` injection. Null or empty server lists and unrelated
-request options remain available. This is an interim execution guard, not MCP
-integration; the complete owned lifecycle remains planned work.
+Declare owned `mcpServers` for native provider-executed calls, results and 2026
+listing replay. Mixed local approvals, bounded paused turns, immutable provider
+profiles and indeterminate-send recovery have offline fixtures. Raw callback
+injection of MCP servers/toolsets remains rejected. See the
+[MCP connector guide](anthropic-mcp.md), runnable example and field inventory.
 
-Use explicit raw `AnthropicNativeClient.createMessage` or `streamMessages` for
-advanced API access when your application owns the full provider contract.
-Raw access does not add agent normalization, checkpointing or effect recovery.
-The pinned typed SDK cannot represent `mcp_servers`; a typed JSON reconstruction
-can discard that field and send an ordinary request. It does not enable MCP.
+The pinned typed SDK cannot represent `mcp_servers`; AgentWeave's SDK facade
+sends the owned native JSON without that lossy reconstruction. Raw native APIs
+remain separate from the normalized agent and its checkpoints.

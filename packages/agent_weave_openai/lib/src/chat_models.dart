@@ -650,7 +650,7 @@ final class ResponsesProtocolModel
       final definitions = <String, JsonObject>{};
       for (final tool in mcpTools) {
         cancellation.throwIfCancelled();
-        final resolved = await tool.resolveDefinition();
+        final resolved = await cancellation.waitFor(tool.resolveDefinition());
         cancellation.throwIfCancelled();
         definitions[tool.definition['server_label'] as String] = resolved;
       }

@@ -40,11 +40,12 @@ restarts until the turn finishes. Mismatches preserve the old checkpoint and
 release the attempted run's reservation. Retry with the original configuration
 or start a new conversation; never rebind an old approval to today's settings.
 
-Native OpenAI Responses models implement this capability. Their profiles bind
+Native OpenAI Responses and Anthropic Messages models implement this capability.
+Their profiles bind
 the model and protocol, stable `authorityBindingId`, complete ordered managed
 tool definitions, MCP credential bindings, `toolChoice`, frozen `functionToolOptions` and
-`options`.
-Managed tools require an authority ID and reject arbitrary `configure`
+`options`. Anthropic additionally binds initial container, document/system
+cache declarations and its beta list. Managed tools require an authority ID and reject arbitrary `configure`
 callbacks. Credential rotation under the same logical account is permitted;
 actual tokens are resolved per request and stay outside the profile. The
 application must assign authority IDs honestly, including endpoint and account

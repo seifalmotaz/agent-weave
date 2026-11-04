@@ -1,0 +1,774 @@
+{
+  "sourceSha256": "9b1d771495b25b04549b433b3d18f69a9d44d67fee58847cb6202495de84fc56",
+  "declarations": {
+    "BetaCacheControlEphemeral": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'ephemeral'"
+        },
+        {
+          "name": "ttl",
+          "optional": true,
+          "type": "'5m' | '1h'"
+        }
+      ]
+    },
+    "BetaCitationCharLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "start_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'char_location'"
+        }
+      ]
+    },
+    "BetaCitationCharLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_char_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'char_location'"
+        }
+      ]
+    },
+    "BetaCitationContentBlockLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content_block_location'"
+        }
+      ]
+    },
+    "BetaCitationContentBlockLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'content_block_location'"
+        }
+      ]
+    },
+    "BetaCitationPageLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "file_id",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "start_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'page_location'"
+        }
+      ]
+    },
+    "BetaCitationPageLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "document_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "document_title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "end_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "start_page_number",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'page_location'"
+        }
+      ]
+    },
+    "BetaCitationSearchResultLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "search_result_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "source",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'search_result_location'"
+        }
+      ]
+    },
+    "BetaCitationSearchResultLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "end_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "search_result_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "source",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "start_block_index",
+          "optional": false,
+          "type": "number"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'search_result_location'"
+        }
+      ]
+    },
+    "BetaCitationsWebSearchResultLocation": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "encrypted_index",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_result_location'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "BetaCitationWebSearchResultLocationParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "cited_text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "encrypted_index",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
+          "optional": false,
+          "type": "string | null"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'web_search_result_location'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        }
+      ]
+    },
+    "BetaMCPTool": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "input_schema",
+          "optional": false,
+          "type": "{\n    [key: string]: unknown;\n}"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "optional": true,
+          "type": "string"
+        }
+      ]
+    },
+    "BetaMCPToolConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "BetaMCPToolDefaultConfig": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "defer_loading",
+          "optional": true,
+          "type": "boolean"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "BetaMCPToolListingBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "mcp_server_name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "tools",
+          "optional": false,
+          "type": "Array<BetaMCPTool>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_tool_listing'"
+        }
+      ]
+    },
+    "BetaMCPToolListingBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "mcp_server_name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "tools",
+          "optional": false,
+          "type": "Array<BetaMCPToolParam>"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_tool_listing'"
+        }
+      ]
+    },
+    "BetaMCPToolParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "input_schema",
+          "optional": false,
+          "type": "{\n    [key: string]: unknown;\n}"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "description",
+          "optional": true,
+          "type": "string | null"
+        }
+      ]
+    },
+    "BetaMCPToolResultBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "content",
+          "optional": false,
+          "type": "string | Array<BetaTextBlock>"
+        },
+        {
+          "name": "is_error",
+          "optional": false,
+          "type": "boolean"
+        },
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_tool_result'"
+        }
+      ]
+    },
+    "BetaMCPToolset": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "mcp_server_name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_toolset'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "BetaCacheControlEphemeral | null"
+        },
+        {
+          "name": "configs",
+          "optional": true,
+          "type": "{\n    [key: string]: BetaMCPToolConfig;\n} | null"
+        },
+        {
+          "name": "default_config",
+          "optional": true,
+          "type": "BetaMCPToolDefaultConfig"
+        },
+        {
+          "name": "tools",
+          "optional": true,
+          "type": "Array<BetaMCPToolParam> | null"
+        }
+      ]
+    },
+    "BetaMCPToolUseBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "server_name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_tool_use'"
+        }
+      ]
+    },
+    "BetaMCPToolUseBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "input",
+          "optional": false,
+          "type": "unknown"
+        },
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "server_name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_tool_use'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "BetaCacheControlEphemeral | null"
+        }
+      ]
+    },
+    "BetaRequestMCPServerToolConfiguration": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "allowed_tools",
+          "optional": true,
+          "type": "Array<string> | null"
+        },
+        {
+          "name": "enabled",
+          "optional": true,
+          "type": "boolean | null"
+        }
+      ]
+    },
+    "BetaRequestMCPServerURLDefinition": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "name",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'url'"
+        },
+        {
+          "name": "url",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "authorization_token",
+          "optional": true,
+          "type": "string | null"
+        },
+        {
+          "name": "tool_configuration",
+          "optional": true,
+          "type": "BetaRequestMCPServerToolConfiguration | null"
+        }
+      ]
+    },
+    "BetaRequestMCPToolResultBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "tool_use_id",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'mcp_tool_result'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "BetaCacheControlEphemeral | null"
+        },
+        {
+          "name": "content",
+          "optional": true,
+          "type": "string | Array<BetaTextBlockParam>"
+        },
+        {
+          "name": "is_error",
+          "optional": true,
+          "type": "boolean"
+        }
+      ]
+    },
+    "BetaTextBlock": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "citations",
+          "optional": false,
+          "type": "Array<BetaTextCitation> | null"
+        },
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text'"
+        }
+      ]
+    },
+    "BetaTextBlockParam": {
+      "kind": "interface",
+      "extends": [],
+      "fields": [
+        {
+          "name": "text",
+          "optional": false,
+          "type": "string"
+        },
+        {
+          "name": "type",
+          "optional": false,
+          "type": "'text'"
+        },
+        {
+          "name": "cache_control",
+          "optional": true,
+          "type": "BetaCacheControlEphemeral | null"
+        },
+        {
+          "name": "citations",
+          "optional": true,
+          "type": "Array<BetaTextCitationParam> | null"
+        }
+      ]
+    },
+    "BetaTextCitation": {
+      "kind": "alias",
+      "type": "BetaCitationCharLocation | BetaCitationPageLocation | BetaCitationContentBlockLocation | BetaCitationsWebSearchResultLocation | BetaCitationSearchResultLocation"
+    },
+    "BetaTextCitationParam": {
+      "kind": "alias",
+      "type": "BetaCitationCharLocationParam | BetaCitationPageLocationParam | BetaCitationContentBlockLocationParam | BetaCitationWebSearchResultLocationParam | BetaCitationSearchResultLocationParam"
+    }
+  }
+}

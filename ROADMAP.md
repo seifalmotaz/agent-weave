@@ -31,7 +31,7 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   behavior remain open. Compatible endpoints do not inherit these claims.
 - Anthropic hosted blocks, container replay and counted paused turns now have
   local fixture and consumer coverage. Live search/code/container behavior,
-  browser/MCP tools, live citation quality and full nested semantics remain
+  browser tools, live MCP/citation behavior and full nested semantics remain
   open. Constructor coverage is not workflow certification.
 - OpenRouter Chat now handles selected completed text/image output, with private
   replay across approvals; its dedicated Image API, streamed Chat image extensions
@@ -46,6 +46,11 @@ A passing fixture suite is not evidence of production maturity or a 10/10 SDK.
   forms and completed Chat URL references, including empty segments and opaque
   native positions. Other provider references, live indexing conventions,
   authorized download recipes and device rendering remain open.
+- Native Anthropic Messages MCP now supports explicit legacy/2025/2026 modes,
+  private use/result/listing replay, owner-bound credentials, mixed local
+  approvals, immutable provider profiles and uncertain-send protection. Live
+  remote execution, OAuth providers, inline tool changes and platform acceptance
+  remain open; offline tests are not a complete native API certification.
 - Native OpenAI Responses MCP now supports private discovery/call replay, multiple
   server configurations, credential resolution and approval/denial decisions.
   Generic client, loopback and durable fixtures do not establish live remote

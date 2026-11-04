@@ -93,6 +93,7 @@ void main() {
             'required': ['answer'],
           },
           model: client.chatModel(
+            authorityBindingId: 'example-anthropic-account',
             model: 'fixture',
             hostedTools: [
               api.AnthropicHostedTool(api.CodeExecutionBuiltInTool()),

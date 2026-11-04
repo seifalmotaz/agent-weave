@@ -69,7 +69,7 @@ void main() {
             fail('Expected rejection');
           } on AgentRunException catch (error) {
             expect(error.cause, isA<UnsupportedError>());
-            expect(error.cause.toString(), contains('not integrated'));
+            expect(error.cause.toString(), contains('explicitly registered'));
             expect(error.cause.toString(), isNot(contains('SECRET')));
             parentRunId = runId;
           }

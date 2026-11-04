@@ -13,6 +13,7 @@ Future<void> main() async {
   try {
     final agent = AiAgent<void>(
       model: client.chatModel(
+        authorityBindingId: 'example-anthropic-account',
         model: modelId,
         hostedTools: [
           anthropic.AnthropicHostedTool(

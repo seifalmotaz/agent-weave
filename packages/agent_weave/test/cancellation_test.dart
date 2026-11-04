@@ -84,4 +84,45 @@ void main() {
     );
     expect(parent.isCancelled, isFalse);
   });
+  test(
+    'waitFor stops promptly without cancelling the underlying future',
+    () async {
+      final token = CancellationToken();
+      final pending = Completer<int>();
+      final wait = token.waitFor(pending.future);
+      token.cancel();
+      await expectLater(
+        wait.timeout(const Duration(seconds: 1)),
+        throwsA(isA<RunCancelled>()),
+      );
+      expect(pending.isCompleted, isFalse);
+      pending.complete(42);
+      expect(await pending.future, 42);
+    },
+  );
+
+  test(
+    'waitFor handles pre-cancel, success, failure and late errors',
+    () async {
+      final preCancelled = CancellationToken()..cancel();
+      final late = Completer<int>();
+      await expectLater(
+        preCancelled.waitFor(late.future),
+        throwsA(isA<RunCancelled>()),
+      );
+      late.completeError(StateError('late'));
+      await Future<void>.delayed(Duration.zero);
+      final active = CancellationToken();
+      expect(await active.waitFor(Future.value(7)), 7);
+      final error = StateError('failure');
+      await expectLater(
+        active.waitFor<int>(Future.error(error)),
+        throwsA(same(error)),
+      );
+      expect(active.isCancelled, isFalse);
+      final listener = active.onCancelled.toList();
+      active.cancel();
+      expect(await listener, hasLength(1));
+    },
+  );
 }

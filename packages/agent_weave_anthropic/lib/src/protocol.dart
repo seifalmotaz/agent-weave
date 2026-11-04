@@ -1,47 +1,87 @@
 import 'dart:convert';
 
 import 'package:agent_weave/agent_weave.dart';
-import 'package:agent_weave_http/agent_weave_http.dart' show snapshotJson;
+import 'package:agent_weave_http/agent_weave_http.dart'
+    show JsonHttpException, snapshotJson;
 import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as api;
 import 'computer_tool.dart';
 import 'citations.dart';
 import 'hosted_tool.dart';
+import 'mcp_tool.dart';
 
 /// A native Messages stream. The caller owns and closes [client].
-final class AnthropicChatModel implements ChatModel {
+final class AnthropicChatModel implements ChatModel, ModelContinuationContract {
   final api.AnthropicClient client;
   final String model;
   final api.MessageCreateRequest Function(api.MessageCreateRequest)? configure;
   final List<String> betas;
   final String? userProfileId;
   final List<AnthropicHostedTool> hostedTools;
+  final List<AnthropicMcpServer> mcpServers;
+  final String? authorityBindingId;
+  final JsonObject options;
+  final JsonObject? toolChoice;
+  final Map<String, JsonObject> functionToolOptions;
+  final Object? container;
+  final Map<String, List<JsonObject?>> messageDecorations;
+  final JsonObject? systemCacheControl;
   final bool citations;
-
-  const AnthropicChatModel({
+  AnthropicChatModel({
     required this.client,
     required this.model,
     this.configure,
-    this.betas = const [],
-    this.userProfileId,
-    this.hostedTools = const [],
+    List<String> betas = const [],
+    String? userProfileId,
+    List<AnthropicHostedTool> hostedTools = const [],
+    List<AnthropicMcpServer> mcpServers = const [],
+    this.authorityBindingId,
+    JsonObject options = const {},
+    JsonObject? toolChoice,
+    Map<String, JsonObject> functionToolOptions = const {},
+    Object? container,
+    Map<String, List<JsonObject?>> messageDecorations = const {},
+    JsonObject? systemCacheControl,
     this.citations = false,
-  });
-
-  @override
-  ModelCapabilities get capabilities => ModelCapabilities(
-    tools: true,
-    imageInput: true,
-    fileInput: true,
-    structuredOutput: !citations,
-  );
-
-  @override
-  Stream<ModelEvent> stream(
-    ModelRequest request, {
-    required CancellationToken cancellation,
-  }) => AnthropicProtocolModel(
+  }) : userProfileId =
+           userProfileId ?? _defaultHeader(client, 'anthropic-user-profile-id'),
+       container = _containerOption(container),
+       messageDecorations = _messageDecorations(messageDecorations),
+       systemCacheControl = systemCacheControl == null
+           ? null
+           : snapshotJson(systemCacheControl),
+       hostedTools = List.unmodifiable(hostedTools),
+       mcpServers = List.unmodifiable(mcpServers),
+       betas = List.unmodifiable(
+         mcpServers.isEmpty
+             ? {..._defaultBetas(client), ...betas}
+             : mergeAnthropicMcpBetas([
+                 ..._defaultBetas(client),
+                 ...betas,
+               ], mcpServers.first.beta),
+       ),
+       options = _anthropicOptions(options),
+       toolChoice = toolChoice == null ? null : snapshotJson(toolChoice),
+       functionToolOptions = _anthropicFunctionOptions(functionToolOptions) {
+    _validateManaged(
+      this.hostedTools,
+      this.mcpServers,
+      authorityBindingId,
+      configure != null,
+    );
+  }
+  AnthropicProtocolModel get _delegate => AnthropicProtocolModel(
     model: model,
     hostedTools: hostedTools,
+    mcpServers: mcpServers,
+    authorityBindingId: authorityBindingId,
+    options: options,
+    toolChoice: toolChoice,
+    functionToolOptions: functionToolOptions,
+    container: container,
+    messageDecorations: messageDecorations,
+    systemCacheControl: systemCacheControl,
+    betas: betas,
+    userProfileId: userProfileId,
     citations: citations,
     configure: configure == null
         ? null
@@ -53,8 +93,7 @@ final class AnthropicChatModel implements ChatModel {
               );
             } on FormatException {
               throw UnsupportedError(
-                'The pinned SDK cannot decode this request for typed configuration. '
-                'Use AnthropicNativeClient.chatModel with native JSON configuration.',
+                'The pinned SDK cannot decode this request for typed configuration. Use AnthropicNativeClient.chatModel with native JSON configuration.',
               );
             }
             final before = snapshotJson(typed.toJson());
@@ -70,24 +109,206 @@ final class AnthropicChatModel implements ChatModel {
       },
       abortTrigger: token.whenCancelled,
     ),
-  ).stream(request, cancellation: cancellation);
+  );
+  @override
+  JsonObject get continuationContract => _delegate.continuationContract;
+  @override
+  ModelCapabilities get capabilities => _delegate.capabilities;
+  @override
+  Stream<ModelEvent> stream(
+    ModelRequest request, {
+    required CancellationToken cancellation,
+  }) => _delegate.stream(request, cancellation: cancellation);
+}
+
+String? _defaultHeader(api.AnthropicClient client, String key) {
+  for (final entry in client.config.defaultHeaders.entries) {
+    if (entry.key.toLowerCase() == key) return entry.value;
+  }
+  return null;
+}
+
+Object? _containerOption(Object? value) {
+  if (value == null) return null;
+  if (value is String) {
+    if (value.trim().isEmpty) throw ArgumentError('Invalid container.');
+    return value;
+  }
+  if (value is! Map<String, Object?> ||
+      (value['id'] != null &&
+          (value['id'] is! String || (value['id'] as String).trim().isEmpty)) ||
+      (value['skills'] != null && value['skills'] is! List)) {
+    throw ArgumentError('Invalid container.');
+  }
+  return snapshotJson(value);
+}
+
+Map<String, List<JsonObject?>> _messageDecorations(
+  Map<String, List<JsonObject?>> value,
+) => Map.unmodifiable({
+  for (final entry in value.entries)
+    entry.key: List<JsonObject?>.unmodifiable([
+      for (final item in entry.value) item == null ? null : snapshotJson(item),
+    ]),
+});
+
+List<String> _defaultBetas(api.AnthropicClient client) => [
+  for (final entry in client.config.defaultHeaders.entries)
+    if (entry.key.toLowerCase() == 'anthropic-beta')
+      ...entry.value.split(',').map((v) => v.trim()).where((v) => v.isNotEmpty),
+];
+
+void _validateManaged(
+  List<AnthropicHostedTool> hosted,
+  List<AnthropicMcpServer> servers,
+  String? authority,
+  bool hasConfigure,
+) {
+  validateAnthropicMcpServers(servers);
+  if ((hosted.isNotEmpty || servers.isNotEmpty) &&
+      (authority == null || authority.trim().isEmpty)) {
+    throw ArgumentError(
+      'Provider-managed tools require a stable authorityBindingId.',
+    );
+  }
+  if (authority != null && authority.trim().isEmpty) {
+    throw ArgumentError('Invalid authorityBindingId.');
+  }
+  if ((hosted.isNotEmpty || servers.isNotEmpty) && hasConfigure) {
+    throw ArgumentError(
+      'Provider-managed tools require immutable options instead of configure.',
+    );
+  }
+}
+
+JsonObject _anthropicOptions(JsonObject value) {
+  const owned = {
+    'model',
+    'messages',
+    'system',
+    'max_tokens',
+    'tools',
+    'tool_choice',
+    'mcp_servers',
+    'container',
+    'stream',
+    'authorization',
+    'api_key',
+    'headers',
+  };
+  if (value.keys.any(owned.contains)) {
+    throw ArgumentError('Options contain runtime-owned or credential fields.');
+  }
+  if (value['output_config'] != null &&
+      (value['output_config'] is! Map ||
+          (value['output_config'] as Map).containsKey('format'))) {
+    throw ArgumentError('Runtime owns output format.');
+  }
+  return snapshotJson(value);
+}
+
+Map<String, JsonObject> _anthropicFunctionOptions(
+  Map<String, JsonObject> value,
+) {
+  final result = <String, JsonObject>{};
+  for (final entry in value.entries) {
+    final o = entry.value;
+    if (entry.key.trim().isEmpty ||
+        o.keys.any(
+          (key) => !{
+            'strict',
+            'defer_loading',
+            'allowed_callers',
+            'cache_control',
+          }.contains(key),
+        ) ||
+        (o['strict'] != null && o['strict'] is! bool) ||
+        (o['defer_loading'] != null && o['defer_loading'] is! bool) ||
+        (o['allowed_callers'] != null &&
+            (o['allowed_callers'] is! List ||
+                (o['allowed_callers'] as List).any((v) => v is! String))) ||
+        (o['cache_control'] != null && o['cache_control'] is! Map)) {
+      throw ArgumentError('Invalid function tool options.');
+    }
+    result[entry.key] = snapshotJson(o);
+  }
+  return Map.unmodifiable(result);
 }
 
 /// Canonical Messages encoding and raw stream normalization, without SDK decoding.
-final class AnthropicProtocolModel implements ChatModel {
+final class AnthropicProtocolModel
+    implements ChatModel, ModelContinuationContract {
   final String model;
   final JsonObject Function(JsonObject)? configure;
   final Stream<JsonObject> Function(JsonObject, CancellationToken) transport;
   final List<AnthropicHostedTool> hostedTools;
+  final List<AnthropicMcpServer> mcpServers;
+  final String? authorityBindingId;
+  final JsonObject options;
+  final JsonObject? toolChoice;
+  final Map<String, JsonObject> functionToolOptions;
+  final List<String> betas;
+  final String? userProfileId;
+  final Object? container;
+  final Map<String, List<JsonObject?>> messageDecorations;
+  final JsonObject? systemCacheControl;
   final bool citations;
-  const AnthropicProtocolModel({
+  AnthropicProtocolModel({
     required this.model,
     required this.transport,
     this.configure,
-    this.hostedTools = const [],
+    List<AnthropicHostedTool> hostedTools = const [],
+    List<AnthropicMcpServer> mcpServers = const [],
+    this.authorityBindingId,
+    JsonObject options = const {},
+    JsonObject? toolChoice,
+    Map<String, JsonObject> functionToolOptions = const {},
+    List<String> betas = const [],
+    this.userProfileId,
+    Object? container,
+    Map<String, List<JsonObject?>> messageDecorations = const {},
+    JsonObject? systemCacheControl,
     this.citations = false,
+  }) : container = _containerOption(container),
+       messageDecorations = _messageDecorations(messageDecorations),
+       systemCacheControl = systemCacheControl == null
+           ? null
+           : snapshotJson(systemCacheControl),
+       hostedTools = List.unmodifiable(hostedTools),
+       mcpServers = List.unmodifiable(mcpServers),
+       betas = List.unmodifiable(
+         mcpServers.isEmpty
+             ? betas
+             : mergeAnthropicMcpBetas(betas, mcpServers.first.beta),
+       ),
+       options = _anthropicOptions(options),
+       toolChoice = toolChoice == null ? null : snapshotJson(toolChoice),
+       functionToolOptions = _anthropicFunctionOptions(functionToolOptions) {
+    _validateManaged(
+      this.hostedTools,
+      this.mcpServers,
+      authorityBindingId,
+      configure != null,
+    );
+  }
+  @override
+  JsonObject get continuationContract => snapshotJson({
+    'v': 1,
+    'kind': 'anthropic.messages',
+    'model': model,
+    'betas': betas,
+    'userProfileId': userProfileId,
+    'citations': citations,
+    'authorityBindingId': authorityBindingId,
+    'hostedTools': [for (final tool in hostedTools) tool.definition],
+    'mcpServers': [for (final server in mcpServers) server.contract],
+    'options': options,
+    'toolChoice': toolChoice,
+    'functionToolOptions': functionToolOptions,
+    'container': container,
+    'messageDecorations': messageDecorations,
+    'systemCacheControl': systemCacheControl,
   });
-
   @override
   ModelCapabilities get capabilities => ModelCapabilities(
     tools: true,
@@ -260,6 +481,32 @@ final class AnthropicProtocolModel implements ChatModel {
           });
         }
       }
+      final decorations = messageDecorations[message.id];
+      if (decorations != null) {
+        if (message.role != MessageRole.user ||
+            decorations.length > blocks.length) {
+          throw const FormatException('Invalid message decorations.');
+        }
+        for (var i = 0; i < decorations.length; i++) {
+          final decoration = decorations[i];
+          if (decoration == null) continue;
+          final type = blocks[i]['type'];
+          final allowed = type == 'document'
+              ? {'cache_control', 'context', 'citations'}
+              : {'cache_control'};
+          if (!{'document', 'text', 'image'}.contains(type) ||
+              decoration.keys.any((key) => !allowed.contains(key)) ||
+              (decoration['context'] != null &&
+                  decoration['context'] is! String) ||
+              (decoration['cache_control'] != null &&
+                  decoration['cache_control'] is! Map) ||
+              (decoration['citations'] != null &&
+                  decoration['citations'] is! Map)) {
+            throw const FormatException('Invalid message decorations.');
+          }
+          blocks[i].addAll(decoration);
+        }
+      }
       final role = message.role == MessageRole.assistant ? 'assistant' : 'user';
       if (messages.isNotEmpty && messages.last['role'] == role) {
         (messages.last['content'] as List).addAll(blocks);
@@ -287,22 +534,51 @@ final class AnthropicProtocolModel implements ChatModel {
         }
       }
     }
+    final functionNames = request.tools
+        .whereType<FunctionModelTool>()
+        .map((tool) => tool.name)
+        .toSet();
+    if (functionToolOptions.keys.any((name) => !functionNames.contains(name))) {
+      throw ArgumentError('Function options must name registered tools.');
+    }
     final canonical = snapshotJson({
+      ...options,
       'model': model,
+      'tool_choice': ?toolChoice,
+      if (mcpServers.isNotEmpty)
+        'mcp_servers': [for (final server in mcpServers) server.definition],
       'max_tokens': request.maxOutputTokens,
       'messages': messages,
-      'container': ?containerId,
-      if (request.instructions != null) 'system': request.instructions,
+      'container': ?(containerId == null
+          ? container
+          : container is Map<String, Object?>
+          ? {...container as Map<String, Object?>, 'id': containerId}
+          : containerId),
+      if (request.instructions != null)
+        'system': systemCacheControl == null
+            ? request.instructions
+            : [
+                {
+                  'type': 'text',
+                  'text': request.instructions,
+                  'cache_control': systemCacheControl,
+                },
+              ],
       if (request.outputSchema != null)
         'output_config': {
+          ...?options['output_config'] as Map<String, Object?>?,
           'format': {
             'type': 'json_schema',
             'schema': jsonDecode(jsonEncode(request.outputSchema)),
           },
         },
-      if (request.tools.isNotEmpty || hosted.isNotEmpty)
+      if (request.tools.isNotEmpty ||
+          hosted.isNotEmpty ||
+          mcpServers.any((server) => server.toolsetDefinition != null))
         'tools': [
           for (final tool in hosted) tool.definition,
+          for (final server in mcpServers)
+            if (server.toolsetDefinition != null) server.toolsetDefinition!,
           for (final tool in request.tools)
             switch (tool) {
               NativeModelTool() => tool.definition,
@@ -310,13 +586,21 @@ final class AnthropicProtocolModel implements ChatModel {
                 'name': tool.name,
                 'description': tool.description,
                 'input_schema': jsonDecode(jsonEncode(tool.inputSchema)),
+                ...?functionToolOptions[tool.name],
               },
             },
         ],
     });
     final original = canonical;
     final configured = snapshotJson(configure?.call(canonical) ?? canonical);
-    for (final field in ['messages', 'max_tokens', 'system', 'tools']) {
+    for (final field in [
+      'messages',
+      'max_tokens',
+      'system',
+      'tools',
+      'model',
+      'tool_choice',
+    ]) {
       if (!jsonEquals(
         _ownedValue(field, original[field]),
         _ownedValue(field, configured[field]),
@@ -324,10 +608,12 @@ final class AnthropicProtocolModel implements ChatModel {
         throw ArgumentError('configure cannot replace runtime-owned $field.');
       }
     }
-    final mcpServers = configured['mcp_servers'];
-    if (mcpServers != null && (mcpServers is! List || mcpServers.isNotEmpty)) {
+    final configuredServers = configured['mcp_servers'];
+    if (mcpServers.isEmpty &&
+        configuredServers != null &&
+        (configuredServers is! List || configuredServers.isNotEmpty)) {
       throw UnsupportedError(
-        'Anthropic MCP is not integrated; use the raw native API.',
+        'Anthropic MCP configuration must be explicitly registered.',
       );
     }
     if (configured['stream'] != null && configured['stream'] != true) {
@@ -379,6 +665,7 @@ final class AnthropicProtocolModel implements ChatModel {
     }
     _validateDocumentCitations(configured, requireEnabled: citations);
     final pendingServer = _pendingHostedHistory(messages);
+    final pendingMcp = _mcpHistory(messages, mcpServers);
     final blocks = <int, Map<String, dynamic>>{};
     final arguments = <int, StringBuffer>{};
     final reportedUsage = <String, Object?>{};
@@ -392,9 +679,25 @@ final class AnthropicProtocolModel implements ChatModel {
     int? activeText;
     var lastTextIndex = -1;
     final textStarts = <int, int>{};
+    final resolvedServers = <JsonObject>[];
+    for (final server in mcpServers) {
+      cancellation.throwIfCancelled();
+      resolvedServers.add(
+        await cancellation.waitFor(server.resolveDefinition()),
+      );
+    }
+    cancellation.throwIfCancelled();
+    final secrets = [
+      for (final server in resolvedServers)
+        if (server['authorization_token'] is String)
+          server['authorization_token'] as String,
+    ];
+    if (mcpServers.isNotEmpty) yield const ProviderExecutionStarting();
+    cancellation.throwIfCancelled();
     try {
       await for (final json in transport({
         ...configured,
+        if (resolvedServers.isNotEmpty) 'mcp_servers': resolvedServers,
         'stream': true,
       }, cancellation)) {
         cancellation.throwIfCancelled();
@@ -408,9 +711,10 @@ final class AnthropicProtocolModel implements ChatModel {
             final message = json['message'] as Map;
             metadata.addAll({
               for (final entry in message.entries)
-                if (entry.key != 'content') entry.key as String: entry.value,
+                if (entry.key != 'content')
+                  entry.key as String: _redactMcp(entry.value, secrets),
             });
-            actualModel = message['model'] as String?;
+            actualModel = _redactMcp(message['model'], secrets) as String?;
             final usage = message['usage'] as Map;
             reportedUsage.addAll(Map<String, Object?>.from(usage));
           case 'content_block_start':
@@ -430,6 +734,11 @@ final class AnthropicProtocolModel implements ChatModel {
               'redacted_thinking',
               'tool_use',
               'server_tool_use',
+              if (mcpServers.isNotEmpty) ...{
+                'mcp_tool_use',
+                'mcp_tool_result',
+                'mcp_tool_listing',
+              },
               'container_upload',
               ...anthropicHostedResultNames.keys,
             }.contains(block['type'])) {
@@ -482,7 +791,8 @@ final class AnthropicProtocolModel implements ChatModel {
                     '${block['signature'] ?? ''}${delta['signature']}';
               case 'input_json_delta':
                 if (block['type'] != 'tool_use' &&
-                    block['type'] != 'server_tool_use') {
+                    block['type'] != 'server_tool_use' &&
+                    block['type'] != 'mcp_tool_use') {
                   throw const FormatException(
                     'Tool delta does not match its block.',
                   );
@@ -532,8 +842,14 @@ final class AnthropicProtocolModel implements ChatModel {
               }
             }
             if (block['type'] == 'tool_use' ||
-                block['type'] == 'server_tool_use') {
+                block['type'] == 'server_tool_use' ||
+                block['type'] == 'mcp_tool_use') {
               final partial = arguments[index]?.toString();
+              if (block['type'] == 'mcp_tool_use' &&
+                  (partial == null || partial.isEmpty) &&
+                  !block.containsKey('input')) {
+                throw const FormatException('Missing MCP tool input.');
+              }
               final input = partial == null || partial.isEmpty
                   ? block['input']
                   : jsonDecode(partial);
@@ -589,8 +905,33 @@ final class AnthropicProtocolModel implements ChatModel {
             throw StateError('Anthropic stream error: ${json['error']}');
         }
       }
-    } catch (_) {
+    } catch (error) {
       cancellation.throwIfCancelled();
+      if (mcpServers.isNotEmpty) {
+        if (error is JsonHttpException) {
+          throw JsonHttpException(
+            'Anthropic MCP transport failed.',
+            statusCode: error.statusCode,
+            requestId: _redactMcp(error.requestId, secrets) as String?,
+          );
+        }
+        if (error is api.ApiException) {
+          final headers = error.responseMetadata?.headers;
+          final requestId = headers?['request-id'] ?? headers?['x-request-id'];
+          throw JsonHttpException(
+            'Anthropic MCP transport failed.',
+            statusCode: error.statusCode,
+            requestId: _redactMcp(requestId, secrets) as String?,
+          );
+        }
+        if (error is FormatException) {
+          throw const FormatException('Invalid Anthropic MCP stream.');
+        }
+        if (error is UnsupportedError) {
+          throw UnsupportedError('Unsupported Anthropic MCP stream.');
+        }
+        throw StateError('Anthropic MCP stream failed.');
+      }
       rethrow;
     }
     cancellation.throwIfCancelled();
@@ -614,6 +955,17 @@ final class AnthropicProtocolModel implements ChatModel {
       throw const FormatException(
         'A paused server turn cannot await local tool results.',
       );
+    }
+    _validateMcpBlocks(
+      [for (final index in (blocks.keys.toList()..sort())) blocks[index]!],
+      mcpServers,
+      pendingMcp,
+      reason: reason,
+    );
+    if (pendingMcp.pending.isNotEmpty &&
+        reason != 'pause_turn' &&
+        !(reason == 'tool_use' && stagedCalls.isNotEmpty)) {
+      throw const FormatException('Unfinished MCP requires a continuation.');
     }
     _validateHostedBlocks(
       blocks,
@@ -677,13 +1029,13 @@ final class AnthropicProtocolModel implements ChatModel {
     );
     yield ProviderOutput(
       provider: 'anthropic.messages.metadata',
-      items: [metadata],
+      items: [Map<String, Object?>.from(_redactMcp(metadata, secrets) as Map)],
     );
-    if (hosted.isNotEmpty) {
+    if (hosted.isNotEmpty || mcpServers.isNotEmpty) {
       yield ProviderOutput(
         provider: 'anthropic.messages.tools',
         items: [
-          for (final raw in configured['tools'] as List)
+          for (final raw in configured['tools'] as List? ?? [])
             Map<String, Object?>.from(raw as Map),
         ],
       );
@@ -1003,5 +1355,212 @@ void _validateDocumentCitations(
               (body['output_config'] as Map)['format'] != null) ||
           body['output_format'] != null)) {
     throw ArgumentError('Citations cannot be combined with structured output.');
+  }
+}
+
+Object? _redactMcp(Object? value, List<String> secrets) {
+  if (value is String) {
+    return secrets.fold<String>(
+      value,
+      (current, secret) => current.replaceAll(secret, '[REDACTED]'),
+    );
+  }
+  if (value is List<Object?>) {
+    return [for (final item in value) _redactMcp(item, secrets)];
+  }
+  if (value is Map<Object?, Object?>) {
+    final result = <String, Object?>{};
+    for (final entry in value.entries) {
+      final key = _redactMcp(entry.key as String, secrets) as String;
+      if (result.containsKey(key)) {
+        throw const FormatException('Conflicting metadata keys.');
+      }
+      result[key] = _redactMcp(entry.value, secrets);
+    }
+    return result;
+  }
+  return value;
+}
+
+final class _McpHistory {
+  final Map<String, String> pending = {};
+  final Set<String> seen = {};
+  final Map<String, List<Object?>> listings = {};
+}
+
+_McpHistory _mcpHistory(
+  List<Map<String, dynamic>> messages,
+  List<AnthropicMcpServer> servers,
+) {
+  final state = _McpHistory();
+  Set<String>? expectedClients;
+  for (final message in messages) {
+    final content = (message['content'] as List).cast<Map<Object?, Object?>>();
+    if (message['role'] == 'user') {
+      if (state.pending.isNotEmpty && expectedClients == null) {
+        throw const FormatException(
+          'Pending MCP must continue before new user input.',
+        );
+      }
+      if (expectedClients != null) {
+        final results = <String>{};
+        for (final block in content) {
+          if (block['type'] != 'tool_result' ||
+              block['tool_use_id'] is! String ||
+              !results.add(block['tool_use_id'] as String)) {
+            throw const FormatException(
+              'Deferred MCP requires client results.',
+            );
+          }
+        }
+        if (results.length != expectedClients.length ||
+            !results.containsAll(expectedClients)) {
+          throw const FormatException(
+            'Deferred MCP requires every client result.',
+          );
+        }
+        expectedClients = null;
+      }
+      continue;
+    }
+    _validateMcpBlocks(content, servers, state);
+    final clients = <String>{
+      for (final block in content)
+        if (block['type'] == 'tool_use' && block['id'] is String)
+          block['id'] as String,
+    };
+    if (state.pending.isNotEmpty && clients.isNotEmpty) {
+      expectedClients = clients;
+    }
+  }
+  if (expectedClients != null) {
+    throw const FormatException('Deferred MCP is waiting on client results.');
+  }
+  return state;
+}
+
+bool _mcpToolAllowed(AnthropicMcpServer server, String name) {
+  final legacy = server.definition['tool_configuration'];
+  if (legacy is Map) {
+    if (legacy['enabled'] == false) return false;
+    final allowed = legacy['allowed_tools'];
+    if (allowed is List && !allowed.contains(name)) return false;
+  }
+  final toolset = server.toolsetDefinition;
+  if (toolset == null) return true;
+  final pinned = toolset['tools'];
+  if (pinned is List &&
+      !pinned.any((tool) => tool is Map && tool['name'] == name)) {
+    return false;
+  }
+  final defaults = toolset['default_config'];
+  final configs = toolset['configs'];
+  final specific = configs is Map ? configs[name] : null;
+  final enabled = specific is Map && specific['enabled'] is bool
+      ? specific['enabled'] as bool
+      : defaults is Map && defaults['enabled'] is bool
+      ? defaults['enabled'] as bool
+      : true;
+  return enabled;
+}
+
+void _validateMcpBlocks(
+  List<Map<Object?, Object?>> blocks,
+  List<AnthropicMcpServer> servers,
+  _McpHistory state, {
+  String? reason,
+}) {
+  final names = servers.map((server) => server.name).toSet();
+  final listedServers = <String>{};
+  for (final block in blocks) {
+    switch (block['type']) {
+      case 'mcp_tool_use':
+        final id = block['id'],
+            name = block['name'],
+            server = block['server_name'];
+        if (id is! String ||
+            id.trim().isEmpty ||
+            name is! String ||
+            name.trim().isEmpty ||
+            server is! String ||
+            !names.contains(server) ||
+            !block.containsKey('input') ||
+            !state.seen.add(id)) {
+          throw const FormatException('Invalid MCP tool use.');
+        }
+        if (reason != null &&
+            !_mcpToolAllowed(
+              servers.singleWhere((item) => item.name == server),
+              name,
+            )) {
+          throw const FormatException(
+            'MCP tool is not enabled by its server configuration.',
+          );
+        }
+        try {
+          jsonEncode(block['input']);
+        } catch (_) {
+          throw const FormatException('Invalid MCP tool input.');
+        }
+        state.pending[id] = server;
+      case 'mcp_tool_result':
+        final id = block['tool_use_id'], content = block['content'];
+        if (id is! String ||
+            !state.pending.containsKey(id) ||
+            block['is_error'] is! bool ||
+            !(content is String ||
+                (content is List &&
+                    content.every(
+                      (item) =>
+                          item is Map &&
+                          item['type'] == 'text' &&
+                          item['text'] is String,
+                    )))) {
+          throw const FormatException('Invalid MCP tool result.');
+        }
+        state.pending.remove(id);
+      case 'mcp_tool_listing':
+        final name = block['mcp_server_name'], tools = block['tools'];
+        if (servers.isEmpty ||
+            servers.first.beta != AnthropicMcpBeta.client20260915 ||
+            name is! String ||
+            !names.contains(name) ||
+            !listedServers.add(name) ||
+            tools is! List) {
+          throw const FormatException('Invalid MCP tool listing.');
+        }
+        final listed = <String>{};
+        for (final item in tools) {
+          if (item is! Map ||
+              item['name'] is! String ||
+              (item['name'] as String).trim().isEmpty ||
+              !listed.add(item['name'] as String) ||
+              item['input_schema'] is! Map ||
+              (item['description'] != null && item['description'] is! String)) {
+            throw const FormatException('Invalid MCP tool descriptor.');
+          }
+        }
+        final configured = servers
+            .singleWhere((server) => server.name == name)
+            .toolsetDefinition?['tools'];
+        if ((configured != null && !jsonEquals(configured, tools)) ||
+            (state.listings.containsKey(name) &&
+                !jsonEquals(state.listings[name], tools))) {
+          throw const FormatException('MCP tool listing changed.');
+        }
+        state.listings[name] =
+            snapshotJson({'tools': tools})['tools'] as List<Object?>;
+      case 'tool_use' || 'server_tool_use':
+        final id = block['id'];
+        if (id is! String || id.isEmpty || !state.seen.add(id)) {
+          throw const FormatException('Duplicate tool ID.');
+        }
+    }
+  }
+  if ((reason == 'end_turn' || reason == 'stop_sequence') &&
+      state.pending.isNotEmpty) {
+    throw const FormatException(
+      'Completed Anthropic turn has unfinished MCP tools.',
+    );
   }
 }

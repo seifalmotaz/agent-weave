@@ -44,6 +44,8 @@ authorization guards. Validate the entire resume batch before effects. Persist o
 continuation contracts across unfinished turns; never reconstruct a missing
 profile from current configuration. Provider-managed execution must declare
 secret-free authority and freeze its options before local tools resume.
+Native MCP work remains provider-owned: preserve private correlation and listing
+replay, and checkpoint possible remote execution before dispatch.
 Completed media and typed citations are public content; native output/replay
 metadata stays private. Citation answer offsets use UTF-16; source coordinates
 retain native units. Preserve citations and references when cloning canonical

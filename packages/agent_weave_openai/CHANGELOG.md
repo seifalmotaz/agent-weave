@@ -1,5 +1,7 @@
 # Unreleased
 
+- Stop waiting promptly when an MCP credential resolver is cancelled before dispatch; consume late resolver errors without poisoning the thread.
+
 - Bind Responses continuations to frozen options, ordered managed tools and a stable provider authority. Managed tools require `authorityBindingId` and immutable `options`/`toolChoice`/`functionToolOptions` instead of `configure`; constructors copy their collections and are no longer const.
 
 - Add native Responses MCP configuration, per-request credentials, multiple servers, private replay, approval/denial continuation and correlated approval echoes.

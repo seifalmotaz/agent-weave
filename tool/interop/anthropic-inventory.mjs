@@ -10,7 +10,7 @@ const dir = new URL('tool/contracts/anthropic/', root);
 const roots = ['MessageCreateParams', 'RawMessageStreamEvent', 'Message'];
 
 // Resolve the selected declarations and their locally declared type dependencies.
-export function projection(text) {
+export function projection(text, selectedRoots = roots) {
   const source = ts.createSourceFile('messages.ts', text, ts.ScriptTarget.Latest, true);
   if (source.parseDiagnostics.length) throw new Error('Invalid TypeScript source');
   const nodes = new Map();
@@ -23,7 +23,7 @@ export function projection(text) {
   collect(source.statements);
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
   const output = {};
-  const pending = [...roots];
+  const pending = [...selectedRoots];
   while (pending.length) {
     const name = pending.pop();
     if (output[name]) continue;

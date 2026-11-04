@@ -27,3 +27,9 @@ test('requires exact request field dispositions', () => {
   assert.throws(() => validateCoverage([...baseline.MessageCreateParamsBase.fields, {name: 'new_field'}], coverage), /disposition/);
   assert.throws(() => validateCoverage(baseline.MessageCreateParamsBase.fields, {...coverage, stale: {status: 'native-json', detail: 'x'}}), /disposition/);
 });
+test('can project a narrower explicit root set without changing defaults', () => {
+  const selected = projection(source, ['CacheControlEphemeral']);
+  assert.ok(selected.CacheControlEphemeral);
+  assert.equal(selected.Message, undefined);
+  assert.ok(projection(source).Message);
+});

@@ -40,3 +40,9 @@ configuration callback cannot decode them. Live driver behavior remains unverifi
 search, fetch, code and tool search. Paused turns use the normal step budget and
 private container replay. See the [hosted-tool guide](https://seifalmotaz.github.io/agent-weave/anthropic-hosted/)
 for mixed approvals, configuration and current limits.
+
+`AnthropicMcpServer` adds native Messages MCP server/toolset configuration,
+private use/result/listing replay and bounded deferred execution. Managed tools
+require a stable `authorityBindingId` and immutable options. See the
+[MCP guide](https://seifalmotaz.github.io/agent-weave/anthropic-mcp/) for credential
+rotation, Serverpod persistence, migration and current limits.

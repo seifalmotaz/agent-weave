@@ -48,10 +48,13 @@ Future<List<ModelEvent>> invoke(
   ModelRequest? request,
   List<api.AnthropicHostedTool>? tools,
   JsonObject Function(JsonObject)? configure,
+  Map<String, JsonObject> functionToolOptions = const {},
   void Function(JsonObject)? sent,
-}) =>
+}) async =>
     api.AnthropicProtocolModel(
           model: 'fixture',
+          authorityBindingId: 'fixture-authority',
+          functionToolOptions: functionToolOptions,
           hostedTools: tools ?? [search],
           configure: configure,
           transport: (body, _) async* {
@@ -405,16 +408,11 @@ void main() {
         response(blocks, reason: 'tool_use', container: {'id': 'c'}),
         request: request,
         tools: [code],
-        configure: (body) => {
-          ...body,
-          'tools': [
-            ...(body['tools'] as List).take(1),
-            {
-              ...((body['tools'] as List).last as Map<String, Object?>),
-              'allowed_callers': ['code_execution_20260120'],
-              'defer_loading': true,
-            },
-          ],
+        functionToolOptions: const {
+          'local': {
+            'allowed_callers': ['code_execution_20260120'],
+            'defer_loading': true,
+          },
         },
       );
       expect(events.whereType<ToolCallReady>().single.call.name, 'local');
@@ -428,15 +426,10 @@ void main() {
           response(bad, reason: 'tool_use'),
           request: request,
           tools: [code],
-          configure: (body) => {
-            ...body,
-            'tools': [
-              ...(body['tools'] as List).take(1),
-              {
-                ...((body['tools'] as List).last as Map<String, Object?>),
-                'allowed_callers': ['code_execution_20260120'],
-              },
-            ],
+          functionToolOptions: const {
+            'local': {
+              'allowed_callers': ['code_execution_20260120'],
+            },
           },
         ),
         throwsFormatException,
@@ -485,15 +478,10 @@ void main() {
           'caller': {'type': 'code_execution_20260120', 'tool_id': 'code'},
         },
       ];
-      JsonObject configure(JsonObject body) => {
-        ...body,
-        'tools': [
-          ...(body['tools'] as List).take(1),
-          {
-            ...((body['tools'] as List).last as Map<String, Object?>),
-            'allowed_callers': ['code_execution_20260521'],
-          },
-        ],
+      const functionOptions = <String, JsonObject>{
+        'local': {
+          'allowed_callers': ['code_execution_20260521'],
+        },
       };
       final tools = [
         api.AnthropicHostedTool.fromJson({
@@ -505,7 +493,7 @@ void main() {
         response(blocks, reason: 'tool_use', container: {'id': 'c'}),
         request: request,
         tools: tools,
-        configure: configure,
+        functionToolOptions: functionOptions,
       );
       expect(events.whereType<ToolCallReady>(), hasLength(1));
       await expectLater(
@@ -513,7 +501,7 @@ void main() {
           response(blocks, reason: 'tool_use'),
           request: request,
           tools: tools,
-          configure: configure,
+          functionToolOptions: functionOptions,
         ),
         throwsFormatException,
       );

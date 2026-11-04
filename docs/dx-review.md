@@ -655,6 +655,8 @@ request counts; it cannot establish live exactly-once remote execution.
 
 ## Round 25: Anthropic MCP baseline and interim guard
 
+Historical review: round 27 below replaces this interim boundary with owned MCP integration.
+
 The independent native Anthropic consumer scored the attempted MCP journey
 **1.5/10**. Unlike OpenAI's approval path, the documented connector uses
 provider-executed `mcp_tool_use` and `mcp_tool_result` blocks. Modern toolset
@@ -698,3 +700,33 @@ The coordinating suite separately recreates agents over PostgreSQL and checks
 profile drift, retained pending history and credential rotation. The tracked
 `model_continuation_test.dart` files and OpenAI `model_profile_test.dart` make
 these regressions reproducible through `dart run tool/check.dart`.
+
+## Round 27: native Anthropic MCP
+
+The independent developer wrote and ran public-API consumers for multiple
+servers, mixed/deferred calls, local approval, changed configuration, token
+refresh, all three beta modes, listing replay, native and SDK-backed HTTP
+fixtures, 503 one-send behavior and cancellation boundaries. The scoped score
+was **7.5/10**, rising to **8/10** after checking the runnable guide and
+credential-resolution cancellation. These are scoped offline scores.
+
+It found a legacy no-tools cast failure and a synthetic credential echo in
+message-delta checkpoint metadata. Both were fixed and the original probes now
+pass. A separate schema review found incomplete MCP at terminal stop reasons
+and scalar/list/null native input; those received regressions. Declared request,
+function, container and document/system caching options preserve the previous
+callback workflows for managed models.
+
+Run `dart --enable-asserts run examples/review_cases/anthropic_mcp.dart` for the
+tracked independent application. It verifies two server/toolsets, deferred MCP
+with a local approval, pre-effect profile rejection, unchanged-token-authority
+refresh, exact private replay and hydration/journal boundaries. Mocked HTTP
+responses do not execute a real remote tool or establish provider availability.
+PostgreSQL verification is separate from the developer's review.
+
+A later independent probe reproduced cancellation stalling during an unresolved
+OAuth Future in both MCP adapters. The shared cancellation-aware wait now
+finishes without provider dispatch or an indeterminate marker, permits an
+in-memory reservation to be reacquired before the resolver finishes, and
+consumes late resolver errors. It does not cancel the underlying OAuth work.
+The guide's live example compiled without execution and matches its code block.

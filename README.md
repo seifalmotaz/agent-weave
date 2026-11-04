@@ -16,7 +16,7 @@ using it in production.
 | Package | Use it for |
 | --- | --- |
 | [`agent_weave`](packages/agent_weave) | Provider contracts, agent loops, typed tools, approvals, generation tasks, and protocol events |
-| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, private replay, cache controls, and cancellation |
+| [`agent_weave_anthropic`](packages/agent_weave_anthropic) | Native Anthropic JSON/SSE, Messages agent loop, MCP, private replay, cache controls, and cancellation |
 | [`agent_weave_ollama`](packages/agent_weave_ollama) | Local Ollama chat, typed options, embeddings and native NDJSON |
 | [`agent_weave_dart_frog`](packages/agent_weave_dart_frog) | Authenticated Dart Frog chat, history, replay and generation handlers |
 | [`agent_weave_http`](packages/agent_weave_http) | Shared JSON HTTP transport for provider adapters |
@@ -127,6 +127,7 @@ For JavaScript, use the official client's `fetchServerSentEvents` against an
 - [OpenAI hosted tools and images](docs/openai-hosted.md)
 - [Anthropic Messages](docs/anthropic.md)
 - [Anthropic hosted tools and paused turns](docs/anthropic-hosted.md)
+- [Anthropic MCP connector](docs/anthropic-mcp.md)
 - [Anthropic computer tools](docs/anthropic-computer.md)
 - [OpenRouter](docs/openrouter.md)
 - [OpenRouter Chat images](docs/openrouter-images.md)

@@ -18,6 +18,7 @@ override only after checking the published package and rerunning interop tests.
 - Ordered completed media parts in assistant history, client snapshots and hydration.
 - Selected OpenAI Responses hosted search, code, image and server tool-search
   output with private replay; see [hosted tools](openai-hosted.md).
+- Anthropic Messages MCP servers, private use/result/listing replay and mixed local-tool continuation; see [MCP](anthropic-mcp.md).
 - OpenAI Responses remote MCP configuration, private discovery/replay and provider-owned approval/denial through generic client interrupts; see [MCP approvals](openai-mcp.md).
 - Configured server tools, client-tool pauses, and default tool approvals.
 - Selected OpenAI Responses native computer calls with application-owned
@@ -38,7 +39,8 @@ not a claim of full TanStack AI core parity.
 
 ## Declared provider identity across resumes
 
-Native OpenAI Responses binds unfinished local approvals and provider pauses to
+Native OpenAI Responses and Anthropic Messages bind unfinished local approvals
+and provider pauses to
 its declared model, frozen options, complete managed-tool set and stable provider
 account/transport authority. Managed tools require `authorityBindingId` and
 immutable `options`/`toolChoice` in place of arbitrary configuration callbacks.
@@ -95,7 +97,8 @@ and retain the old history. Public client bindings remain unchanged. See
 - Anthropic native JSON/SSE access preserves arbitrary JSON, while normalized
   chat handles selected block/delta types and the 17-member computer toolset.
   Pinned hosted blocks, bounded paused turns and container reuse are integrated
-  with offline fixtures. Browser/MCP tools, live hosted behavior and complete
+  with offline fixtures. MCP adds three explicit beta modes and private listing
+  replay; browser tools, live hosted behavior and complete
   nested field semantics remain unfinished. The
   SDK-backed facade retains its pinned SDK transport cancellation limits.
   See [Anthropic](anthropic.md).

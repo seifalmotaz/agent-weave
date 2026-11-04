@@ -25,7 +25,7 @@ operation.
 An adapter can implement `ModelContinuationContract` to bind its frozen,
 secret-free execution profile across a pending batch or provider pause. Core
 checks the original private snapshot before resumed effects and dispatch.
-Native OpenAI Responses uses it for managed tools, options and provider/account
+Native OpenAI Responses and Anthropic Messages use it for managed tools, options and provider/account
 authority; other adapters need their own declaration. Unbound custom models do
 not gain an identity guarantee. See [approval contracts](approval-contracts.md).
 
@@ -249,3 +249,13 @@ snapshots. Hydration stores references and citations in the same public metadata
 bag. Native output remains private, with only reviewed fields projected.
 Applications own file authorization and download routing. See
 [output references](output-references.md).
+
+## Anthropic MCP ownership
+
+MCP servers and toolsets are owned immutable provider configuration. The adapter
+resolves credentials per request and emits `ProviderExecutionStarting` before
+dispatch so core can checkpoint an uncertain effect. Remote use/results and
+2026 listings remain private native replay; they never invoke local executors.
+A mixed local turn can defer remote execution until local results are returned.
+The same model profile, beta and server authority survive that approval or a
+provider-only pause. See [MCP](anthropic-mcp.md).

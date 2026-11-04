@@ -1,5 +1,7 @@
 # Unreleased
 
+- Add cancellation-aware waiting for already-started Futures, releasing cancelled MCP credential waits without cancelling underlying OAuth work.
+
 - Bind unfinished model continuations to a versioned private provider profile before resumed effects; reject legacy pending state without its original snapshot.
 
 - Add provider-owned approval events, trusted decision history, optional reasons, mixed-batch validation and indeterminate provider-execution checkpoints without local executors.

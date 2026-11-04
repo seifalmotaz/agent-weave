@@ -5,6 +5,7 @@ import 'package:agent_weave_http/agent_weave_http.dart';
 import 'package:http/http.dart' as http;
 import 'protocol.dart';
 import 'hosted_tool.dart';
+import 'mcp_tool.dart';
 
 export 'package:agent_weave_http/agent_weave_http.dart'
     show JsonHttpException, JsonSseEvent, JsonSseData, JsonSseDone, HttpMethod;
@@ -240,18 +241,49 @@ final class AnthropicNativeClient {
     required String model,
     JsonObject Function(JsonObject)? configure,
     List<AnthropicHostedTool> hostedTools = const [],
+    List<AnthropicMcpServer> mcpServers = const [],
+    String? authorityBindingId,
+    JsonObject options = const {},
+    JsonObject? toolChoice,
+    Map<String, JsonObject> functionToolOptions = const {},
+    Object? container,
+    Map<String, List<JsonObject?>> messageDecorations = const {},
+    JsonObject? systemCacheControl,
     bool citations = false,
-  }) => AnthropicProtocolModel(
-    model: model,
-    configure: configure,
-    citations: citations,
-    hostedTools: List.unmodifiable(hostedTools),
-    transport: (body, token) async* {
-      await for (final event in streamMessages(body, cancellation: token)) {
-        if (event is JsonSseData) yield event.data;
-      }
-    },
-  );
+  }) {
+    final prior = (headers['anthropic-beta'] ?? '')
+        .split(',')
+        .map((v) => v.trim())
+        .where((v) => v.isNotEmpty);
+    final betas = mcpServers.isEmpty
+        ? prior.toList()
+        : mergeAnthropicMcpBetas(prior, mcpServers.first.beta);
+    return AnthropicProtocolModel(
+      model: model,
+      configure: configure,
+      citations: citations,
+      hostedTools: hostedTools,
+      mcpServers: mcpServers,
+      authorityBindingId: authorityBindingId,
+      options: options,
+      toolChoice: toolChoice,
+      functionToolOptions: functionToolOptions,
+      container: container,
+      messageDecorations: messageDecorations,
+      systemCacheControl: systemCacheControl,
+      betas: betas,
+      userProfileId: headers['anthropic-user-profile-id'],
+      transport: (body, token) async* {
+        await for (final event in streamMessages(
+          body,
+          cancellation: token,
+          headers: {if (betas.isNotEmpty) 'anthropic-beta': betas.join(',')},
+        )) {
+          if (event is JsonSseData) yield event.data;
+        }
+      },
+    );
+  }
 }
 
 Map<String, String> _headers(Map<String, String> headers) {

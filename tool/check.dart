@@ -55,6 +55,11 @@ Future<void> main() async {
   await run('node', ['--test', 'tool/interop/inventory.test.mjs']);
   await run('node', ['--test', 'tool/interop/anthropic-inventory.test.mjs']);
   await run('node', ['tool/interop/anthropic-inventory.mjs', '--check']);
+  await run('node', [
+    '--test',
+    'tool/interop/anthropic-mcp-inventory.test.mjs',
+  ]);
+  await run('node', ['tool/interop/anthropic-mcp-inventory.mjs', '--check']);
   await run('dart', ['run', 'tool/anthropic_hosted_contract.dart']);
   await run('node', [
     '--test',
@@ -100,6 +105,7 @@ Future<void> main() async {
   }
   for (final consumer in [
     'openai_mcp',
+    'anthropic_mcp',
     'support_app',
     'schema_diagnostics',
     'ollama',
@@ -179,6 +185,13 @@ Future<void> main() async {
     '--enable-asserts',
     'run',
     'examples/review_cases/cloudflare.dart',
+  ]);
+  await run('dart', [
+    'compile',
+    'kernel',
+    'examples/anthropic_mcp_demo.dart',
+    '-o',
+    '.dart_tool/anthropic_mcp_demo.dill',
   ]);
   await run('python3', ['tool/test_media_fixtures.py']);
   await run('python3', ['tool/test_audit_openai.py']);
