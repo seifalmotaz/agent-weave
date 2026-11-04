@@ -543,3 +543,41 @@ Prior failure and correction: initially edited arguments yielded only a root `/o
 Not independently checked: live providers, PostgreSQL/Serverpod restart, real file downloads, client-side `$ref` approval behavior, JS or Flutter rendering, or paid billing. The reported reference and model events are synthetic; cancellation covers a cooperative offline provider. No full suite or external calls were run.
 
 Root verification: both consumer scripts are now checked in and wired into `tool/check.dart`. Formatting the copied scripts exposed a flow-control braces lint that the ignored `.dart_tool` review folder did not enable; adding braces corrected it without changing behavior. The tracked scripts run successfully and pass fatal-infos analysis.
+
+
+## Round 22: edited approvals through both real clients
+
+### Independent local-reference consumer review
+
+**8.5/10 for the exercised offline approval journeys.** A tool with a local `$defs`/`$ref` input schema bound as a typed approval in both the workspace-pinned Dart client and official JS client 1.0.1. Valid edited arguments resumed successfully; invalid edited arguments reached the backend, were rejected safely, and produced no effect. This does not establish that every local-reference schema or every validator/client combination works.
+
+Reproduce the checked-in regression cases from the workspace root with Dart
+3.12.2 or later on PATH and the interop dependencies installed:
+
+```sh
+dart test packages/agent_weave_serverpod_client/test/interop_test.dart
+node tool/interop/test.mjs
+```
+
+The initial independent probes ran from ignored local review artifacts. They
+are not shipped in a fresh clone; the commands above exercise the integrated
+regressions. Both use offline fixtures. The JavaScript harness starts its local
+Dart HTTP server and requires the dependencies in `tool/interop/node_modules`.
+
+Each case uses an object input with `priority` referring to `#/$defs/priority`, registered with matching client tool schema. The model proposes a valid call. Both clients surface a resolvable typed approval before any effect. Editing to integer 2 leads to exactly one effect, completed `Escalated` text, and the model's second scripted step consumed. Editing to `urgent` produces no effect, does not consume the next model step, and reports sanitized `INVALID_INPUT` (Dart's public message: `Invalid input or provider output.`). The Dart probe confirms the invalid edit was sent in a second request. JS receives the backend error; its invalid interrupt remains in error status.
+
+The earlier validator-only observation concerned validating the embedded public approval union using the pinned Dart `json_schema` package. The application probes do not use that reconstructed schema and do not reproduce a failure through either real client for this raw schema: they show the real approval flow succeeds. They do not disprove the narrower validator-only limitation. The clients' raw-schema validation behavior and the backend validation are distinct, so client-side prevention of the invalid edit is not established here.
+
+Development friction and corrections: first I accidentally read the separately installed pub.dev Dart client rather than the repository's pinned git client; its `error` property was unavailable in the pinned version (`legacyError` is used here), and compilation identified the mismatch. My first JS attempt incorrectly used Dart's payload shape `resolveInterrupt({approved: true, editedArgs: ...})`, resulting in an interrupt error and no effects. The official JS approval API is `resolveInterrupt(true, {editedArgs: ...})`; with that correction the valid case passes. This was my API misuse, not evidence of a local-reference defect. The differing Dart and JS calling conventions merit a side-by-side edited-approval example.
+
+Not checked: PostgreSQL or process-restart persistence, schema variants beyond the one local ref, actual provider calls, UI rendering, network failures or concurrency. No paid calls, production changes, or full suite were run.
+
+Regression integration: the probes were reduced into the existing client
+harnesses. Run `dart test packages/agent_weave_serverpod_client/test/interop_test.dart`
+and `node tool/interop/test.mjs` with Dart 3.12.2 on PATH. Six Dart tests and
+23 reported JavaScript scenarios pass. The local-reference cases verify typed
+binding, pause before effects, valid edited completion, invalid edited rejection
+and effect counts; Dart also checks schema and approval hashes. These harnesses
+avoid adding another standalone test server. Retry after an invalid submitted
+resume is outside this round's coverage. The tools guide now shows the differing
+Dart and JavaScript edited-approval calls side by side.

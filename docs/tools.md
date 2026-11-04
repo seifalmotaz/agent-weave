@@ -44,6 +44,40 @@ Default approvals support approval, rejection, and schema-validated edited
 arguments. Custom approval payload schemas and first-party generic interrupts
 are not implemented yet.
 
+### Edit tool arguments in a client
+
+Register matching input and output schemas on both sides. After the user edits
+the proposed arguments, resolve the typed approval using your client's API.
+The Dart and JavaScript method arguments differ.
+
+For the workspace-pinned Dart `ChatClient`:
+
+```dart
+final interrupt = chat.getInterrupts().single;
+interrupt.resolveInterrupt({
+  'approved': true,
+  'editedArgs': {'priority': 2},
+});
+```
+
+For the pinned official JavaScript `ChatClient`:
+
+```javascript
+const [interrupt] = chat.getInterrupts();
+interrupt.resolveInterrupt(true, {editedArgs: {priority: 2}});
+```
+
+These are client calls. Direct Dart backend code instead resumes a
+`ChatRequest` using `paused.interrupts.single.approve(editedArgs: ...)`, as shown
+in the [Dart API guide](dart-api.md). Do not automatically approve on behalf of
+the user or use a client decision as authorization for an unrelated resource.
+
+The tested raw object schema uses a local `$defs`/`$ref` for `priority`. Both
+clients bind the approval and complete a valid edit. Invalid edits can reach the
+backend with raw JSON schemas; the backend rejects them before effects. Do not
+assume that a client accepting the edit proves it matches the schema.
+This covers the named raw schema case, not every reference or validator.
+
 ## Client tools
 
 Register `ClientTool<C>` on the server to allow an explicitly named client-side

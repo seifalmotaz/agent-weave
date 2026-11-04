@@ -24,7 +24,7 @@ and interoperability with the pinned official JavaScript client.
 The latest schema-diagnostics and offline-onboarding increment was checked on
 Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
 
-- 491 Dart unit and regression tests: tool validation, approvals, client tools,
+- 493 Dart unit and regression tests: tool validation, approvals, client tools,
   lineage, cancellation, partial-response retention, safe failure history,
   generation, storage, protocol parsing, and provider fixtures.
 - 22 Serverpod integration tests with a real isolated PostgreSQL database:
@@ -32,9 +32,9 @@ Dart 3.12.2. The prior 147-test baseline was also checked on Dart 3.13.3.
   replay, owner isolation, event persistence, and reservation contention.
   The HTTP test also runs the official JavaScript client against real Serverpod
   chat and generation routes, including a second turn and persisted history.
-- 21 standalone official JavaScript client scenarios against a Dart HTTP server:
+- 23 standalone official JavaScript client scenarios against a Dart HTTP server:
   text, server tools, approvals, client tools, reasoning, structured output,
-  generation, two provider-continuation cases, typed citations with stored-event
+  generation, two local-reference edited-approval cases, two provider-continuation cases, typed citations with stored-event
   replay, and eight media/history cases, including ordered output images. The media cases include document
   URL, inline bytes, scoped and unscoped file handles, image/video URLs, and
   inline audio; returned parts pass the official AG-UI schemas.
@@ -688,3 +688,25 @@ No paid calls were made. Live provider acceptance, Flutter rendering, actual
 file retrieval and client-side local-reference approvals were not newly tested.
 Issue details may contain private schema/input data; original conversation
 content is intentionally retained rather than redacted.
+
+
+## Local-reference edited approvals through real clients
+
+The Dart client suite passes six tests, including two new local `$defs`/`$ref`
+scenarios. The standalone official JavaScript suite passes 23 reported scenarios,
+including the corresponding valid and invalid edits. Both clients bind typed
+approvals and cause no effect before approval; valid edited arguments complete
+with one effect, while invalid edits return sanitized `INVALID_INPUT` before
+execution. Dart also verifies matching schema and approval hashes.
+
+The independent initial loopback probes additionally check model step consumption
+and the invalid Dart edit's second HTTP request. They do not prove client-side
+raw-schema validation. The narrower pinned-validator failure when directly
+validating an embedded approval union does not reproduce as an actual application
+failure for these tested schemas. The initial JS error was a probe API mistake,
+corrected from a Dart-shaped payload to `resolveInterrupt(true, {editedArgs: ...})`.
+The independent scoped score remains 8.5/10.
+
+The new cases reuse existing fixture harnesses and add no runtime API changes.
+They do not cover other reference shapes, retry after an invalid submission,
+new durable scenarios, live providers or rendering. No paid calls were made.

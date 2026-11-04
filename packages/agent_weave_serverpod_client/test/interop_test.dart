@@ -13,6 +13,17 @@ const inputSchema = <String, Object?>{
   'required': ['count'],
   'additionalProperties': false,
 };
+const refSchema = <String, Object?>{
+  'type': 'object',
+  r'$defs': {
+    'number': {'type': 'integer', 'minimum': 1},
+  },
+  'properties': {
+    'count': {r'$ref': r'#/$defs/number'},
+  },
+  'required': ['count'],
+  'additionalProperties': false,
+};
 const outputSchema = <String, Object?>{'type': 'integer'};
 
 final class TestModel implements ChatModel {
@@ -36,14 +47,20 @@ final class TestModel implements ChatModel {
   }
 }
 
-client.ConnectionAdapter connect(AiAgent<void> agent) => serverpodConnection(
+client.ConnectionAdapter connect(
+  AiAgent<void> agent, {
+  void Function(AgentEvent)? onEvent,
+}) => serverpodConnection(
   send: (raw) => agent
       .run(
         ChatRequest.fromJson(Map<String, Object?>.from(jsonDecode(raw) as Map)),
         ownerId: 'owner',
         context: null,
       )
-      .map((event) => jsonEncode(event.json)),
+      .map((event) {
+        onEvent?.call(event);
+        return jsonEncode(event.json);
+      }),
 );
 
 void main() {
@@ -119,6 +136,72 @@ void main() {
     },
   );
 
+  for (final valid in [true, false]) {
+    test('Dart client local ref edited approval valid=$valid', () async {
+      final calls = <int>[];
+      final events = <AgentEvent>[];
+      final agent = AiAgent<void>(
+        model: TestModel(withTool: true),
+        tools: [
+          Tool<int, int, void>(
+            name: 'double',
+            description: 'Double',
+            inputSchema: refSchema,
+            outputSchema: outputSchema,
+            needsApproval: true,
+            decode: (json) => json['count'] as int,
+            encode: (value) => value,
+            execute: (n, _) {
+              calls.add(n);
+              return n * 2;
+            },
+          ),
+        ],
+      );
+      final chat = client.ChatClient(
+        connection: connect(agent, onEvent: events.add),
+        threadId: 'ref',
+        tools: [
+          client.ChatClientTool(
+            name: 'double',
+            needsApproval: true,
+            inputSchema: platform.RawJsonSchema(refSchema),
+            outputSchema: platform.RawJsonSchema(outputSchema),
+          ),
+        ],
+      );
+      addTearDown(chat.dispose);
+      await chat.sendText('Start');
+      expect(chat.error, isNull);
+      final interrupt = chat.getInterrupts().single;
+      expect(interrupt.kind, 'tool-approval');
+      expect(interrupt.canResolve, isTrue);
+      expect(calls, isEmpty);
+      interrupt.resolveInterrupt({
+        'approved': true,
+        'editedArgs': {'count': valid ? 3 : 'invalid'},
+      });
+      for (
+        var i = 0;
+        i < 100 &&
+            chat.error == null &&
+            !chat.messages.any((m) => m.answer == 'Hello from Dart');
+        i++
+      ) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      if (valid) {
+        expect(chat.error, isNull);
+        expect(calls, [3]);
+        expect(chat.messages.last.answer, 'Hello from Dart');
+      } else {
+        expect(chat.error, 'Invalid input or provider output.');
+        expect(events.last.json['code'], 'INVALID_INPUT');
+        expect(calls, isEmpty);
+      }
+    });
+  }
+
   test(
     'real Dart client executes a bound client tool and resumes automatically',
     () async {
@@ -164,6 +247,13 @@ void main() {
 
   test('approval and schema hashes match the existing client library', () {
     expect(schemaHash(inputSchema), platform.hashSchemaInput(inputSchema));
+    expect(schemaHash(refSchema), platform.hashSchemaInput(refSchema));
+    final refApproval = platform.normalizeApprovalSchema(null, refSchema);
+    expect(approvalResponseSchema(refSchema), refApproval.responseSchema);
+    expect(
+      schemaHash(approvalResponseSchema(refSchema)),
+      refApproval.responseSchemaHash,
+    );
     expect(schemaHash(null), platform.hashSchemaInput(null));
     final approval = platform.normalizeApprovalSchema(null, inputSchema);
     expect(approvalResponseSchema(inputSchema), approval.responseSchema);

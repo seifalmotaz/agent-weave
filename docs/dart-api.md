@@ -97,8 +97,11 @@ such as `oneOf` can report only a summary without nested branch errors.
 Edited tool arguments are validated against their original schema separately
 from the approval envelope, preserving their field paths and local references.
 The public approval schema and its wire hash are unchanged. The pinned validator
-cannot resolve some local references when that schema is embedded in the public
-approval union; this change does not establish client-side reference support.
+cannot resolve some local references when directly validating that embedded
+public approval union. Both real clients do complete the tested raw object
+schema's local-reference edit; see [client edited approvals](tools.md#edit-tool-arguments-in-a-client).
+They can forward an invalid edit for the backend to reject. Client-side schema
+validation and server-side authorization remain separate responsibilities.
 
 Run `dart run examples/schema_diagnostics.dart` for a complete offline example.
 It prints a safe `INVALID_OUTPUT` message and a private `/priority` diagnostic.

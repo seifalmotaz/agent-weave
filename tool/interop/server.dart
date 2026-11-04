@@ -13,10 +13,36 @@ const inputSchema = <String, Object?>{
   'additionalProperties': false,
 };
 
+const refSchema = <String, Object?>{
+  'type': 'object',
+  r'$defs': {
+    'number': {'type': 'integer', 'minimum': 1},
+  },
+  'properties': {
+    'count': {r'$ref': r'#/$defs/number'},
+  },
+  'required': ['count'],
+  'additionalProperties': false,
+};
+
 Future<void> main() async {
+  final refEffects = <int>[];
   final agent = AiAgent<void>(
     model: const InteropModel(),
     tools: [
+      Tool<int, int, void>(
+        name: 'refGate',
+        description: 'Double with local ref',
+        inputSchema: refSchema,
+        outputSchema: const {'type': 'integer'},
+        needsApproval: true,
+        decode: (json) => json['count'] as int,
+        encode: (value) => value,
+        execute: (n, context) {
+          refEffects.add(n);
+          return n * 2;
+        },
+      ),
       const ClientTool<void>(
         definition: ModelTool(
           name: 'clientDouble',
@@ -178,6 +204,11 @@ Future<void> main() async {
         }
         continue;
       }
+      if (request.method == 'GET' && request.uri.path == '/ref-state') {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(jsonEncode(refEffects));
+        continue;
+      }
       if (request.method == 'GET' && request.uri.path == '/mixed-state') {
         request.response.headers.contentType = ContentType.json;
         request.response.write(
@@ -329,12 +360,13 @@ final class InteropModel implements ChatModel {
     } else if (last.text == 'structured') {
       yield const TextDelta('{"answer":42}');
     } else if (last.role == MessageRole.user &&
-        ['tool', 'approval', 'client'].contains(last.text)) {
+        ['tool', 'approval', 'client', 'ref-approval'].contains(last.text)) {
       yield ToolCallReady(
         ToolCall(
           id: 'call',
           name: switch (last.text) {
             'approval' => 'gate',
+            'ref-approval' => 'refGate',
             'client' => 'clientDouble',
             _ => 'double',
           },

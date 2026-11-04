@@ -19,6 +19,39 @@ try {
   assert.ok(base, 'Dart server must start');
   const inputSchema = { type: 'object', properties: { count: { type: 'integer' } },
     required: ['count'], additionalProperties: false };
+  const refSchema = { type: 'object', $defs: { number: { type: 'integer', minimum: 1 } },
+    properties: { count: { $ref: '#/$defs/number' } }, required: ['count'], additionalProperties: false };
+  for (const [scenario, value, valid] of [['ref-valid', 3, true], ['ref-invalid', 'invalid', false]]) {
+    const chat = new ChatClient({ threadId: scenario, connection: fetchServerSentEvents(`${base}/chat`),
+      tools: [toolDefinition({ name: 'refGate', description: 'Double with local ref', inputSchema: refSchema,
+        outputSchema: { type: 'integer' }, needsApproval: true }).client()] });
+    try {
+      await chat.sendMessage('ref-approval');
+      assert.equal(chat.getError(), undefined);
+      const before = await (await fetch(`${base}/ref-state`)).json();
+      assert.deepEqual(before, valid ? [] : [3]);
+      const [interrupt] = chat.getInterrupts();
+      assert.equal(interrupt.kind, 'tool-approval');
+      assert.equal(interrupt.canResolve, true);
+      assert.deepEqual(await (await fetch(`${base}/ref-state`)).json(), before);
+      interrupt.resolveInterrupt(true, { editedArgs: { count: value } });
+      for (let i = 0; i < 100; i++) {
+        if (chat.getError() || chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'Result: 6'))) break;
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      const after = await (await fetch(`${base}/ref-state`)).json();
+      if (valid) {
+        assert.equal(chat.getError(), undefined);
+        assert.deepEqual(after, [...before, 3]);
+        assert.ok(chat.getMessages().some(m => m.parts.some(p => p.type === 'text' && p.content === 'Result: 6')));
+      } else {
+        assert.equal(chat.getError()?.code, 'INVALID_INPUT');
+        assert.equal(chat.getError()?.message, 'Invalid input or provider output.');
+        assert.deepEqual(after, before);
+      }
+      console.log(`PASS official JS client: local ref edited approval ${scenario}`);
+    } finally { chat.dispose(); }
+  }
   for (const scenario of ['text', 'tool', 'approval', 'client', 'reasoning', 'structured', 'pause', 'structured-pause']) {
     const chat = new ChatClient({
       threadId: scenario, connection: fetchServerSentEvents(`${base}/${scenario.startsWith('structured') ? 'structured' : 'chat'}`),
